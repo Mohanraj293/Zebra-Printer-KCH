@@ -11,4 +11,5 @@ sealed class PrinterEvents {
     object StopDiscovery : PrinterEvents()
     object Print : PrinterEvents()
     object ClearError : PrinterEvents()
+    data object RemoveError : PrinterEvents()
 }

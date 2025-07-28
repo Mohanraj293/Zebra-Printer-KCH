@@ -1,19 +1,20 @@
 package com.lazymohan.zebraprinter.ui
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -21,28 +22,40 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.lazymohan.zebraprinter.effects.HandleErrorLaunchedEffect
+import com.lazymohan.zebraprinter.effects.PermissionLaunchedEffect
+import com.tarkalabs.tarkaui.components.TUIAppTopBar
+import com.tarkalabs.tarkaui.components.TUIMobileButtonBlock
+import com.tarkalabs.tarkaui.components.TUISnackBarHost
+import com.tarkalabs.tarkaui.components.TUISnackBarState
+import com.tarkalabs.tarkaui.components.TUISnackBarType
 import com.tarkalabs.tarkaui.components.VerticalSpacer
-import com.tarkalabs.tarkaui.components.base.TUIButton
 import com.tarkalabs.tarkaui.components.base.TUIInputField
 import com.tarkalabs.tarkaui.components.base.TUIInputFieldStatus
 import com.tarkalabs.tarkaui.components.base.TUIInputFieldType.InputField
+import com.tarkalabs.tarkaui.icons.Info24
+import com.tarkalabs.tarkaui.icons.Print24
+import com.tarkalabs.tarkaui.icons.TarkaIcons
+import com.tarkalabs.tarkaui.icons.TarkaIcons.Filled
 import com.tarkalabs.tarkaui.theme.TUITheme
 
-private var allPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-    arrayOf(
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.BLUETOOTH_SCAN
-    )
-} else {
-    arrayOf(Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN)
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrinterScreenContent(
     modifier: Modifier = Modifier,
     uiState: PrinterUiState,
     handleEvents: (PrinterEvents) -> Unit
 ) {
+    val snackState by remember {
+        mutableStateOf(
+            TUISnackBarState(
+                SnackbarHostState(),
+                TUISnackBarType.Error,
+                Filled.Info24
+            )
+        )
+    }
+
     PermissionLaunchedEffect(
         onAllPermissionGranted = {
 
@@ -52,8 +65,26 @@ fun PrinterScreenContent(
         }
     )
 
+    HandleErrorLaunchedEffect(
+        snackBarMessage = uiState.snackBarMessage,
+        snackBarType = uiState.snackBarType,
+        snackState = snackState,
+        removeErrorMessage = { handleEvents(PrinterEvents.RemoveError) }
+    )
+
+
     val focusManager = LocalFocusManager.current
-    Scaffold { contentPadding ->
+    Scaffold(
+        topBar = {
+            TUIAppTopBar(title = "ZPL Printer test")
+        },
+        snackbarHost = {
+            TUISnackBarHost(
+                modifier = modifier.defaultMinSize(minHeight = 160.dp),
+                state = snackState
+            )
+        }
+    ) { contentPadding ->
         Box(
             modifier = modifier
                 .padding(contentPadding)
@@ -117,37 +148,17 @@ fun PrinterScreenContent(
                 )
                 VerticalSpacer(space = 16)
             }
-            TUIButton(
+            TUIMobileButtonBlock(
                 modifier = Modifier
-                    .padding(16.dp)
-                    .align(Alignment.BottomEnd),
-                label = "Print",
-                onClick = {
+                    .align(Alignment.BottomCenter),
+                primaryButtonLabel = "Print",
+                primaryButtonOnClick = {
                     handleEvents(PrinterEvents.Print)
-                }
+                },
+                primaryTrailingIcon = TarkaIcons.Regular.Print24,
+                outlineButtonLabel = null,
+                outlineButtonOnClick = {}
             )
         }
-    }
-}
-
-@Composable
-private fun PermissionLaunchedEffect(
-    onAllPermissionGranted: () -> Unit,
-    onSomePermissionDenied: () -> Unit
-) {
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = RequestMultiplePermissions()
-        ) { map ->
-            val isAllPermissionsGranted = map.values.all { it }
-            if (isAllPermissionsGranted) {
-                onAllPermissionGranted()
-            } else {
-                onSomePermissionDenied()
-            }
-        }
-
-    LaunchedEffect(true) {
-        permissionLauncher.launch(allPermissions)
     }
 }
