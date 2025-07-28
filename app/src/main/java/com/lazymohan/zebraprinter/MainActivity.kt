@@ -6,14 +6,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.lazymohan.zebraprinter.model.PrintContentModel
 import com.lazymohan.zebraprinter.ui.PrinterEvents
 import com.lazymohan.zebraprinter.ui.PrinterScreenContent
 import com.lazymohan.zebraprinter.ui.PrinterViewModel
 import com.tarkalabs.tarkaui.theme.TUITheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private lateinit var printerService: PrinterService
@@ -36,13 +32,9 @@ class MainActivity : ComponentActivity() {
 
     private fun handleEvents(event: PrinterEvents) {
         when (event) {
-            PrinterEvents.ClearError -> TODO()
             PrinterEvents.Print -> {
                 viewModel.printerDiscovery()
             }
-            is PrinterEvents.SelectPrinter -> TODO()
-            PrinterEvents.StartDiscovery -> TODO()
-            PrinterEvents.StopDiscovery -> TODO()
             is PrinterEvents.UpdateDescription -> {
                 viewModel.updateDescription(event.description)
             }
@@ -55,22 +47,6 @@ class MainActivity : ComponentActivity() {
 
             PrinterEvents.RemoveError -> {
                 viewModel.removeError()
-            }
-        }
-    }
-
-    private suspend fun printerDiscovery() {
-        withContext(Dispatchers.IO) {
-            val printModel = PrintContentModel(
-                itemNum = "Sample Item",
-                description = "Sample Description"
-            )
-            printerService.discoverPrinters().collectLatest {
-                printerService.connectAndPrint(
-                    macAddress = it.macAddress,
-                    itemData = printModel,
-                    noOfCopies = 1
-                )
             }
         }
     }
