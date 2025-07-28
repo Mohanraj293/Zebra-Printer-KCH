@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.lazymohan.zebraprinter"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -57,4 +57,9 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    implementation(libs.tarkaui)
+    implementation(libs.tarkaui.icons)
+    implementation(libs.fluent.system.icons)
+    implementation(libs.eam360ui)
 }
