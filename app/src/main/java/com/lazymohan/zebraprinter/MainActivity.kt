@@ -48,6 +48,14 @@ class MainActivity : ComponentActivity() {
             PrinterEvents.RemoveError -> {
                 viewModel.removeError()
             }
+
+            is PrinterEvents.UpdateError -> {
+                viewModel.updateError(event.errorMessage)
+            }
+
+            is PrinterEvents.UpdatePrintButton -> {
+                viewModel.updatePrintButton(event.showPrintButton)
+            }
         }
     }
 }

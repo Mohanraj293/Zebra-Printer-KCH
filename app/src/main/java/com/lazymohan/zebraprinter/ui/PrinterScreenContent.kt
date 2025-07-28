@@ -58,18 +58,18 @@ fun PrinterScreenContent(
 
     PermissionLaunchedEffect(
         onAllPermissionGranted = {
-
+            handleEvents(PrinterEvents.UpdatePrintButton(showPrintButton = true))
         },
-        onSomePermissionDenied = {
-
-        }
+        onSomePermissionDenied = {}
     )
 
     HandleErrorLaunchedEffect(
         snackBarMessage = uiState.snackBarMessage,
         snackBarType = uiState.snackBarType,
         snackState = snackState,
-        removeErrorMessage = { handleEvents(PrinterEvents.RemoveError) }
+        removeErrorMessage = {
+            handleEvents(PrinterEvents.RemoveError)
+        }
     )
 
 
@@ -148,17 +148,19 @@ fun PrinterScreenContent(
                 )
                 VerticalSpacer(space = 16)
             }
-            TUIMobileButtonBlock(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter),
-                primaryButtonLabel = "Print",
-                primaryButtonOnClick = {
-                    handleEvents(PrinterEvents.Print)
-                },
-                primaryTrailingIcon = TarkaIcons.Regular.Print24,
-                outlineButtonLabel = null,
-                outlineButtonOnClick = {}
-            )
+            if (uiState.showPrintButton) {
+                TUIMobileButtonBlock(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter),
+                    primaryButtonLabel = "Print",
+                    primaryButtonOnClick = {
+                        handleEvents(PrinterEvents.Print)
+                    },
+                    primaryTrailingIcon = TarkaIcons.Regular.Print24,
+                    outlineButtonLabel = null,
+                    outlineButtonOnClick = {}
+                )
+            }
         }
     }
 }

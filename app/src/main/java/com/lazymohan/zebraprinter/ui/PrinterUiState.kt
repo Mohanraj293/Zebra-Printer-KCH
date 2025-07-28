@@ -16,4 +16,5 @@ data class PrinterUiState(
     val noOfCopies: String? = null,
     val snackBarMessage: SnackBarMessage? = null,
     val snackBarType: TUISnackBarType = TUISnackBarType.Error,
+    val showPrintButton: Boolean = false
 )

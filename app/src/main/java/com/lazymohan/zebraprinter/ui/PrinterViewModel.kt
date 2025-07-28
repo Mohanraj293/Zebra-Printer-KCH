@@ -67,4 +67,18 @@ class PrinterViewModel(
         itemNum.isNullOrEmpty().not() && description.isNullOrEmpty()
             .not() && noOfCopies.isNullOrEmpty().not()
     }
+
+    fun updateError(errorMessage: String) {
+        _uiState.update {
+            it.copy(
+                snackBarMessage = SnackBarMessage.StringMessage(errorMessage)
+            )
+        }
+    }
+
+    fun updatePrintButton(showPrintButton: Boolean) {
+        _uiState.update {
+            it.copy(showPrintButton = showPrintButton)
+        }
+    }
 }
