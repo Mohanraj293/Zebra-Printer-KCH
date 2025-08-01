@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.hilt)
+    kotlin("kapt")
 }
 
 android {
@@ -62,4 +64,13 @@ dependencies {
     implementation(libs.tarkaui.icons)
     implementation(libs.fluent.system.icons)
     implementation(libs.eam360ui)
+    implementation(libs.jackson.databind)
+
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
+
+    implementation(libs.hilt.navigation.compose)
+    implementation(libs.kotlinx.metadata.jvm)
+    implementation(libs.sheets)
+    implementation(libs.kotlinx.collections.immutable)
 }
