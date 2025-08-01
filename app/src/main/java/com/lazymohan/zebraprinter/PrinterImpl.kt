@@ -1,12 +1,12 @@
 package com.lazymohan.zebraprinter
 
 import android.Manifest.permission
-import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.lazymohan.zebraprinter.exception.PrinterConnectionException
 import com.lazymohan.zebraprinter.exception.PrinterHardwareException
@@ -23,12 +23,6 @@ import com.zebra.sdk.printer.ZebraPrinter
 import com.zebra.sdk.printer.ZebraPrinterFactory
 import com.zebra.sdk.printer.ZebraPrinterLanguageUnknownException
 import com.zebra.sdk.printer.ZebraPrinterLinkOs
-import com.zebra.sdk.printer.discovery.BluetoothDiscoverer
-import com.zebra.sdk.printer.discovery.DiscoveredPrinter
-import com.zebra.sdk.printer.discovery.DiscoveryHandler
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 
 val ZEBRA_MAC_PREFIXES = listOf(
     "00:15:70",
@@ -46,56 +40,6 @@ class PrinterImpl(
     private var connection: Connection? = null
     private var zebraPrinter: ZebraPrinter? = null
 
-    @SuppressLint("MissingPermission")
-    override fun discoverPrinters(): Flow<DiscoveredPrinterInfo> = callbackFlow {
-        val bluetoothManager =
-            context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val adapter = bluetoothManager.adapter
-
-        fun getBondedZebraPrinters(): List<DiscoveredPrinterInfo> {
-            if (!ensureBluetoothPermission(context)) return emptyList()
-            return adapter?.bondedDevices
-                ?.filter { isZebraDevice(it) }
-                ?.map {
-                    DiscoveredPrinterInfo(
-                        macAddress = it.address,
-                        model = it.name
-                    )
-                }.orEmpty()
-        }
-
-        val bondedPrinters = getBondedZebraPrinters()
-
-        if (bondedPrinters.isNotEmpty()) {
-            bondedPrinters.forEach { trySend(it) }
-            channel.close()
-        } else {
-            BluetoothDiscoverer.findPrinters(
-                context,
-                object : DiscoveryHandler {
-                    override fun foundPrinter(printer: DiscoveredPrinter) {
-                        trySend(
-                            DiscoveredPrinterInfo(
-                                macAddress = printer.address,
-                                model = printer.discoveryDataMap["FRIENDLY_NAME"]
-                                    ?: printer.discoveryDataMap["SYSTEM_MODEL"]
-                                    ?: "Unknown"
-                            )
-                        )
-                    }
-
-                    override fun discoveryFinished() {
-                        channel.close()
-                    }
-
-                    override fun discoveryError(message: String) {
-                        channel.close(ConnectionException(message))
-                    }
-                }
-            )
-        }
-        awaitClose()
-    }
 
     override fun connectAndPrint(macAddress: String, itemData: PrintContentModel, noOfCopies: Int) {
         try {
@@ -115,10 +59,26 @@ class PrinterImpl(
         }
     }
 
+    @RequiresPermission(permission.BLUETOOTH_CONNECT)
+    override fun getBondedZebraPrinters(): List<DiscoveredPrinterInfo> {
+        val bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val adapter = bluetoothManager.adapter
+        if (!ensureBluetoothPermission(context)) return emptyList()
+        return adapter?.bondedDevices
+            ?.filter { isZebraDevice(it) }
+            ?.map {
+                DiscoveredPrinterInfo(
+                    macAddress = it.address,
+                    model = it.name
+                )
+            }.orEmpty()
+    }
+
     override fun disconnect() {
         try {
             connection?.close()
-        } catch (e: ConnectionException) {
+        } catch (_: ConnectionException) {
         }
     }
 
@@ -149,8 +109,8 @@ class PrinterImpl(
                     throw PrinterHardwareException(R.string.unknown_error)
                 }
             }
-        } catch (e: ConnectionException) {
-            throw PrinterUnknownException()
+        } catch (_: ConnectionException) {
+            throw PrinterHardwareException(R.string.unknown_error)
         }
     }
 
@@ -177,8 +137,10 @@ class PrinterImpl(
             true // Not needed before Android 12
         }
 
+    @RequiresPermission(permission.BLUETOOTH_CONNECT)
     fun isZebraDevice(device: BluetoothDevice): Boolean {
         val mac = device.address.uppercase()
+        val type = device.type
         return ZEBRA_MAC_PREFIXES.any { mac.startsWith(it) }
     }
 }

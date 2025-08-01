@@ -17,23 +17,17 @@ private var allPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
 }
 
 @Composable
-fun PermissionLaunchedEffect(
-    onAllPermissionGranted: () -> Unit,
-    onSomePermissionDenied: () -> Unit
+fun RequestBluetoothPermission(
+    trigger: Boolean,
+    onResult: (Boolean) -> Unit
 ) {
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestMultiplePermissions()
-        ) { map ->
-            val isAllPermissionsGranted = map.values.all { it }
-            if (isAllPermissionsGranted) {
-                onAllPermissionGranted()
-            } else {
-                onSomePermissionDenied()
-            }
-        }
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        onResult(result.values.all { it })
+    }
 
-    LaunchedEffect(true) {
-        permissionLauncher.launch(allPermissions)
+    LaunchedEffect(trigger) {
+        if (trigger) launcher.launch(allPermissions)
     }
 }
