@@ -1,3 +1,17 @@
 <resources>
     <string name="app_name">Zebra Printer - KCH</string>
+    <string name="print_barcode">Print Barcode</string>
+    <string name="printer_connecting">Connecting to the printer…</string>
+    <string name="printer_connected">Printer connected</string>
+    <string name="enter_value">Please enter valid no of copies</string>
+    <string name="enter_no_of_copies">Enter No. of copies:</string>
+    <string name="comm_error_disconnected">Communication error! Disconnected</string>
+    <string name="printer_head_open">Printer head is open</string>
+    <string name="printer_paused">Printer is paused</string>
+    <string name="label_empty">Labels are not available, Please insert the labels and try</string>
+    <string name="select_desired_device">Communication error! Please ensure the connection of supported printer device</string>
+    <string name="unknown_printer_lang">Unknown printer language</string>
+    <string name="print">Print</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="common_error_message">Something went wrong, Please contact application administrator</string>
 </resources>
