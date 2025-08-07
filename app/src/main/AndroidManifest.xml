@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission
@@ -23,7 +24,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ZebraPrinterKCH">
         <activity
-            android:name=".MainActivity"
+            android:name=".product.ProductsActivity"
             android:exported="true"
             android:theme="@style/Theme.ZebraPrinterKCH">
             <intent-filter>
@@ -32,6 +33,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ZPLPrinterActivity" />
     </application>
 
 </manifest>

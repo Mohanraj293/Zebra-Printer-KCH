@@ -16,7 +16,7 @@ import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class ZPLPrinterActivity : ComponentActivity() {
     private lateinit var printerService: PrinterService
     private val viewModel: PrinterViewModel by viewModels()
     private var requestPrint = mutableStateOf(false)

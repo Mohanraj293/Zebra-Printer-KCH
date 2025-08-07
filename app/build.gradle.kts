@@ -63,7 +63,6 @@ dependencies {
     implementation(libs.tarkaui)
     implementation(libs.tarkaui.icons)
     implementation(libs.fluent.system.icons)
-    implementation(libs.eam360ui)
     implementation(libs.jackson.databind)
 
     implementation(libs.hilt.android)
@@ -73,4 +72,6 @@ dependencies {
     implementation(libs.kotlinx.metadata.jvm)
     implementation(libs.sheets)
     implementation(libs.kotlinx.collections.immutable)
+
+    implementation(libs.bundles.retrofit)
 }
