@@ -32,7 +32,7 @@ fun MavenArtifactRepository.eamMavenProperties() {
 
     content {
         includeGroup("com.tarkalabs")
-        includeGroup("com.eam360")
+//        includeGroup("com.eam360")
         excludeModule("com.tarkalabs", "jobqueue")
     }
 }
