@@ -138,7 +138,7 @@ private fun EAMLoaderPreview() {
                 .background(TUITheme.colors.surface),
             contentAlignment = Alignment.Center
         ) {
-            _root_ide_package_.com.lazymohan.zebraprinter.utils.EAMLoader()
+            EAMLoader()
         }
     }
 }

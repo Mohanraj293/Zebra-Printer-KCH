@@ -1,10 +1,14 @@
 package com.lazymohan.zebraprinter.product
 
 import com.lazymohan.zebraprinter.product.data.Item
+import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
+import com.tarkalabs.tarkaui.components.TUISnackBarType
 
 data class ProductUiState(
     val isLoading: Boolean = false,
-    val error: String? = null,
+    val snackBarMessage: SnackBarMessage? = null,
+    val snackBarType: TUISnackBarType = TUISnackBarType.Error,
     val searchQuery: String = "",
     val products: List<Item> = emptyList(),
+    val showProductScreen: Boolean = false,
 )

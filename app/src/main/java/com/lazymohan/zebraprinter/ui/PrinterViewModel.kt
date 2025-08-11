@@ -1,45 +1,52 @@
 package com.lazymohan.zebraprinter.ui
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.PrinterService
 import com.lazymohan.zebraprinter.model.DiscoveredPrinterInfo
 import com.lazymohan.zebraprinter.model.PrintContentModel
+import com.lazymohan.zebraprinter.product.data.Item
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.lazymohan.zebraprinter.utils.launchWithHandler
 import com.tarkalabs.tarkaui.components.TUISnackBarType
-import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class PrinterViewModel @Inject constructor(
-    private val printerService: PrinterService
+class PrinterViewModel @AssistedInject constructor(
+    private val printerService: PrinterService,
+    @Assisted("item") private val item: Item,
 ) : ViewModel() {
 
     init {
         getZPLPrinterList()
     }
 
+    @AssistedFactory
+    interface PrinterViewModelFactory {
+        fun create(@Assisted("item") item: Item): PrinterViewModel
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    companion object {
+        fun providesFactory(
+            assistedFactory: PrinterViewModelFactory,
+            item: Item
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>) = assistedFactory.create(
+                item = item
+            ) as T
+        }
+    }
+
     private val _uiState = MutableStateFlow(PrinterUiState())
     val uiState = _uiState.asStateFlow()
-
-
-    fun updateDescription(description: String) {
-        _uiState.update { currentState ->
-            currentState.copy(description = description)
-        }
-    }
-
-    fun updateItemNum(itemNum: String) {
-        _uiState.update { currentState ->
-            currentState.copy(itemNum = itemNum)
-        }
-    }
 
     fun updateNoOfCopies(noOfCopies: String) {
         _uiState.update { currentState ->
@@ -52,35 +59,41 @@ class PrinterViewModel @Inject constructor(
             dispatcher = Dispatchers.IO,
             onCoroutineException = ::handleErrors
         ) {
+            showLoading()
             val printModel = PrintContentModel(
-                itemNum = _uiState.value.itemNum.orEmpty(),
-                description = _uiState.value.description.orEmpty()
+                itemNum = item.itemNumber.orEmpty(),
+                description = item.itemDescription.orEmpty()
             )
 
-            if (validateData() && isValidInput()) {
-                showLoading()
-                printerService.connectAndPrint(
-                    macAddress = _uiState.value.selectedPrinter?.macAddress.orEmpty(),
-                    itemData = printModel,
-                    noOfCopies = _uiState.value.noOfCopies.toInt()
+            if (!isValidInput()) {
+                updateSnackBarMessage(
+                    message = SnackBarMessage.StringMessage("Please enter a valid number of copies"),
+                    type = TUISnackBarType.Error
                 )
                 hideLoading()
-                clearData(_uiState.value.selectedPrinter ?: DiscoveredPrinterInfo("", ""))
-            } else {
-                _uiState.update {
-                    it.copy(
-                        snackBarMessage = SnackBarMessage.StringMessage("Please fill in all the fields")
-                    )
-                }
+                return@launchWithHandler
             }
+            if (_uiState.value.selectedPrinter == null) {
+                updateSnackBarMessage(
+                    message = SnackBarMessage.StringMessage("Please select a printer"),
+                    type = TUISnackBarType.Error
+                )
+                hideLoading()
+                return@launchWithHandler
+            }
+            printerService.connectAndPrint(
+                macAddress = _uiState.value.selectedPrinter?.macAddress.orEmpty(),
+                itemData = printModel,
+                noOfCopies = _uiState.value.noOfCopies.toInt()
+            )
+            hideLoading()
+            clearData(_uiState.value.selectedPrinter ?: DiscoveredPrinterInfo("", ""))
         }
     }
 
     fun clearData(selectedPrinter: DiscoveredPrinterInfo) {
         _uiState.update {
             PrinterUiState(
-                itemNum = null,
-                description = null,
                 noOfCopies = "",
                 snackBarMessage = SnackBarMessage.StringMessage("Printing successful!"),
                 snackBarType = TUISnackBarType.Success,
@@ -95,11 +108,6 @@ class PrinterViewModel @Inject constructor(
 
     fun removeError() {
         _uiState.update { it.copy(snackBarMessage = null, snackBarType = TUISnackBarType.Error) }
-    }
-
-    fun validateData() = _uiState.value.run {
-        itemNum.isNullOrEmpty().not() && description.isNullOrEmpty()
-            .not() && noOfCopies.isEmpty().not()
     }
 
     fun isValidInput() = _uiState.value.run {

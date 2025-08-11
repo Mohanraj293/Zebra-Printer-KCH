@@ -7,8 +7,6 @@ import com.tarkalabs.tarkaui.components.TUISnackBarType
 data class PrinterUiState(
     val isLoading: Boolean = false,
     val showDialog: Boolean = false,
-    val itemNum: String? = null,
-    val description: String? = null,
     val discoveredPrinters: List<DiscoveredPrinterInfo> = emptyList(),
     val selectedPrinter: DiscoveredPrinterInfo? = null,
     val noOfCopies: String = "",

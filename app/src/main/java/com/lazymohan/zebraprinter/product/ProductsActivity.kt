@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModelProvider
+import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.product.data.ProductsRepo
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -38,6 +39,20 @@ class ProductsActivity : ComponentActivity() {
 
             is ProductsEvent.OnSearchQueryChanged -> {
                 viewModel.updateSearchQuery(event.query)
+            }
+
+            ProductsEvent.RemoveError -> {
+                viewModel.removeError()
+            }
+
+            is ProductsEvent.OnProductSelected -> {
+                startActivity(
+                    ZPLPrinterActivity.getCallingIntent(this, event.product)
+                )
+            }
+
+            ProductsEvent.OnBackPressed -> {
+                viewModel.updateShowProductScreen(false)
             }
         }
     }
