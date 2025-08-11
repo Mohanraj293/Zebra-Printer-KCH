@@ -1,11 +1,12 @@
-package com.lazymohan.zebraprinter.product
+package com.lazymohan.zebraprinter.product.lots.data
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.lazymohan.zebraprinter.product.data.Item
+import com.lazymohan.zebraprinter.product.ProductUiState
+import com.lazymohan.zebraprinter.product.data.Lots
 import com.lazymohan.zebraprinter.product.data.ProductsRepo
-import com.lazymohan.zebraprinter.product.lots.data.ProductsViewModel
+import com.lazymohan.zebraprinter.product.lots.ui.LotsListUiState
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.lazymohan.zebraprinter.utils.launchWithHandler
 import com.tarkalabs.tarkaui.components.TUISnackBarType
@@ -14,17 +15,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class ProductsViewModel(
+class LotsListViewModel(
     private val productsRepo: ProductsRepo
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ProductUiState())
+    private val _uiState = MutableStateFlow(LotsListUiState())
     val uiState = _uiState.asStateFlow()
 
     private var currentOffset = 0
     private val limit = 25
     var hasMore = true
-    val itemProducts = mutableListOf<Item>()
+    val itemProducts = mutableListOf<Lots>()
 
     fun updateSearchQuery(query: String) {
         _uiState.update { currentState ->
@@ -32,7 +33,7 @@ class ProductsViewModel(
         }
     }
 
-    fun searchProducts() {
+    fun getItemLots() {
         viewModelScope.launchWithHandler(Dispatchers.IO, ::handleErrors) {
             if (!hasMore) return@launchWithHandler
             if (_uiState.value.searchQuery.isEmpty()) {
@@ -44,7 +45,7 @@ class ProductsViewModel(
             }
             showLoading()
             try {
-                val products = productsRepo.getProducts(
+                val products = productsRepo.getLots(
                     _uiState.value.searchQuery,
                     limit = limit,
                     offset = currentOffset

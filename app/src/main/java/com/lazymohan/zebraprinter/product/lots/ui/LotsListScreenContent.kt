@@ -1,4 +1,4 @@
-package com.lazymohan.zebraprinter.product
+package com.lazymohan.zebraprinter.product.lots.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -25,7 +25,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lazymohan.zebraprinter.effects.HandleErrorLaunchedEffect
-import com.lazymohan.zebraprinter.product.lots.data.ProductsViewModel
 import com.lazymohan.zebraprinter.utils.EAMLoader
 import com.lazymohan.zebraprinter.utils.EAMLoaderStyle
 import com.tarkalabs.tarkaui.components.TUIAppTopBar
@@ -42,10 +41,10 @@ import com.tarkalabs.tarkaui.icons.TarkaIcons.Filled
 import com.tarkalabs.tarkaui.theme.TUITheme
 
 @Composable
-fun ProductScreenContent(
+fun LotsListScreenContent(
     modifier: Modifier = Modifier,
-    viewModel: ProductsViewModel,
-    handleEvent: (ProductsEvent) -> Unit
+    viewModel: LotsListsViewModel,
+    handleEvent: (LotsListsEvent) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
@@ -64,11 +63,11 @@ fun ProductScreenContent(
         snackBarType = uiState.snackBarType,
         snackState = snackState,
         removeErrorMessage = {
-            handleEvent(ProductsEvent.RemoveError)
+            handleEvent(LotsListsEvent.RemoveError)
         }
     )
     Scaffold(
-        topBar = { ProductTopBar() },
+        topBar = { LotsListTopBar() },
         snackbarHost = {
             TUISnackBarHost(
                 modifier = modifier.defaultMinSize(minHeight = 160.dp),
@@ -89,14 +88,14 @@ fun ProductScreenContent(
                     .align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                ProductMainContent(
+                LotsListMainContent(
                     focusManager = focusManager,
                     handleEvent = handleEvent,
                     uiState = uiState
                 )
                 VerticalSpacer(10)
                 TUIButton("Search") {
-                    handleEvent(ProductsEvent.OnSearchClicked)
+                    handleEvent(LotsListsEvent.OnSearchClicked)
                 }
             }
 
@@ -104,14 +103,14 @@ fun ProductScreenContent(
                 EAMLoader(loaderStyle = EAMLoaderStyle.S)
             }
 
-            if (uiState.showProductScreen) {
-                ProductListScreen(
+            if (uiState.showLotsListScreen) {
+                LotsListListScreen(
                     viewModel = viewModel,
                     onBackPressed = {
-                        handleEvent(ProductsEvent.OnBackPressed)
+                        handleEvent(LotsListsEvent.OnBackPressed)
                     },
                     onClick = {
-                        handleEvent(ProductsEvent.OnProductSelected(it))
+                        handleEvent(LotsListsEvent.OnLotsListSelected(it))
                     }
                 )
             }
@@ -120,15 +119,15 @@ fun ProductScreenContent(
 }
 
 @Composable
-fun ProductMainContent(
+fun LotsListMainContent(
     focusManager: FocusManager,
-    uiState: ProductUiState,
-    handleEvent: (ProductsEvent) -> Unit
+    uiState: LotsListUiState,
+    handleEvent: (LotsListsEvent) -> Unit
 ) {
     TUIInputField(
-        label = "Enter product name",
+        label = "Enter LotsList name",
         onValueChange = { itemNum ->
-            handleEvent(ProductsEvent.OnSearchQueryChanged(itemNum))
+            handleEvent(LotsListsEvent.OnSearchQueryChanged(itemNum))
         },
         value = uiState.searchQuery,
         status = TUIInputFieldStatus.Normal,
@@ -145,6 +144,6 @@ fun ProductMainContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProductTopBar() {
-    TUIAppTopBar(title = "Products")
+fun LotsListTopBar() {
+    TUIAppTopBar(title = "Lots Lists")
 }

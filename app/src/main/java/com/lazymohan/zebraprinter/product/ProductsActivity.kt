@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModelProvider
 import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.product.data.ProductsRepo
+import com.lazymohan.zebraprinter.product.lots.data.ProductsViewModel
+import com.lazymohan.zebraprinter.product.lots.data.ProductsViewModelFactory
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
 

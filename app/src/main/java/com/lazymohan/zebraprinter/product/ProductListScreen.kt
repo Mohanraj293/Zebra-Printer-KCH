@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.lazymohan.zebraprinter.product.data.Item
+import com.lazymohan.zebraprinter.product.lots.data.ProductsViewModel
 import com.lazymohan.zebraprinter.utils.EAMLoader
 import com.lazymohan.zebraprinter.utils.EAMLoaderStyle
 import com.tarkalabs.tarkaui.components.TUIAppTopBar

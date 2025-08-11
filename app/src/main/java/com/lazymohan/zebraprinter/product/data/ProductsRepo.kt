@@ -36,11 +36,41 @@ class ProductsRepo {
                 null
             }
         }
+
+    suspend fun getLots(searchQuery: String, limit: Int, offset: Int): InventoryResponse? =
+        withContext(Dispatchers.IO) {
+            val service = ApiClient.create()
+            try {
+                val response = service.getItemLots(
+                    query = "ItemNumber='%$searchQuery%'",
+                    limit = limit,
+                    offset = offset
+                )
+                if (response.isSuccessful) {
+                    response.body()
+                } else {
+                    Log.e("API", "Error: ${response.errorBody()?.string()}")
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Exception: ${e.localizedMessage}", e)
+                null
+            }
+        }
 }
 
 interface OracleApiService {
-    @GET("fscmRestApi/resources/11.13.18.05/inventoryItemLots")
+    @GET("fscmRestApi/resources/11.13.18.05/itemsV2")
     suspend fun getInventoryItemLots(
+        @Query("onlyData") onlyData: Boolean = true,
+        @Query("q") query: String,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+        @Query("fields") fields: String = "ItemNumber,ItemDescription"
+    ): Response<InventoryResponse>
+
+    @GET("fscmRestApi/resources/11.13.18.05/inventoryItemLots")
+    suspend fun getItemLots(
         @Query("onlyData") onlyData: Boolean = true,
         @Query("q") query: String,
         @Query("limit") limit: Int,
@@ -92,36 +122,13 @@ data class InventoryResponse(
 )
 
 data class Item(
-    @SerializedName("OrganizationId") val organizationId: Long,
-    @SerializedName("OrganizationCode") val organizationCode: String?,
-    @SerializedName("OrganizationName") val organizationName: String?,
-    @SerializedName("InventoryItemId") val inventoryItemId: Long,
     @SerializedName("ItemNumber") val itemNumber: String?,
     @SerializedName("ItemDescription") val itemDescription: String?,
+): Serializable
+
+
+data class Lots(
     @SerializedName("LotNumber") val lotNumber: String?,
-    @SerializedName("ParentLotNumber") val parentLotNumber: String?,
-    @SerializedName("ActiveLotCode") val activeLotCode: String?,
-    @SerializedName("ActiveLot") val activeLot: String?,
-    @SerializedName("OriginationTypeCode") val originationTypeCode: String?,
-    @SerializedName("OriginationType") val originationType: String?,
-    @SerializedName("StatusId") val statusId: Int?,
-    @SerializedName("StatusCode") val statusCode: String?,
-    @SerializedName("Grade") val grade: String?,
-    @SerializedName("ExpirationActionCode") val expirationActionCode: String?,
-    @SerializedName("ExpirationAction") val expirationAction: String?,
-    @SerializedName("OriginationDate") val originationDate: String?,
-    @SerializedName("ExpirationDate") val expirationDate: String?,
-    @SerializedName("MaturityDate") val maturityDate: String?,
-    @SerializedName("ExpirationActionDate") val expirationActionDate: String?,
-    @SerializedName("HoldUntilDate") val holdUntilDate: String?,
-    @SerializedName("RetestDate") val retestDate: String?,
-    @SerializedName("DisabledCode") val disabledCode: String?,
-    @SerializedName("Disabled") val disabled: String?,
-    @SerializedName("UniqueDeviceIdentifier") val uniqueDeviceIdentifier: String?,
-    @SerializedName("ItemPrimaryImageURL") val itemPrimaryImageUrl: String?,
-    @SerializedName("LotStatusMeaning") val lotStatusMeaning: String?,
-    @SerializedName("GradeDescription") val gradeDescription: String?,
-    @SerializedName("ElectronicRecordId") val electronicRecordId: String?,
-    @SerializedName("ElectronicRecordApprovalStatus") val electronicRecordApprovalStatus: String?,
-    @SerializedName("UpdateSourceCode") val updateSourceCode: String?
+    @SerializedName("ItemNumber") val itemDescription: String?,
+    @SerializedName("InventoryItemId") val quantity: String?
 ): Serializable
