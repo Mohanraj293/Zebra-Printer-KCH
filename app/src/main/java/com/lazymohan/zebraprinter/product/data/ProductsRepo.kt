@@ -13,6 +13,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
 import java.io.Serializable
+import java.util.Date
 
 class ProductsRepo {
 
@@ -37,16 +38,39 @@ class ProductsRepo {
             }
         }
 
-    suspend fun getLots(searchQuery: String, limit: Int, offset: Int): InventoryResponse? =
+    suspend fun getLots(
+        itemNum: String,
+        limit: Int,
+        offset: Int,
+    ): LotsResponse? =
         withContext(Dispatchers.IO) {
             val service = ApiClient.create()
             try {
                 val response = service.getItemLots(
-                    query = "ItemNumber='%$searchQuery%'",
+                    query = "ItemNumber='$itemNum'",
                     limit = limit,
                     offset = offset
                 )
                 if (response.isSuccessful) {
+                    response.body()
+                } else {
+                    Log.e("API", "Error: ${response.errorBody()?.string()}")
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Exception: ${e.localizedMessage}", e)
+                null
+            }
+        }
+
+    suspend fun getGTINForItem(inventoryItemId: Long): GTINResponse? =
+        withContext(Dispatchers.IO) {
+            val service = ApiClient.create()
+            try {
+                val response = service.getGTINForItem(
+                    query = "InventoryItemId=$inventoryItemId"
+                )
+                if (response.isSuccessful && response.body()?.items?.isNotEmpty() == true) {
                     response.body()
                 } else {
                     Log.e("API", "Error: ${response.errorBody()?.string()}")
@@ -75,7 +99,12 @@ interface OracleApiService {
         @Query("q") query: String,
         @Query("limit") limit: Int,
         @Query("offset") offset: Int
-    ): Response<InventoryResponse>
+    ): Response<LotsResponse>
+
+    @GET("fscmRestApi/resources/11.13.18.05/GTINRelationships")
+    suspend fun getGTINForItem(
+        @Query("q") query: String,
+    ): Response<GTINResponse>
 }
 
 object ApiClient {
@@ -121,14 +150,35 @@ data class InventoryResponse(
     @SerializedName("offset") val offset: Int
 )
 
+data class LotsResponse(
+    @SerializedName("items") val items: List<Lots>,
+    @SerializedName("count") val count: Int,
+    @SerializedName("hasMore") val hasMore: Boolean,
+    @SerializedName("limit") val limit: Int,
+    @SerializedName("offset") val offset: Int
+)
+
+data class GTINResponse(
+    @SerializedName("items") val items: List<GTIN>,
+)
+
+data class GTIN(
+    @SerializedName("GTIN") val gtin: String?,
+    @SerializedName("InventoryItemId") val inventoryItemId: Long
+)
+
 data class Item(
     @SerializedName("ItemNumber") val itemNumber: String?,
     @SerializedName("ItemDescription") val itemDescription: String?,
-): Serializable
+) : Serializable
 
 
 data class Lots(
     @SerializedName("LotNumber") val lotNumber: String?,
-    @SerializedName("ItemNumber") val itemDescription: String?,
-    @SerializedName("InventoryItemId") val quantity: String?
-): Serializable
+    @SerializedName("ItemDescription") val itemDescription: String?,
+    @SerializedName("ItemNumber") val itemNumber: String?,
+    @SerializedName("StatusCode") val statusCode: String?,
+    @SerializedName("OriginationDate") val originationDate: Date?,
+    @SerializedName("ExpirationDate") val expirationDate: Date?,
+    @SerializedName("InventoryItemId") val inventoryItemId: Long
+) : Serializable

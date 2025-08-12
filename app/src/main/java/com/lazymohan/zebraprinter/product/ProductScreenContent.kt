@@ -25,7 +25,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lazymohan.zebraprinter.effects.HandleErrorLaunchedEffect
-import com.lazymohan.zebraprinter.product.lots.data.ProductsViewModel
 import com.lazymohan.zebraprinter.utils.EAMLoader
 import com.lazymohan.zebraprinter.utils.EAMLoaderStyle
 import com.tarkalabs.tarkaui.components.TUIAppTopBar
@@ -37,6 +36,7 @@ import com.tarkalabs.tarkaui.components.base.TUIButton
 import com.tarkalabs.tarkaui.components.base.TUIInputField
 import com.tarkalabs.tarkaui.components.base.TUIInputFieldStatus
 import com.tarkalabs.tarkaui.components.base.TUIInputFieldType.InputField
+import com.tarkalabs.tarkaui.icons.ChevronLeft24
 import com.tarkalabs.tarkaui.icons.Info24
 import com.tarkalabs.tarkaui.icons.TarkaIcons.Filled
 import com.tarkalabs.tarkaui.theme.TUITheme
@@ -68,7 +68,11 @@ fun ProductScreenContent(
         }
     )
     Scaffold(
-        topBar = { ProductTopBar() },
+        topBar = {
+            ProductTopBar(
+                onNavigationIconClick = { handleEvent(ProductsEvent.Finish) }
+            )
+        },
         snackbarHost = {
             TUISnackBarHost(
                 modifier = modifier.defaultMinSize(minHeight = 160.dp),
@@ -145,6 +149,12 @@ fun ProductMainContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProductTopBar() {
-    TUIAppTopBar(title = "Products")
+fun ProductTopBar(
+    onNavigationIconClick: () -> Unit
+) {
+    TUIAppTopBar(
+        title = "Products",
+        navigationIcon = Filled.ChevronLeft24,
+        onNavigationIconClick = onNavigationIconClick,
+    )
 }

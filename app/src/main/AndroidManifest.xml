@@ -48,5 +48,9 @@
         <activity
             android:name=".ZPLPrinterActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".product.lots.LotsListActivity"
+            android:exported="false" />
     </application>
 </manifest>

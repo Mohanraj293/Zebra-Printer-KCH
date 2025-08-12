@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.product.data.Item
 import com.lazymohan.zebraprinter.product.data.ProductsRepo
-import com.lazymohan.zebraprinter.product.lots.data.ProductsViewModel
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.lazymohan.zebraprinter.utils.launchWithHandler
 import com.tarkalabs.tarkaui.components.TUISnackBarType

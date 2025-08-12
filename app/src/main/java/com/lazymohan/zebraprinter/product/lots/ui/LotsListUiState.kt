@@ -9,5 +9,6 @@ data class LotsListUiState(
     val snackBarMessage: SnackBarMessage? = null,
     val snackBarType: TUISnackBarType = TUISnackBarType.Error,
     val searchQuery: String = "",
-    val lotlists : List<Lots> = emptyList()
+    val lotLists : List<Lots> = emptyList(),
+    val gtinForItem: String? = null,
 )

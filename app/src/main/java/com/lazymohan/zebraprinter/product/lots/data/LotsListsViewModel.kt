@@ -3,21 +3,51 @@ package com.lazymohan.zebraprinter.product.lots.data
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.lazymohan.zebraprinter.product.ProductUiState
+import com.lazymohan.zebraprinter.product.data.Item
 import com.lazymohan.zebraprinter.product.data.Lots
 import com.lazymohan.zebraprinter.product.data.ProductsRepo
 import com.lazymohan.zebraprinter.product.lots.ui.LotsListUiState
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.lazymohan.zebraprinter.utils.launchWithHandler
 import com.tarkalabs.tarkaui.components.TUISnackBarType
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class LotsListViewModel(
-    private val productsRepo: ProductsRepo
+class LotsListViewModel @AssistedInject constructor(
+    @Assisted("productsRepo") private val productsRepo: ProductsRepo,
+    @Assisted("item") private val item: Item,
 ) : ViewModel() {
+
+    @AssistedFactory
+    interface LotsListViewModelFactory {
+        fun create(
+            @Assisted("productsRepo") productsRepo: ProductsRepo,
+            @Assisted("item") item: Item
+        ): LotsListViewModel
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    companion object {
+        fun providesFactory(
+            assistedFactory: LotsListViewModelFactory,
+            productsRepo: ProductsRepo,
+            item: Item
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>) = assistedFactory.create(
+                item = item,
+                productsRepo = productsRepo
+            ) as T
+        }
+    }
+
+    init {
+        getItemLots()
+    }
 
     private val _uiState = MutableStateFlow(LotsListUiState())
     val uiState = _uiState.asStateFlow()
@@ -25,37 +55,25 @@ class LotsListViewModel(
     private var currentOffset = 0
     private val limit = 25
     var hasMore = true
+    var inventoryItemId: Long = 0L
     val itemProducts = mutableListOf<Lots>()
-
-    fun updateSearchQuery(query: String) {
-        _uiState.update { currentState ->
-            currentState.copy(searchQuery = query)
-        }
-    }
 
     fun getItemLots() {
         viewModelScope.launchWithHandler(Dispatchers.IO, ::handleErrors) {
             if (!hasMore) return@launchWithHandler
-            if (_uiState.value.searchQuery.isEmpty()) {
-                updateSnackBarMessage(
-                    message = SnackBarMessage.StringMessage("Search query cannot be empty"),
-                    type = TUISnackBarType.Error
-                )
-                return@launchWithHandler
-            }
             showLoading()
             try {
-                val products = productsRepo.getLots(
-                    _uiState.value.searchQuery,
+                val lots = productsRepo.getLots(
+                    itemNum = item.itemNumber.orEmpty(),
                     limit = limit,
                     offset = currentOffset
                 )
-                products?.let {
+                lots?.let {
                     hasMore = it.hasMore
                     currentOffset += limit
                     if (it.items.isEmpty()) {
                         updateSnackBarMessage(
-                            message = SnackBarMessage.StringMessage("No products found"),
+                            message = SnackBarMessage.StringMessage("No lots found"),
                             type = TUISnackBarType.Error
                         )
                         hasMore = true
@@ -63,10 +81,11 @@ class LotsListViewModel(
                     }
                     itemProducts.addAll(it.items)
                 }
+                val gtinForItem = productsRepo.getGTINForItem(itemProducts.first().inventoryItemId)
                 _uiState.update { currentState ->
                     currentState.copy(
-                        products = currentState.products + (products?.items ?: emptyList()),
-                        showProductScreen = true
+                        lotLists = currentState.lotLists + (lots?.items ?: emptyList()),
+                        gtinForItem = gtinForItem?.items?.firstOrNull()?.gtin,
                     )
                 }
                 hideLoading()
@@ -81,13 +100,6 @@ class LotsListViewModel(
                 hideLoading()
             }
         }
-    }
-
-    fun updateShowProductScreen(show: Boolean) {
-        _uiState.update { currentState ->
-            currentState.copy(showProductScreen = show, products = emptyList())
-        }
-        hasMore = true
     }
 
     fun handleErrors(throwable: Throwable) {
@@ -117,16 +129,5 @@ class LotsListViewModel(
 
     fun hideLoading() {
         _uiState.update { it.copy(isLoading = false) }
-    }
-}
-
-class ProductsViewModelFactory(
-    private val repository: ProductsRepo
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(ProductsViewModel::class.java)) {
-            return ProductsViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

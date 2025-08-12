@@ -27,7 +27,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dokar.sheets.rememberBottomSheetState
 import com.lazymohan.zebraprinter.effects.HandleErrorLaunchedEffect
-import com.lazymohan.zebraprinter.product.data.Item
+import com.lazymohan.zebraprinter.product.data.Lots
+import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.lazymohan.zebraprinter.utils.EAMLoader
 import com.lazymohan.zebraprinter.utils.PrinterSelectionCard
 import com.tarkalabs.tarkaui.components.TUIAppTopBar
@@ -55,7 +56,9 @@ import kotlinx.coroutines.launch
 fun PrinterScreenContent(
     modifier: Modifier = Modifier,
     uiState: PrinterUiState,
-    item: Item?,
+    lots: Lots?,
+    gtinNumber: String?,
+    dateTimeConverter: DateTimeConverter,
     handleEvents: (PrinterEvents) -> Unit,
     onBackPressed: () -> Unit
 ) {
@@ -87,7 +90,7 @@ fun PrinterScreenContent(
     Scaffold(
         topBar = {
             TUIAppTopBar(
-                title = "Inventory Item ${item?.itemNumber}",
+                title = "Inventory Item ${lots?.itemNumber}",
                 navigationIcon = TarkaIcons.Regular.ChevronLeft24.copy(
                     contentDescription = "Back"
                 ),
@@ -128,26 +131,26 @@ fun PrinterScreenContent(
                         .verticalScroll(scrollableState)
                         .padding(16.dp)
                 ) {
-                    TUITextRow(title = "Item Number: ${item?.itemNumber ?: "N/A"}")
-                    VerticalSpacer(space = 16)
-                    TUITextRow(title = "Description: ${item?.itemDescription ?: "N/A"}")
-                    VerticalSpacer(space = 16)
-//                    TUITextRow(title = "Lot Number: ${item?.lotNumber ?: "N/A"}")
-//                    VerticalSpacer(space = 16)
-//                    TUITextRow(title = "Organization: ${item?.organizationName ?: "N/A"}")
-//                    VerticalSpacer(space = 16)
-//                    TUITextRow(title = "Status: ${item?.statusCode ?: "N/A"}")
-//                    VerticalSpacer(space = 16)
-//                    TUITextRow(title = "Origination Date: ${item?.originationDate ?: "N/A"}")
-//                    VerticalSpacer(space = 16)
-//                    TUITextRow(title = "Expiration Date: ${item?.expirationDate ?: "N/A"}")
-                    VerticalSpacer(space = 16)
+                    TUITextRow(title = "Item Number: ${lots?.itemNumber ?: "N/A"}")
+                    VerticalSpacer(space = 8)
+                    TUITextRow(title = "Description: ${lots?.itemDescription ?: "N/A"}")
+                    VerticalSpacer(space = 8)
+                    TUITextRow(title = "Lot Number: ${lots?.lotNumber ?: "N/A"}")
+                    VerticalSpacer(space = 8)
+                    TUITextRow(title = "Status: ${lots?.statusCode ?: "N/A"}")
+                    VerticalSpacer(space = 8)
+                    TUITextRow(title = "Origination Date: ${dateTimeConverter.getDisplayDate(lots?.originationDate)}")
+                    VerticalSpacer(space = 8)
+                    TUITextRow(title = "Expiration Date: ${dateTimeConverter.getDisplayDate(lots?.expirationDate)}")
+                    VerticalSpacer(space = 8)
+                    TUITextRow(title = "GTIN Number: ${gtinNumber ?: "N/A"}")
+                    VerticalSpacer(space = 8)
                     TUIInputField(
                         label = "Enter No of Copies",
                         onValueChange = { noOfCopies ->
                             handleEvents(PrinterEvents.UpdateNoOfCopies(noOfCopies = noOfCopies))
                         },
-                        value = uiState.noOfCopies.orEmpty(),
+                        value = uiState.noOfCopies,
                         status = TUIInputFieldStatus.Normal,
                         inputFieldTye = InputField,
                         keyboardOption = KeyboardOptions.Default.copy(
