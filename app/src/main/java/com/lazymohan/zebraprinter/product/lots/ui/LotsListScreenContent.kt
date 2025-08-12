@@ -74,6 +74,7 @@ fun LotsListScreenContent(
     Scaffold(
         topBar = {
             LotsListTopBar(
+                uiState = uiState,
                 onNavigationIconClick = { handleEvent(LotsListsEvent.OnBackPressed) }
             )
         },
@@ -149,10 +150,11 @@ fun LotsListMainContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LotsListTopBar(
+    uiState: LotsListUiState,
     onNavigationIconClick: () -> Unit
 ) {
     TUIAppTopBar(
-        title = "Lots Lists",
+        title = "Lots Lists (${uiState.lotLists.size})",
         navigationIcon = Filled.ChevronLeft24,
         onNavigationIconClick = onNavigationIconClick
     )
