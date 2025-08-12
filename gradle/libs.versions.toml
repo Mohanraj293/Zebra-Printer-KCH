@@ -11,13 +11,15 @@ composeBom = "2025.07.00"
 tarkauiVersion = "1.2.29"
 tarkauiIconsVersion = "1.0.13"
 fluentSystemIcons = "1.1.306"
-eam360uiVersion = "1.1.12"
 jacksonDatabind = "2.19.2"
 hilt = "2.57"
 sheets = "0.6.0-alpha05"
 hiltNavigationCompose = "1.2.0"
 kotlinxMetadata = "0.9.0"
 kotlinxCollections = "0.4.0"
+retrofitVersion = "3.0.0"
+okHttpVersion = "5.0.0-alpha.14"
+gson = "2.13.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -37,7 +39,6 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 tarkaui = { module = "com.tarkalabs:tarkaui", version.ref = "tarkauiVersion" }
 tarkaui-icons = { module = "com.tarkalabs:tarkaui-icons", version.ref = "tarkauiIconsVersion" }
 fluent-system-icons = { module = "com.microsoft.design:fluent-system-icons", version.ref = "fluentSystemIcons" }
-eam360ui = { module = "com.eam360:uicomponents", version.ref = "eam360uiVersion" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jacksonDatabind" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
@@ -45,10 +46,18 @@ hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", ve
 kotlinx-metadata-jvm = { module = "org.jetbrains.kotlinx:kotlinx-metadata-jvm", version.ref = "kotlinxMetadata" }
 sheets = { module = "io.github.dokar3:sheets-m3", version.ref = "sheets" }
 kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "kotlinxCollections" }
+okhttp3 = { module = "com.squareup.okhttp3:okhttp", version.ref = "okHttpVersion" }
+okhttp3-logging-interceptor = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okHttpVersion" }
+retrofit2-converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofitVersion" }
+retrofit2-retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofitVersion" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+
+[bundles]
+retrofit = ["retrofit2-retrofit", "retrofit2-converter-gson", "okhttp3", "okhttp3-logging-interceptor", "gson"]
 

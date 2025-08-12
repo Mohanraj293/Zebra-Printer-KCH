@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dokar.sheets.rememberBottomSheetState
 import com.lazymohan.zebraprinter.effects.HandleErrorLaunchedEffect
+import com.lazymohan.zebraprinter.product.data.Item
 import com.lazymohan.zebraprinter.utils.EAMLoader
 import com.lazymohan.zebraprinter.utils.PrinterSelectionCard
 import com.tarkalabs.tarkaui.components.TUIAppTopBar
@@ -35,10 +36,12 @@ import com.tarkalabs.tarkaui.components.TUIMobileButtonBlock
 import com.tarkalabs.tarkaui.components.TUISnackBarHost
 import com.tarkalabs.tarkaui.components.TUISnackBarState
 import com.tarkalabs.tarkaui.components.TUISnackBarType
+import com.tarkalabs.tarkaui.components.TUITextRow
 import com.tarkalabs.tarkaui.components.VerticalSpacer
 import com.tarkalabs.tarkaui.components.base.TUIInputField
 import com.tarkalabs.tarkaui.components.base.TUIInputFieldStatus
 import com.tarkalabs.tarkaui.components.base.TUIInputFieldType.InputField
+import com.tarkalabs.tarkaui.icons.ChevronLeft24
 import com.tarkalabs.tarkaui.icons.Info24
 import com.tarkalabs.tarkaui.icons.Print24
 import com.tarkalabs.tarkaui.icons.TarkaIcons
@@ -52,7 +55,9 @@ import kotlinx.coroutines.launch
 fun PrinterScreenContent(
     modifier: Modifier = Modifier,
     uiState: PrinterUiState,
-    handleEvents: (PrinterEvents) -> Unit
+    item: Item?,
+    handleEvents: (PrinterEvents) -> Unit,
+    onBackPressed: () -> Unit
 ) {
     val snackState by remember {
         mutableStateOf(
@@ -81,7 +86,15 @@ fun PrinterScreenContent(
     val focusManager = LocalFocusManager.current
     Scaffold(
         topBar = {
-            TUIAppTopBar(title = "ZPL Printer test")
+            TUIAppTopBar(
+                title = "Inventory Item ${item?.itemNumber}",
+                navigationIcon = TarkaIcons.Regular.ChevronLeft24.copy(
+                    contentDescription = "Back"
+                ),
+                onNavigationIconClick = {
+                    onBackPressed()
+                }
+            )
         },
         snackbarHost = {
             TUISnackBarHost(
@@ -115,39 +128,19 @@ fun PrinterScreenContent(
                         .verticalScroll(scrollableState)
                         .padding(16.dp)
                 ) {
-                    TUIInputField(
-                        label = "Enter Item Number",
-                        onValueChange = { itemNum ->
-                            handleEvents(PrinterEvents.UpdateItemNum(itemNum = itemNum))
-                        },
-                        value = uiState.itemNum.orEmpty(),
-                        status = TUIInputFieldStatus.Normal,
-                        inputFieldTye = InputField,
-                        keyboardOption = KeyboardOptions.Default.copy(
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Next
-                        ),
-                        keyboardAction = KeyboardActions(
-                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        )
-                    )
+                    TUITextRow(title = "Item Number: ${item?.itemNumber ?: "N/A"}")
                     VerticalSpacer(space = 16)
-                    TUIInputField(
-                        label = "Enter Description",
-                        onValueChange = { description ->
-                            handleEvents(PrinterEvents.UpdateDescription(description = description))
-                        },
-                        value = uiState.description.orEmpty(),
-                        status = TUIInputFieldStatus.Normal,
-                        inputFieldTye = InputField,
-                        keyboardOption = KeyboardOptions.Default.copy(
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Next
-                        ),
-                        keyboardAction = KeyboardActions(
-                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        )
-                    )
+                    TUITextRow(title = "Description: ${item?.itemDescription ?: "N/A"}")
+                    VerticalSpacer(space = 16)
+                    TUITextRow(title = "Lot Number: ${item?.lotNumber ?: "N/A"}")
+                    VerticalSpacer(space = 16)
+                    TUITextRow(title = "Organization: ${item?.organizationName ?: "N/A"}")
+                    VerticalSpacer(space = 16)
+                    TUITextRow(title = "Status: ${item?.statusCode ?: "N/A"}")
+                    VerticalSpacer(space = 16)
+                    TUITextRow(title = "Origination Date: ${item?.originationDate ?: "N/A"}")
+                    VerticalSpacer(space = 16)
+                    TUITextRow(title = "Expiration Date: ${item?.expirationDate ?: "N/A"}")
                     VerticalSpacer(space = 16)
                     TUIInputField(
                         label = "Enter No of Copies",
