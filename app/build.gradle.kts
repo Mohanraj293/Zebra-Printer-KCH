@@ -18,6 +18,17 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // === BuildConfig constants used by Fusion client / GRN flow ===
+        buildConfigField("String", "FUSION_BASE_URL", "\"https://effb-test.fa.em3.oraclecloud.com/\"") // must end with /
+        buildConfigField("String", "FUSION_USERNAME", "\"RCA.Automation\"")
+        buildConfigField("String", "FUSION_PASSWORD", "\"Kch12345\"")
+
+        buildConfigField("String", "EMPLOYEE_ID", "\"300000023921708\"")
+        buildConfigField("String", "ORGANIZATION_CODE", "\"KDH\"")
+        buildConfigField("String", "DEFAULT_SUBINVENTORY", "\"DHHPHMAIN\"")
+        buildConfigField("String", "DEFAULT_LOCATOR", "\"0.0.0\"")
+        // =============================================================
     }
 
     buildTypes {
@@ -38,6 +49,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true // <- ensure BuildConfig is generated
     }
 }
 
@@ -52,6 +64,11 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+
+    // Icons for Icons.Outlined.*
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.material:material-icons-extended")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -67,8 +84,8 @@ dependencies {
 
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
-
     implementation(libs.hilt.navigation.compose)
+
     implementation(libs.kotlinx.metadata.jvm)
     implementation(libs.sheets)
     implementation(libs.kotlinx.collections.immutable)

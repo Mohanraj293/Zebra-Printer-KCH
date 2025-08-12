@@ -11,10 +11,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lazymohan.zebraprinter.effects.RequestBluetoothPermission
-import com.lazymohan.zebraprinter.product.data.Item
+import com.lazymohan.zebraprinter.product.data.Lots
 import com.lazymohan.zebraprinter.ui.PrinterEvents
 import com.lazymohan.zebraprinter.ui.PrinterScreenContent
 import com.lazymohan.zebraprinter.ui.PrinterViewModel
+import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -26,19 +27,27 @@ class ZPLPrinterActivity : ComponentActivity() {
     @Inject
     lateinit var printerViewModelFactory: PrinterViewModel.PrinterViewModelFactory
 
+    @Inject
+    lateinit var dateTimeConverter: DateTimeConverter
+
     private val viewModel: PrinterViewModel by viewModels {
         PrinterViewModel.providesFactory(
             assistedFactory = printerViewModelFactory,
-            item = intent.getSerializableExtra("product") as Item
+            lots = intent.getSerializableExtra("product") as Lots,
         )
     }
 
     private var requestPrint = mutableStateOf(false)
 
     companion object {
-        fun getCallingIntent(context: Context, product: Item): Intent {
+        fun getCallingIntent(
+            context: Context,
+            gtinNumber: String,
+            product: Lots
+        ): Intent {
             return Intent(context, ZPLPrinterActivity::class.java).apply {
                 putExtra("product", product)
+                putExtra("gtinNumber", gtinNumber)
             }
         }
     }
@@ -49,12 +58,15 @@ class ZPLPrinterActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-            val product = intent.getSerializableExtra("product") as? Item
+            val product = intent.getSerializableExtra("product") as? Lots
+            val gtinNumber: String? = intent.getStringExtra("gtinNumber")
             TUITheme {
                 PrinterScreenContent(
                     handleEvents = ::handleEvents,
                     uiState = uiState,
-                    item = product,
+                    lots = product,
+                    gtinNumber = gtinNumber,
+                    dateTimeConverter = dateTimeConverter,
                     onBackPressed = { onBackPressedDispatcher.onBackPressed() }
                 )
                 RequestBluetoothPermission(

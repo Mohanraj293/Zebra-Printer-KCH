@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.PrinterService
 import com.lazymohan.zebraprinter.model.DiscoveredPrinterInfo
 import com.lazymohan.zebraprinter.model.PrintContentModel
-import com.lazymohan.zebraprinter.product.data.Item
+import com.lazymohan.zebraprinter.product.data.Lots
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.lazymohan.zebraprinter.utils.launchWithHandler
 import com.tarkalabs.tarkaui.components.TUISnackBarType
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 
 class PrinterViewModel @AssistedInject constructor(
     private val printerService: PrinterService,
-    @Assisted("item") private val item: Item,
+    @Assisted("item") private val lots: Lots,
 ) : ViewModel() {
 
     init {
@@ -30,17 +30,17 @@ class PrinterViewModel @AssistedInject constructor(
 
     @AssistedFactory
     interface PrinterViewModelFactory {
-        fun create(@Assisted("item") item: Item): PrinterViewModel
+        fun create(@Assisted("item") lots: Lots): PrinterViewModel
     }
 
     @Suppress("UNCHECKED_CAST")
     companion object {
         fun providesFactory(
             assistedFactory: PrinterViewModelFactory,
-            item: Item
+            lots: Lots
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>) = assistedFactory.create(
-                item = item
+                lots = lots
             ) as T
         }
     }
@@ -61,8 +61,8 @@ class PrinterViewModel @AssistedInject constructor(
         ) {
             showLoading()
             val printModel = PrintContentModel(
-                itemNum = item.itemNumber.orEmpty(),
-                description = item.itemDescription.orEmpty()
+                itemNum = lots.itemNumber.orEmpty(),
+                description = lots.itemDescription.orEmpty()
             )
 
             if (!isValidInput()) {

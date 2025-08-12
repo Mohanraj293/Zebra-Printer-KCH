@@ -8,4 +8,5 @@ sealed class ProductsEvent {
     data object RemoveError : ProductsEvent()
     data class OnProductSelected(val product: Item) : ProductsEvent()
     data object OnBackPressed : ProductsEvent()
+    data object Finish : ProductsEvent()
 }

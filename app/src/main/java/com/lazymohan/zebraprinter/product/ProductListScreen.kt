@@ -38,7 +38,7 @@ import com.tarkalabs.tarkaui.components.TUIAppTopBar
 import com.tarkalabs.tarkaui.components.TUISnackBarHost
 import com.tarkalabs.tarkaui.components.TUISnackBarState
 import com.tarkalabs.tarkaui.components.TUISnackBarType
-import com.tarkalabs.tarkaui.icons.ChevronLeft24
+import com.tarkalabs.tarkaui.icons.Dismiss24
 import com.tarkalabs.tarkaui.icons.Info24
 import com.tarkalabs.tarkaui.icons.TarkaIcons
 import com.tarkalabs.tarkaui.icons.TarkaIcons.Filled
@@ -85,7 +85,7 @@ fun ProductListScreen(
         topBar = {
             TUIAppTopBar(
                 title = "Products (${uiState.products.size})",
-                navigationIcon = TarkaIcons.Regular.ChevronLeft24.copy(
+                navigationIcon = TarkaIcons.Regular.Dismiss24.copy(
                     contentDescription = "Back"
                 ),
                 onNavigationIconClick = {

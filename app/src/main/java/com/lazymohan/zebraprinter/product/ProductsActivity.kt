@@ -5,8 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModelProvider
-import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.product.data.ProductsRepo
+import com.lazymohan.zebraprinter.product.lots.LotsListActivity
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -47,12 +47,16 @@ class ProductsActivity : ComponentActivity() {
 
             is ProductsEvent.OnProductSelected -> {
                 startActivity(
-                    ZPLPrinterActivity.getCallingIntent(this, event.product)
+                    LotsListActivity.getCallingIntent(this, event.product)
                 )
             }
 
             ProductsEvent.OnBackPressed -> {
                 viewModel.updateShowProductScreen(false)
+            }
+
+            ProductsEvent.Finish -> {
+                finish()
             }
         }
     }
