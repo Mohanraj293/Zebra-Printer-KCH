@@ -59,7 +59,11 @@ class ProductsViewModel(
                         hasMore = true
                         return@launchWithHandler
                     }
-                    itemProducts.addAll(it.items)
+
+                    val existingIds = itemProducts.map { product -> product.itemNumber }.toSet()
+                    val newItems = it.items.filter { product -> product.itemNumber !in existingIds }
+
+                    itemProducts.addAll(newItems)
                 }
                 _uiState.update { currentState ->
                     currentState.copy(
