@@ -5,11 +5,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.BuildConfig
 import com.lazymohan.zebraprinter.grn.data.*
+import com.lazymohan.zebraprinter.grn.util.ExtractedItem
+import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
+import com.lazymohan.zebraprinter.grn.util.parseToIso
+import com.lazymohan.zebraprinter.grn.util.toDoubleSafe
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.min
 
 enum class GrnStep { ENTER_PO, SHOW_PO, REVIEW, SUMMARY }
 
@@ -18,10 +23,10 @@ data class LineInput(
     val itemNumber: String,
     val uom: String,
     val maxQty: Double,
-    var qty: Double = 1.0,
-    var lot: String = "BATCH20250811",
-    var expiry: String = "2026-08-15",
-    var description: String = ""
+    val qty: Double = 1.0,
+    val lot: String = "BATCH20250811",
+    val expiry: String = "2026-08-15",
+    val description: String = ""
 )
 
 data class GrnUiState(
@@ -68,24 +73,61 @@ class GrnViewModel @Inject constructor(
     private fun prefetchPoLines(headerId: String) = viewModelScope.launch {
         repo.fetchPoLines(headerId)
             .onSuccess { items ->
-                val inputs = items.map {
-                    val safeItem = it.Item?.trim().orEmpty()
-                    LineInput(
-                        lineNumber = it.LineNumber,
-                        itemNumber = safeItem,
-                        uom = it.UOM,
-                        maxQty = it.Quantity,
-                        qty = 1.0,
-                        lot = "BATCH20250811",
-                        expiry = "2026-08-15",
-                        description = it.Description ?: ""
+                // Simulated extracted items for matching
+                // In a real scenario, this would come from extraction API
+                val extractedItems = listOf(
+                    ExtractedItem(
+                        description = "NUTRYELT 10ML AMP (TRACE EL.) ADULT-10'S",
+                        qtyDelivered = toDoubleSafe("3"),
+                        expiryDate = "09/01/2026",
+                        batchNo = "D0615A04"
+                    ),
+                    ExtractedItem(
+                        description = "TACHYBEN (URAPIDIL) 50MG/10ML-AMP-5'S",
+                        qtyDelivered = toDoubleSafe("3"),
+                        expiryDate = "31/01/2026",
+                        batchNo = "F7201-03"
                     )
+                )
+
+                val used = mutableSetOf<Int>()
+                val inputs = items.map { line ->
+                    val safeItem = line.Item?.trim().orEmpty()
+                    val poDesc = (line.Description ?: safeItem).trim()
+                    val matchIdx = bestMatchIndex(extractedItems, poDesc, used, threshold = 0.35)
+
+                    if (matchIdx != null) {
+                        used += matchIdx
+                        val ex = extractedItems[matchIdx]
+                        val isoExpiry = parseToIso(ex.expiryDate)
+                        val clampedQty = min(ex.qtyDelivered, line.Quantity)
+                        LineInput(
+                            lineNumber = line.LineNumber,
+                            itemNumber = safeItem,
+                            uom = line.UOM,
+                            maxQty = line.Quantity,
+                            qty = clampedQty,
+                            lot = ex.batchNo,
+                            expiry = isoExpiry,
+                            description = line.Description ?: ""
+                        )
+                    } else {
+                        LineInput(
+                            lineNumber = line.LineNumber,
+                            itemNumber = safeItem,
+                            uom = line.UOM,
+                            maxQty = line.Quantity,
+                            qty = 1.0,
+                            lot = "BATCH20250811",
+                            expiry = "2026-08-15",
+                            description = line.Description ?: ""
+                        )
+                    }
                 }
+
                 _state.value = _state.value.copy(lines = items, lineInputs = inputs)
             }
-            .onFailure { e ->
-                _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines")
-            }
+            .onFailure { e -> _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines") }
     }
 
     fun updateLine(lineNumber: Int, qty: Double? = null, lot: String? = null, expiry: String? = null) {
@@ -99,31 +141,43 @@ class GrnViewModel @Inject constructor(
         _state.value = _state.value.copy(lineInputs = updated)
     }
 
+    fun removeLine(lineNumber: Int) {
+        _state.value = _state.value.copy(
+            lines = _state.value.lines.filterNot { it.LineNumber == lineNumber },
+            lineInputs = _state.value.lineInputs.filterNot { it.lineNumber == lineNumber }
+        )
+    }
+
     fun buildPayloadAndReview() {
         val s = _state.value
         val po = s.po ?: return
-        val lines = s.lineInputs
+        val selectedInputs = s.lineInputs
             .filter { it.qty > 0.0 && it.lot.isNotBlank() && it.expiry.isNotBlank() }
-            .map { inp ->
-                ReceiptLine(
-                    OrganizationCode = BuildConfig.ORGANIZATION_CODE,
-                    DocumentNumber = po.OrderNumber,
-                    DocumentLineNumber = inp.lineNumber,
-                    ItemNumber = inp.itemNumber,
-                    Quantity = inp.qty,
-                    UnitOfMeasure = inp.uom,
-                    SoldtoLegalEntity = po.SoldToLegalEntity,
-                    Subinventory = BuildConfig.DEFAULT_SUBINVENTORY,
-                    Locator = BuildConfig.DEFAULT_LOCATOR,
-                    lotItemLots = listOf(
-                        LotItem(
-                            LotNumber = inp.lot,
-                            TransactionQuantity = inp.qty,
-                            LotExpirationDate = inp.expiry
-                        )
+            .associateBy { it.lineNumber }
+
+        val linesForPayload = s.lines.filter { selectedInputs.containsKey(it.LineNumber) }
+        val lines = linesForPayload.map { line ->
+            val inp = selectedInputs.getValue(line.LineNumber)
+            ReceiptLine(
+                OrganizationCode = BuildConfig.ORGANIZATION_CODE,
+                DocumentNumber = po.OrderNumber,
+                DocumentLineNumber = inp.lineNumber,
+                ItemNumber = inp.itemNumber,
+                Quantity = inp.qty,
+                UnitOfMeasure = inp.uom,
+                SoldtoLegalEntity = po.SoldToLegalEntity,
+                Subinventory = BuildConfig.DEFAULT_SUBINVENTORY,
+                Locator = BuildConfig.DEFAULT_LOCATOR,
+                lotItemLots = listOf(
+                    LotItem(
+                        LotNumber = inp.lot,
+                        TransactionQuantity = inp.qty,
+                        LotExpirationDate = inp.expiry
                     )
                 )
-            }
+            )
+        }
+
         val payload = ReceiptRequest(
             OrganizationCode = BuildConfig.ORGANIZATION_CODE,
             VendorName = po.Supplier,
@@ -134,6 +188,8 @@ class GrnViewModel @Inject constructor(
         )
         _state.value = s.copy(payload = payload, step = GrnStep.REVIEW)
     }
+
+    fun backToReceive() { _state.value = _state.value.copy(step = GrnStep.SHOW_PO) }  // NEW
 
     fun submitReceipt() = viewModelScope.launch {
         val s = _state.value
