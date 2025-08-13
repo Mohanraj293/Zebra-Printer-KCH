@@ -61,7 +61,8 @@ fun GrnScreens(
                     GrnStep.REVIEW   -> "Send the receipt request to Oracle"
                     GrnStep.SUMMARY  -> "Goods Receipt Note Created"
                     else             -> "Expand a line, enter Qty/Lot/Expiry"
-                }
+                },
+                onLogoClick = onBack
             )
 
             when (ui.step) {
@@ -76,22 +77,49 @@ fun GrnScreens(
 }
 
 @Composable
-private fun Header(gradient: Brush, title: String, subtitle: String) {
+private fun Header(
+    gradient: Brush,
+    title: String,
+    subtitle: String,
+    onLogoClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(gradient)
             .padding(top = 28.dp, start = 24.dp, end = 24.dp, bottom = 18.dp)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Surface(
-                modifier = Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)),
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable { onLogoClick() },
                 color = Color.White
-            ) { Box(contentAlignment = Alignment.Center) { Text("KCH", color = Color(0xFF0E63FF), style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)) } }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        "KCH",
+                        color = Color(0xFF0E63FF),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+            }
             Spacer(Modifier.height(14.dp))
-            Text(title, color = Color.White, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold))
+            Text(
+                title,
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold)
+            )
             Spacer(Modifier.height(6.dp))
-            Text(subtitle, color = Color.White.copy(alpha = 0.95f), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                subtitle,
+                color = Color.White.copy(alpha = 0.95f),
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }
