@@ -236,7 +236,8 @@ private fun PoAndReceiveCard(
                                         .fillMaxWidth()
                                         .clickable { expanded = !expanded }
                                 ) {
-                                    val title = (ln.Description ?: "").ifBlank { "Item ${ln.Item}" }
+                                    val itemCode = ln.Item?.takeIf { it.isNotBlank() } ?: "NA"
+                                    val title = (ln.Description ?: "").ifBlank { "Item ${itemCode}" }
                                     Text(
                                         text = title,
                                         style = MaterialTheme.typography.titleMedium,
@@ -246,7 +247,7 @@ private fun PoAndReceiveCard(
                                     )
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        text = "Item Code: ${ln.Item}",
+                                        text = "Item Code: ${itemCode}",
                                         style = MaterialTheme.typography.labelMedium,
                                         color = Color(0xFF334155)
                                     )

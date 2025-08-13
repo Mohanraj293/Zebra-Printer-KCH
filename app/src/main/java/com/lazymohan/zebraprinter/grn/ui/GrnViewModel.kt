@@ -20,7 +20,7 @@ data class LineInput(
     val maxQty: Double,
     var qty: Double = 1.0,
     var lot: String = "BATCH20250811",
-    var expiry: String = "026-08-15",
+    var expiry: String = "2026-08-15",
     var description: String = ""
 )
 
@@ -69,9 +69,10 @@ class GrnViewModel @Inject constructor(
         repo.fetchPoLines(headerId)
             .onSuccess { items ->
                 val inputs = items.map {
+                    val safeItem = it.Item?.trim().orEmpty()
                     LineInput(
                         lineNumber = it.LineNumber,
-                        itemNumber = it.Item,
+                        itemNumber = safeItem,
                         uom = it.UOM,
                         maxQty = it.Quantity,
                         qty = 1.0,
