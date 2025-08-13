@@ -31,6 +31,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Launcher / Home -->
         <activity
             android:name=".landing.LandingActivity"
             android:exported="true"
@@ -41,12 +42,21 @@
             </intent-filter>
         </activity>
 
+        <!-- Scan flow -->
+        <activity
+            android:name=".scan.ScanDeliverySlipActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ZebraPrinterKCH"
+            android:parentActivityName=".landing.LandingActivity" />
+
+        <activity
+            android:name=".scan.ScanResultActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ZebraPrinterKCH"
+            android:parentActivityName=".landing.LandingActivity" />
+
+        <!-- Other screens -->
         <activity android:name=".product.ProductsActivity" android:exported="false" android:theme="@style/Theme.ZebraPrinterKCH" />
-        <activity android:name=".scan.ScanDeliverySlipActivity" android:exported="false" android:theme="@style/Theme.ZebraPrinterKCH" />
-
-        <!-- Review & Edit after scan -->
-        <activity android:name=".scan.ScanReviewActivity" android:exported="false" android:theme="@style/Theme.ZebraPrinterKCH" />
-
         <activity android:name=".grn.ui.GrnActivity" android:exported="false" android:theme="@style/Theme.ZebraPrinterKCH" />
         <activity android:name=".ZPLPrinterActivity" android:exported="false" />
         <activity android:name=".product.lots.LotsListActivity" android:exported="false" />
