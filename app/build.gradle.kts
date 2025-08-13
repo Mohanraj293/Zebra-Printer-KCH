@@ -16,7 +16,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // === BuildConfig constants used by Fusion client / GRN flow ===
@@ -49,7 +48,7 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true // <- ensure BuildConfig is generated
+        buildConfig = true
     }
 }
 
@@ -65,7 +64,6 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    // Icons for Icons.Outlined.*
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
 
@@ -91,4 +89,27 @@ dependencies {
     implementation(libs.kotlinx.collections.immutable)
 
     implementation(libs.bundles.retrofit)
+
+    // ML Kit dependencies
+    implementation("com.google.mlkit:text-recognition:16.0.0")
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    implementation("com.google.mlkit:face-detection:16.1.5")
+    implementation("com.google.mlkit:object-detection:17.0.0")
+
+    // Document Scanner Options:
+    // Option 1: Try the beta version
+    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
+    implementation("com.google.android.gms:play-services-base:18.5.0")
+
+    // Option 2: If document scanner not available, use CameraX for custom document scanning
+    implementation("androidx.camera:camera-core:1.4.0")
+    implementation("androidx.camera:camera-camera2:1.4.0")
+    implementation("androidx.camera:camera-lifecycle:1.4.0")
+    implementation("androidx.camera:camera-view:1.4.0")
+    implementation("androidx.camera:camera-extensions:1.4.0")
+
+    // Image processing libraries
+    implementation("com.github.yalantis:ucrop:2.2.8")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.activity:activity-compose:1.9.2")
 }
