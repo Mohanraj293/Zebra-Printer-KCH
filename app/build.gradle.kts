@@ -101,15 +101,15 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
     implementation("com.google.android.gms:play-services-base:18.5.0")
 
-    // Option 2: If document scanner not available, use CameraX for custom document scanning
-    implementation("androidx.camera:camera-core:1.4.0")
-    implementation("androidx.camera:camera-camera2:1.4.0")
-    implementation("androidx.camera:camera-lifecycle:1.4.0")
-    implementation("androidx.camera:camera-view:1.4.0")
-    implementation("androidx.camera:camera-extensions:1.4.0")
-
-    // Image processing libraries
-    implementation("com.github.yalantis:ucrop:2.2.8")
+//    // Option 2: If document scanner not available, use CameraX for custom document scanning
+//    implementation("androidx.camera:camera-core:1.4.0")
+//    implementation("androidx.camera:camera-camera2:1.4.0")
+//    implementation("androidx.camera:camera-lifecycle:1.4.0")
+//    implementation("androidx.camera:camera-view:1.4.0")
+//    implementation("androidx.camera:camera-extensions:1.4.0")
+//
+//    // Image processing libraries
+//    implementation("com.github.yalantis:ucrop:2.2.8")
     implementation("io.coil-kt:coil-compose:2.6.0")
-    implementation("androidx.activity:activity-compose:1.9.2")
+//    implementation("androidx.activity:activity-compose:1.9.2")
 }
