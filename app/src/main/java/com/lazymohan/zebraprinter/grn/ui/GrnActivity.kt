@@ -34,6 +34,8 @@ class GrnActivity : ComponentActivity() {
                     onEnterPo = { vm.setPoNumber(it) },
                     onFetchPo = { vm.fetchPo() },
                     onUpdateLine = { ln, q, l, e -> vm.updateLine(ln, q, l, e) },
+                    onRemoveLine = { ln -> vm.removeLine(ln) },
+                    onEditReceive = { vm.backToReceive() },
                     onReview = { vm.buildPayloadAndReview() },
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },

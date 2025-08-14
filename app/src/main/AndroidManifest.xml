@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
@@ -19,6 +20,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ZebraPrinterKCH">
 
+        <!-- FileProvider for scan editing output -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Launcher / Home -->
         <activity
             android:name=".landing.LandingActivity"
             android:exported="true"
@@ -29,28 +42,23 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".product.ProductsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ZebraPrinterKCH" />
-
+        <!-- Scan flow -->
         <activity
             android:name=".scan.ScanDeliverySlipActivity"
             android:exported="false"
-            android:theme="@style/Theme.ZebraPrinterKCH" />
+            android:theme="@style/Theme.ZebraPrinterKCH"
+            android:parentActivityName=".landing.LandingActivity" />
 
-        <!-- Manual GRN flow -->
         <activity
-            android:name=".grn.ui.GrnActivity"
+            android:name=".scan.ScanResultActivity"
             android:exported="false"
-            android:theme="@style/Theme.ZebraPrinterKCH" />
+            android:theme="@style/Theme.ZebraPrinterKCH"
+            android:parentActivityName=".landing.LandingActivity" />
 
-        <activity
-            android:name=".ZPLPrinterActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".product.lots.LotsListActivity"
-            android:exported="false" />
+        <!-- Other screens -->
+        <activity android:name=".product.ProductsActivity" android:exported="false" android:theme="@style/Theme.ZebraPrinterKCH" />
+        <activity android:name=".grn.ui.GrnActivity" android:exported="false" android:theme="@style/Theme.ZebraPrinterKCH" />
+        <activity android:name=".ZPLPrinterActivity" android:exported="false" />
+        <activity android:name=".product.lots.LotsListActivity" android:exported="false" />
     </application>
 </manifest>
