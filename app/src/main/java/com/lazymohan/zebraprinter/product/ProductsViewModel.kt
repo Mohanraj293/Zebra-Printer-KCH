@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.product.data.Item
+import com.lazymohan.zebraprinter.product.data.Organisations
 import com.lazymohan.zebraprinter.product.data.ProductsRepo
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.lazymohan.zebraprinter.utils.launchWithHandler
@@ -19,6 +20,31 @@ class ProductsViewModel(
 
     private val _uiState = MutableStateFlow(ProductUiState())
     val uiState = _uiState.asStateFlow()
+    val orgIdLists = mutableListOf<Organisations>()
+
+    init {
+        viewModelScope.launchWithHandler(Dispatchers.IO, ::handleErrors) {
+            showLoading()
+            try {
+                val organisations = productsRepo.getOrganisations()?.items
+                organisations?.let {
+                    orgIdLists.addAll(it)
+                }
+            } catch (e: Exception) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        snackBarMessage = SnackBarMessage.StringMessage(
+                            message = e.message ?: "An error occurred"
+                        )
+                    )
+                }
+            }
+            hideLoading()
+            _uiState.update {
+                it.copy(orgIdList = orgIdLists)
+            }
+        }
+    }
 
     private var currentOffset = 0
     private val limit = 25
@@ -44,7 +70,8 @@ class ProductsViewModel(
             showLoading()
             try {
                 val products = productsRepo.getProducts(
-                    _uiState.value.searchQuery,
+                    searchQuery = _uiState.value.searchQuery,
+                    selectedOrgId = _uiState.value.selectedOrgId,
                     limit = limit,
                     offset = currentOffset
                 )
@@ -92,6 +119,12 @@ class ProductsViewModel(
         hasMore = true
     }
 
+    fun showOrgIdBottomSheet(show: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(showOrgIdBottomSheet = show)
+        }
+    }
+
     fun handleErrors(throwable: Throwable) {
         updateSnackBarMessage(message = SnackBarMessage.StringMessage(throwable.message))
     }
@@ -119,6 +152,12 @@ class ProductsViewModel(
 
     fun hideLoading() {
         _uiState.update { it.copy(isLoading = false) }
+    }
+
+    fun updateSelectedOrgId(orgId: Organisations) {
+        _uiState.update {
+            it.copy(selectedOrgId = orgId)
+        }
     }
 }
 

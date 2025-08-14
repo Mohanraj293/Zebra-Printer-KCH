@@ -1,5 +1,6 @@
 package com.lazymohan.zebraprinter.product
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +14,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -24,7 +25,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dokar.sheets.rememberBottomSheetState
 import com.lazymohan.zebraprinter.effects.HandleErrorLaunchedEffect
+import com.lazymohan.zebraprinter.ui.OrgIdBottomSheet
 import com.lazymohan.zebraprinter.utils.EAMLoader
 import com.lazymohan.zebraprinter.utils.EAMLoaderStyle
 import com.tarkalabs.tarkaui.components.TUIAppTopBar
@@ -40,7 +43,10 @@ import com.tarkalabs.tarkaui.icons.ChevronLeft24
 import com.tarkalabs.tarkaui.icons.Info24
 import com.tarkalabs.tarkaui.icons.TarkaIcons.Filled
 import com.tarkalabs.tarkaui.theme.TUITheme
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.launch
 
+@SuppressLint("CoroutineCreationDuringComposition")
 @Composable
 fun ProductScreenContent(
     modifier: Modifier = Modifier,
@@ -49,15 +55,17 @@ fun ProductScreenContent(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
-    val snackState by remember {
-        mutableStateOf(
-            TUISnackBarState(
-                SnackbarHostState(),
-                TUISnackBarType.Error,
-                Filled.Info24
-            )
+    val coroutineScope = rememberCoroutineScope()
+
+    val snackState = remember {
+        TUISnackBarState(
+            SnackbarHostState(),
+            TUISnackBarType.Error,
+            Filled.Info24
         )
     }
+
+    val bottomSheetState = rememberBottomSheetState()
 
     HandleErrorLaunchedEffect(
         snackBarMessage = uiState.snackBarMessage,
@@ -67,6 +75,7 @@ fun ProductScreenContent(
             handleEvent(ProductsEvent.RemoveError)
         }
     )
+
     Scaffold(
         topBar = {
             ProductTopBar(
@@ -84,9 +93,18 @@ fun ProductScreenContent(
             modifier = modifier
                 .padding(paddingValues)
                 .background(TUITheme.colors.surface)
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
         ) {
+            OrgIdSelectionCard(
+                selectedOrgId = uiState.selectedOrgId?.organizationCode
+            ) {
+                handleEvent(ProductsEvent.OnOrgIdClicked(true))
+                coroutineScope.launch {
+                    bottomSheetState.expand()
+                }
+            }
+
+
             Column(
                 modifier = modifier
                     .padding(8.dp)
@@ -121,6 +139,19 @@ fun ProductScreenContent(
             }
         }
     }
+
+    OrgIdBottomSheet(
+        snackBarState = snackState,
+        items = uiState.orgIdList.toImmutableList(),
+        onSelectItem = {
+            handleEvent(ProductsEvent.SelectedOrgId(it))
+            coroutineScope.launch { bottomSheetState.collapse() }
+        },
+        bottomSheetState = bottomSheetState,
+        onDiscardClicked = {
+            coroutineScope.launch { bottomSheetState.collapse() }
+        }
+    )
 }
 
 @Composable

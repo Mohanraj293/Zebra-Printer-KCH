@@ -58,6 +58,14 @@ class ProductsActivity : ComponentActivity() {
             ProductsEvent.Finish -> {
                 finish()
             }
+
+            is ProductsEvent.OnOrgIdClicked -> {
+                viewModel.showOrgIdBottomSheet(event.show)
+            }
+
+            is ProductsEvent.SelectedOrgId -> {
+                viewModel.updateSelectedOrgId(event.orgId)
+            }
         }
     }
 }
