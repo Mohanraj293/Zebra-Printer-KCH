@@ -17,12 +17,17 @@ import java.util.Date
 
 class ProductsRepo {
 
-    suspend fun getProducts(searchQuery: String, limit: Int, offset: Int): InventoryResponse? =
+    suspend fun getProducts(
+        searchQuery: String,
+        selectedOrgId: Organisations?,
+        limit: Int,
+        offset: Int
+    ): InventoryResponse? =
         withContext(Dispatchers.IO) {
             val service = ApiClient.create()
             try {
                 val response = service.getInventoryItemLots(
-                    query = "ItemDescription LIKE '%$searchQuery%'",
+                    query = "ItemDescription LIKE '%$searchQuery%';OrganizationCode='${selectedOrgId?.organizationCode}'",
                     limit = limit,
                     offset = offset
                 )
@@ -81,6 +86,24 @@ class ProductsRepo {
                 null
             }
         }
+
+    suspend fun getOrganisations() =
+        withContext(Dispatchers.IO) {
+            val service = ApiClient.create()
+            try {
+                val response = service.getOrganisations()
+                if (response.isSuccessful && response.body()?.items?.isNotEmpty() == true) {
+                    response.body()
+                } else {
+                    Log.e("API", "Error: ${response.errorBody()?.string()}")
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Exception: ${e.localizedMessage}", e)
+                null
+            }
+        }
+
 }
 
 interface OracleApiService {
@@ -105,6 +128,9 @@ interface OracleApiService {
     suspend fun getGTINForItem(
         @Query("q") query: String,
     ): Response<GTINResponse>
+
+    @GET("fscmRestApi/resources/11.13.18.05/inventoryOrganizations")
+    suspend fun getOrganisations(): Response<OrganisationResponse>
 }
 
 object ApiClient {
@@ -162,6 +188,10 @@ data class GTINResponse(
     @SerializedName("items") val items: List<GTIN>,
 )
 
+data class OrganisationResponse(
+    @SerializedName("items") val items: List<Organisations>
+)
+
 data class GTIN(
     @SerializedName("GTIN") val gtin: String?,
     @SerializedName("InventoryItemId") val inventoryItemId: Long
@@ -182,3 +212,9 @@ data class Lots(
     @SerializedName("ExpirationDate") val expirationDate: Date?,
     @SerializedName("InventoryItemId") val inventoryItemId: Long
 ) : Serializable
+
+data class Organisations(
+    @SerializedName("OrganizationId") val organizationId: Long,
+    @SerializedName("OrganizationCode") val organizationCode: String,
+    @SerializedName("OrganizationName") val organizationName: String
+)
