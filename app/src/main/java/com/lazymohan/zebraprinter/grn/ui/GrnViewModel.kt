@@ -11,16 +11,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class GrnStep { ENTER_PO, SHOW_PO, RECEIVE_LINES, REVIEW, SUMMARY }
+enum class GrnStep { ENTER_PO, SHOW_PO, REVIEW, SUMMARY }
 
 data class LineInput(
     val lineNumber: Int,
     val itemNumber: String,
     val uom: String,
     val maxQty: Double,
-    var qty: Double = 0.0,
-    var lot: String = "",
-    var expiry: String = "" // ISO yyyy-MM-dd
+    var qty: Double = 1.0,
+    var lot: String = "BATCH20250811",
+    var expiry: String = "026-08-15",
+    var description: String = ""
 )
 
 data class GrnUiState(
@@ -48,9 +49,7 @@ class GrnViewModel @Inject constructor(
         if (!po.isNullOrBlank()) _state.value = _state.value.copy(poNumber = po)
     }
 
-    fun setPoNumber(po: String) {
-        _state.value = _state.value.copy(poNumber = po)
-    }
+    fun setPoNumber(po: String) { _state.value = _state.value.copy(poNumber = po) }
 
     fun fetchPo() = viewModelScope.launch {
         val s = _state.value
@@ -59,15 +58,14 @@ class GrnViewModel @Inject constructor(
         repo.fetchPo(s.poNumber)
             .onSuccess { po ->
                 _state.value = _state.value.copy(loading = false, po = po, step = GrnStep.SHOW_PO)
-                fetchPoLines(po.POHeaderId)
+                prefetchPoLines(po.POHeaderId)
             }
             .onFailure { e ->
                 _state.value = _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
             }
     }
 
-    private fun fetchPoLines(headerId: String) = viewModelScope.launch {
-        _state.value = _state.value.copy(loading = true, error = null)
+    private fun prefetchPoLines(headerId: String) = viewModelScope.launch {
         repo.fetchPoLines(headerId)
             .onSuccess { items ->
                 val inputs = items.map {
@@ -76,29 +74,20 @@ class GrnViewModel @Inject constructor(
                         itemNumber = it.Item,
                         uom = it.UOM,
                         maxQty = it.Quantity,
-                        qty = it.Quantity,
+                        qty = 1.0,
                         lot = "BATCH20250811",
-                        expiry = "2026-08-15"
+                        expiry = "2026-08-15",
+                        description = it.Description ?: ""
                     )
                 }
-                _state.value = _state.value.copy(
-                    loading = false,
-                    lines = items,
-                    lineInputs = inputs,
-                    step = GrnStep.RECEIVE_LINES
-                )
+                _state.value = _state.value.copy(lines = items, lineInputs = inputs)
             }
             .onFailure { e ->
-                _state.value = _state.value.copy(loading = false, error = e.message)
+                _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines")
             }
     }
 
-    fun updateLine(
-        lineNumber: Int,
-        qty: Double? = null,
-        lot: String? = null,
-        expiry: String? = null
-    ) {
+    fun updateLine(lineNumber: Int, qty: Double? = null, lot: String? = null, expiry: String? = null) {
         val updated = _state.value.lineInputs.map {
             if (it.lineNumber == lineNumber) it.copy(
                 qty = qty ?: it.qty,
@@ -113,7 +102,7 @@ class GrnViewModel @Inject constructor(
         val s = _state.value
         val po = s.po ?: return
         val lines = s.lineInputs
-            .filter { it.qty > 0.0 }
+            .filter { it.qty > 0.0 && it.lot.isNotBlank() && it.expiry.isNotBlank() }
             .map { inp ->
                 ReceiptLine(
                     OrganizationCode = BuildConfig.ORGANIZATION_CODE,
@@ -169,7 +158,5 @@ class GrnViewModel @Inject constructor(
             }
     }
 
-    fun startOver() {
-        _state.value = GrnUiState()
-    }
+    fun startOver() { _state.value = GrnUiState() }
 }

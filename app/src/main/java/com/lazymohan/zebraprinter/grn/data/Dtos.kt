@@ -18,7 +18,8 @@ data class PoLineItem(
     val LineNumber: Int,
     val Item: String,
     val Quantity: Double,
-    val UOM: String
+    val UOM: String,
+    val Description: String? = null,
 )
 
 // --- Receipt request ---
