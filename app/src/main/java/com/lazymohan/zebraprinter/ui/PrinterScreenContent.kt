@@ -146,7 +146,7 @@ fun PrinterScreenContent(
                     TUITextRow(title = "GTIN Number: ${gtinNumber ?: "N/A"}")
                     VerticalSpacer(space = 8)
                     TUIInputField(
-                        label = "Enter No of Copies",
+                        label = "Enter no of Labels",
                         onValueChange = { noOfCopies ->
                             handleEvents(PrinterEvents.UpdateNoOfCopies(noOfCopies = noOfCopies))
                         },
