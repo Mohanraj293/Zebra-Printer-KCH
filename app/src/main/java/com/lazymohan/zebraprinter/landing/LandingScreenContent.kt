@@ -3,21 +3,36 @@ package com.lazymohan.zebraprinter.landing
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Smartphone
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,14 +59,6 @@ fun LandingScreenContent(
     Scaffold(
         containerColor = Color(0xFFF6F8FF),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        bottomBar = {
-            BottomBar(
-                onHome = { /* already here */ },
-                onReports = { onInProgress("Reports") },
-                onSettings = { onInProgress("Settings") },
-                onProfile = { onInProgress("Profile") }
-            )
-        }
     ) { inner ->
         LazyColumn(
             modifier = Modifier
@@ -280,55 +287,5 @@ private fun FeatureCard(
                 tint = Color(0xFF8A94AC)
             )
         }
-    }
-}
-
-@Composable
-private fun BottomBar(
-    onHome: () -> Unit,
-    onReports: () -> Unit,
-    onSettings: () -> Unit,
-    onProfile: () -> Unit
-) {
-    Surface(
-        tonalElevation = 4.dp,
-        shadowElevation = 8.dp,
-        color = Color.White
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 10.dp, bottom = 14.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BottomItem(Icons.Outlined.Home, "Home", true, onHome)
-            BottomItem(Icons.Outlined.BarChart, "Reports", false, onReports)
-            BottomItem(Icons.Outlined.Settings, "Settings", false, onSettings)
-            BottomItem(Icons.Outlined.Person, "Profile", false, onProfile)
-        }
-    }
-}
-
-@Composable
-private fun BottomItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val tint = if (selected) Color(0xFF2E6BFF) else Color(0xFF9AA3B9)
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .widthIn(min = 64.dp)
-            .clickable { onClick() }
-    ) {
-        Icon(imageVector = icon, contentDescription = label, tint = tint)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium.copy(color = tint)
-        )
     }
 }
