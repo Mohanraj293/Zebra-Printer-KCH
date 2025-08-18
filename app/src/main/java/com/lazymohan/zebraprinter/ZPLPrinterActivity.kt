@@ -34,6 +34,7 @@ class ZPLPrinterActivity : ComponentActivity() {
         PrinterViewModel.providesFactory(
             assistedFactory = printerViewModelFactory,
             lots = intent.getSerializableExtra("product") as Lots,
+            gtinNum = intent.getStringExtra("gtinNumber")!!
         )
     }
 

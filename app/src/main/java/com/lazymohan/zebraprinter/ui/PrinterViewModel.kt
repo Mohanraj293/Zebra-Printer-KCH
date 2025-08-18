@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 class PrinterViewModel @AssistedInject constructor(
     private val printerService: PrinterService,
     @Assisted("item") private val lots: Lots,
+    @Assisted("gtinNumber") private val gtinNum: String,
 ) : ViewModel() {
 
     init {
@@ -30,17 +31,22 @@ class PrinterViewModel @AssistedInject constructor(
 
     @AssistedFactory
     interface PrinterViewModelFactory {
-        fun create(@Assisted("item") lots: Lots): PrinterViewModel
+        fun create(
+            @Assisted("item") lots: Lots,
+            @Assisted("gtinNumber") gtinNum: String
+        ): PrinterViewModel
     }
 
     @Suppress("UNCHECKED_CAST")
     companion object {
         fun providesFactory(
             assistedFactory: PrinterViewModelFactory,
-            lots: Lots
+            lots: Lots,
+            gtinNum: String
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>) = assistedFactory.create(
-                lots = lots
+                lots = lots,
+                gtinNum = gtinNum
             ) as T
         }
     }
@@ -62,7 +68,10 @@ class PrinterViewModel @AssistedInject constructor(
             showLoading()
             val printModel = PrintContentModel(
                 itemNum = lots.itemNumber.orEmpty(),
-                description = lots.itemDescription.orEmpty()
+                description = lots.itemDescription.orEmpty(),
+                gtinNum = gtinNum,
+                batchNo = lots.lotNumber.orEmpty(),
+                expiryDate = lots.expirationDate.toString(),
             )
 
             if (!isValidInput()) {

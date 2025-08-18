@@ -116,14 +116,30 @@ class PrinterImpl(
 
     private fun createLabelZPL(contentModel: PrintContentModel, copies: Int): ByteArray {
         SGD.SET("device.language", "zpl,", connection)
+
+        // Ensure GTIN is 14 digits
+        val gtin14 = contentModel.gtinNum.padStart(14, '0')
+
+        // Expiry date must be YYMMDD (strip "-")
+        val expiry = contentModel.expiryDate.replace("-", "")
+
+        // GS character (ASCII 29) for variable-length AIs
+        val gs = '\u001D'
+
+        // Build GS1 element string with FNC1 ( )>5 )
+        val gs1Data = ")>5" + "01$gtin14" + "17$expiry" + "10${contentModel.batchNo}$gs"
+
         return """
-            ^XA
-            ^FX^CF0,20^PW400^LL300
-            ^FS^FO0,50^FB400,1,0,C^FD#${contentModel.itemNum}
-            ^FS^FO0,90^FB400,5,,,C^FD${contentModel.description}
-            ^FS^FO0,160^FB400,1,0,C^GB420,1,1
-            ^FS^FO140,175^BY2,2^BQN,2,5^FD000${contentModel.itemNum}
-            ^FS^PQ$copies^XZ
+        ^XA
+        ^FX^CF0,20^PW400^LL300
+        ^FS^FO0,50^FB400,1,0,C^FD#${contentModel.itemNum}
+        ^FS^FO0,90^FB400,5,,,C^FD${contentModel.description}
+        ^FS^FO0,160^FB400,1,0,C^GB420,1,1
+        ^FS^FO140,175^BY2,2
+        ^BQN,2,5
+        ^FDMA$gs1Data^FS
+        ^PQ$copies
+        ^XZ
         """.trimIndent().toByteArray()
     }
 
