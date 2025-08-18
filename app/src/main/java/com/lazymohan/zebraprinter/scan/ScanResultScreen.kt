@@ -5,6 +5,7 @@ package com.lazymohan.zebraprinter.scan
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -21,6 +22,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -47,9 +50,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-
 
 // ---------- helpers ----------
 private suspend fun saveUriToGallery(
@@ -117,8 +117,29 @@ fun ScanResultScreen(
     var showSavedBanner by remember { mutableStateOf(false) }
 
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
-
     val scrollState = rememberScrollState()
+
+    // Shared action for "Create GRN" button (bottom)
+    val launchCreateGrn: () -> Unit = {
+        val s = state
+        if (s is ScanUiState.Completed) {
+            val transfer = s.data.toTransfer()
+            if (transfer == null) {
+                scope.launch { snack.showSnackbar("No usable OCR data") }
+            } else {
+                val payload = scanGson.toJson(transfer)
+                val intent = Intent(ctx, com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java).apply {
+                    putExtra("po_number", transfer.poNumber)
+                    putExtra("scan_extract_json", payload)
+                }
+                ctx.startActivity(intent)
+            }
+        } else {
+            scope.launch { snack.showSnackbar("Complete scanning first") }
+        }
+    }
+
+    val canCreateGrn = state is ScanUiState.Completed
 
     Scaffold(containerColor = Color(0xFFF6F8FF), snackbarHost = { SnackbarHost(hostState = snack) }) { inner ->
         Box(Modifier.fillMaxSize().padding(inner)) {
@@ -183,13 +204,52 @@ fun ScanResultScreen(
                                     }
                                 }
                             }
+
+                            // Under image: simple Retake + Download row
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp)
+                                    .padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = onRetake,
+                                    modifier = Modifier.weight(1f).height(48.dp)
+                                ) { Text("Retake") }
+
+                                Button(
+                                    onClick = {
+                                        if (pages.isNotEmpty()) {
+                                            val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
+                                            val fileBase = "KCH_${ts}_p${selected + 1}"
+                                            scope.launch {
+                                                saving = true
+                                                val ok = saveUriToGallery(ctx, pages[selected], fileBase)
+                                                saving = false
+                                                if (ok) {
+                                                    showSavedBanner = true
+                                                    delay(1500)
+                                                    showSavedBanner = false
+                                                } else {
+                                                    snack.showSnackbar("Save failed")
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = pages.isNotEmpty(),
+                                    modifier = Modifier.weight(1f).height(48.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
+                                ) { Text("Download", color = Color.White, fontWeight = FontWeight.Bold) }
+                            }
+
                         }
                     }
 
                     // Status / Result area
                     when (val s = state) {
                         is ScanUiState.Uploading -> {
-                            Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                            Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
                                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                                 Spacer(Modifier.height(8.dp))
                                 Text("Please wait… this may take a few seconds.", color = Color(0xFF5C6370))
@@ -198,7 +258,7 @@ fun ScanResultScreen(
 
                         is ScanUiState.Error -> {
                             Surface(
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                                 shape = RoundedCornerShape(20.dp),
                                 color = Color(0xFFFFF1F0)
                             ) {
@@ -220,7 +280,7 @@ fun ScanResultScreen(
 
                             // Summary card
                             Surface(
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                                 shape = RoundedCornerShape(20.dp),
                                 color = Color.White,
                                 tonalElevation = 1.dp
@@ -236,7 +296,7 @@ fun ScanResultScreen(
 
                             // Items list
                             Surface(
-                                modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp),
+                                modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp),
                                 shape = RoundedCornerShape(20.dp),
                                 color = Color.White,
                                 tonalElevation = 1.dp
@@ -267,44 +327,13 @@ fun ScanResultScreen(
                                     }
                                 }
                             }
-
-                            // ... inside `is ScanUiState.Completed -> { val data = s.data ... }`
-                            Spacer(Modifier.height(8.dp))
-                            Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                OutlinedButton(
-                                    onClick = onRetake,
-                                    modifier = Modifier.weight(1f).height(52.dp)
-                                ) { Text("Retake / Re-scan") }
-
-                                Button(
-                                    onClick = {
-                                        val transfer = data.toTransfer()
-                                        if (transfer == null) {
-                                            scope.launch { snack.showSnackbar("No usable OCR data") }
-                                        } else {
-                                            val payload = scanGson.toJson(transfer)
-                                            val intent = android.content.Intent(ctx, com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java).apply {
-                                                putExtra("po_number", transfer.poNumber)
-                                                putExtra("scan_extract_json", payload)
-                                            }
-                                            ctx.startActivity(intent)
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f).height(52.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
-                                ) { Text("Create GRN", color = Color.White, fontWeight = FontWeight.Bold) }
-                            }
-
                         }
 
                         else -> {}
                     }
                 }
 
-                // Bottom actions
+                // Bottom actions: Back + Create GRN
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -315,28 +344,11 @@ fun ScanResultScreen(
                     ) { Text("Back") }
 
                     Button(
-                        onClick = {
-                            if (pages.isNotEmpty()) {
-                                val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
-                                val fileBase = "KCH_${ts}_p${selected + 1}"
-                                scope.launch {
-                                    saving = true
-                                    val ok = saveUriToGallery(ctx, pages[selected], fileBase)
-                                    saving = false
-                                    if (ok) {
-                                        showSavedBanner = true
-                                        delay(1500)
-                                        showSavedBanner = false
-                                    } else {
-                                        snack.showSnackbar("Save failed")
-                                    }
-                                }
-                            }
-                        },
-                        enabled = pages.isNotEmpty(),
+                        onClick = launchCreateGrn,
+                        enabled = canCreateGrn,
                         modifier = Modifier.weight(1f).height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
-                    ) { Text("Download", color = Color.White, fontWeight = FontWeight.Bold) }
+                    ) { Text("Create GRN", color = Color.White, fontWeight = FontWeight.Bold) }
                 }
             }
 

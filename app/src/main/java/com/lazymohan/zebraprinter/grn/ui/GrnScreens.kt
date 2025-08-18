@@ -4,6 +4,8 @@ package com.lazymohan.zebraprinter.grn.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.lazymohan.zebraprinter.grn.data.PoLineItem
 import java.text.NumberFormat
 import java.util.*
 
@@ -40,6 +43,7 @@ fun GrnScreens(
     onFetchPo: () -> Unit,
     onUpdateLine: (Int, Double?, String?, String?) -> Unit,
     onRemoveLine: (Int) -> Unit,
+    onAddLine: (Int) -> Unit,
     onEditReceive: () -> Unit,
     onReview: () -> Unit,
     onSubmit: () -> Unit,
@@ -80,7 +84,7 @@ fun GrnScreens(
 
             when (ui.step) {
                 GrnStep.ENTER_PO -> EnterPoCard(ui, onEnterPo, onFetchPo, onBack)
-                GrnStep.SHOW_PO  -> PoAndReceiveCard(ui, onBack, onUpdateLine, onRemoveLine, onReview)
+                GrnStep.SHOW_PO  -> PoAndReceiveCard(ui, onBack, onUpdateLine, onRemoveLine, onAddLine, onReview)
                 GrnStep.REVIEW   -> ReviewCard(ui, onSubmit, onEditReceive)
                 GrnStep.SUMMARY  -> SummaryCard(ui, onStartOver)
             }
@@ -188,10 +192,18 @@ private fun PoAndReceiveCard(
     onBack: () -> Unit,
     onUpdateLine: (Int, Double?, String?, String?) -> Unit,
     onRemoveLine: (Int) -> Unit,
+    onAddLine: (Int) -> Unit,
     onReview: () -> Unit
 ) {
+    val isScanMode = ui.extractedFromScan.isNotEmpty()
+    val taken = ui.lineInputs.map { it.lineNumber }.toSet()
+    val candidates = ui.allPoLines.filter { it.LineNumber !in taken }
+
+    var showAddDialog by rememberSaveable { mutableStateOf(false) }
+
     Column(Modifier.verticalScroll(rememberScrollState())) {
 
+        // --- PO header card ---
         Card(
             modifier = Modifier.padding(horizontal = 20.dp).offset(y = (-12).dp),
             shape = RoundedCornerShape(20.dp),
@@ -215,6 +227,7 @@ private fun PoAndReceiveCard(
 
         Spacer(Modifier.height(10.dp))
 
+        // --- Lines card (with add + no-match handling) ---
         Card(
             modifier = Modifier.padding(horizontal = 20.dp),
             shape = RoundedCornerShape(20.dp),
@@ -222,78 +235,106 @@ private fun PoAndReceiveCard(
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(Modifier.padding(20.dp)) {
-                SectionHeader("Lines", badge = "ENTER DETAILS", badgeColor = Color(0xFFE3F2FD))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    SectionHeader("Lines", badge = "ENTER DETAILS", badgeColor = Color(0xFFE3F2FD))
+                    Spacer(Modifier.weight(1f))
+                    TextButton(
+                        onClick = { showAddDialog = true },
+                        enabled = candidates.isNotEmpty()
+                    ) { Text("Add Line") }
+                }
 
-                if (ui.lines.isEmpty()) {
-                    Spacer(Modifier.height(8.dp)); Text("Loading lines…", color = Color(0xFF6B7280))
-                } else {
-                    ui.lines.forEach { ln ->
-                        var expanded by rememberSaveable(ln.LineNumber) { mutableStateOf(false) }
-                        var confirmDelete by rememberSaveable("${ln.LineNumber}-del") { mutableStateOf(false) }
+                if (isScanMode) {
+                    Text(
+                        "Showing only lines matched from scanned slip.",
+                        color = Color(0xFF334155),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
 
-                        val li = ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
-                        var qtyText by rememberSaveable("${ln.LineNumber}-qty") { mutableStateOf(if ((li?.qty ?: 0.0) == 0.0) "" else (li?.qty?.toString() ?: "")) }
-                        var lotText by rememberSaveable("${ln.LineNumber}-lot") { mutableStateOf(li?.lot.orEmpty()) }
-                        var expText by rememberSaveable("${ln.LineNumber}-exp") { mutableStateOf(li?.expiry.orEmpty()) }
+                when {
+                    !ui.linesLoaded -> {
+                        Spacer(Modifier.height(8.dp))
+                        Text("Loading lines…", color = Color(0xFF6B7280))
+                    }
+                    ui.lines.isEmpty() -> {
+                        Spacer(Modifier.height(8.dp))
+                        val msg = if (isScanMode) "No matches found between scanned items and PO lines. Use “Add Line” to include items manually."
+                        else "No PO lines found."
+                        Text(msg, color = Color(0xFF8B5CF6))
+                    }
+                    else -> {
+                        ui.lines.forEach { ln ->
+                            var expanded by rememberSaveable(ln.LineNumber) { mutableStateOf(false) }
+                            var confirmDelete by rememberSaveable("${ln.LineNumber}-del") { mutableStateOf(false) }
 
-                        Spacer(Modifier.height(10.dp))
-                        Surface(tonalElevation = 2.dp, shadowElevation = 2.dp, shape = RoundedCornerShape(16.dp), color = Color(0xFFFDFEFF), modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(14.dp)) {
+                            val li = ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
+                            var qtyText by rememberSaveable("${ln.LineNumber}-qty") {
+                                mutableStateOf(if ((li?.qty ?: 0.0) == 0.0) "" else (li?.qty?.toString() ?: ""))
+                            }
+                            var lotText by rememberSaveable("${ln.LineNumber}-lot") { mutableStateOf(li?.lot.orEmpty()) }
+                            var expText by rememberSaveable("${ln.LineNumber}-exp") { mutableStateOf(li?.expiry.orEmpty()) }
 
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                    Column(modifier = Modifier.weight(1f).clickable { expanded = !expanded }) {
-                                        val itemCode = ln.Item?.takeIf { it.isNotBlank() } ?: "NA"
-                                        val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
-                                        Text(title, style = MaterialTheme.typography.titleMedium, color = Color(0xFF143A7B), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                        Spacer(Modifier.height(2.dp))
-                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            Chip("Item: $itemCode"); Chip("${fmt(ln.Quantity)} ${ln.UOM} ordered")
+                            Spacer(Modifier.height(10.dp))
+                            Surface(tonalElevation = 2.dp, shadowElevation = 2.dp, shape = RoundedCornerShape(16.dp), color = Color(0xFFFDFEFF), modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(14.dp)) {
+
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                        Column(modifier = Modifier.weight(1f).clickable { expanded = !expanded }) {
+                                            val itemCode = ln.Item?.takeIf { it.isNotBlank() } ?: "NA"
+                                            val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
+                                            Text(title, style = MaterialTheme.typography.titleMedium, color = Color(0xFF143A7B), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                            Spacer(Modifier.height(2.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Chip("Item: $itemCode"); Chip("${fmt(ln.Quantity)} ${ln.UOM} ordered")
+                                            }
+                                        }
+                                        IconButton(onClick = { expanded = !expanded }) {
+                                            Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null, tint = Color(0xFF334155))
+                                        }
+                                        IconButton(onClick = { confirmDelete = true }) {
+                                            Icon(Icons.Outlined.Delete, contentDescription = "Remove line", tint = Color(0xFFB00020))
                                         }
                                     }
-                                    IconButton(onClick = { expanded = !expanded }) {
-                                        Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null, tint = Color(0xFF334155))
+
+                                    if (expanded) {
+                                        Spacer(Modifier.height(10.dp)); Divider(); Spacer(Modifier.height(10.dp))
+
+                                        if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description!!)
+                                        ReadFieldInline("Line #", ln.LineNumber.toString())
+                                        ReadFieldInline("UOM", ln.UOM)
+
+                                        Spacer(Modifier.height(10.dp))
+
+                                        LabeledNumber(
+                                            value = qtyText,
+                                            onChange = {
+                                                qtyText = it
+                                                onUpdateLine(ln.LineNumber, it.toDoubleOrNull(), null, null)
+                                            },
+                                            label = "Quantity (≤ ${fmt(ln.Quantity)})",
+                                            errorText = qtyText.toDoubleOrNull()?.let { q -> if (q > ln.Quantity) "Cannot exceed ordered qty." else null },
+                                            enabled = true
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        LabeledText(lotText, { new -> lotText = new; onUpdateLine(ln.LineNumber, null, new, null) }, "Lot Number", true)
+                                        Spacer(Modifier.height(8.dp))
+                                        LabeledText(expText, { new -> expText = new; onUpdateLine(ln.LineNumber, null, null, new) }, "Expiry (YYYY-MM-DD)", true)
                                     }
-                                    IconButton(onClick = { confirmDelete = true }) {
-                                        Icon(Icons.Outlined.Delete, contentDescription = "Remove line", tint = Color(0xFFB00020))
+
+                                    if (confirmDelete) {
+                                        AlertDialog(
+                                            onDismissRequest = { confirmDelete = false },
+                                            icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                                            title = { Text("Remove line ${ln.LineNumber}?") },
+                                            text = { Text("This will remove the line from this receipt. You can add it back using “Add Line”.") },
+                                            confirmButton = {
+                                                TextButton(onClick = { confirmDelete = false; onRemoveLine(ln.LineNumber) }) { Text("Remove", color = Color(0xFFB00020)) }
+                                            },
+                                            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
+                                        )
                                     }
-                                }
-
-                                if (expanded) {
-                                    Spacer(Modifier.height(10.dp)); Divider(); Spacer(Modifier.height(10.dp))
-
-                                    if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description!!)
-                                    ReadFieldInline("Line #", ln.LineNumber.toString())
-                                    ReadFieldInline("UOM", ln.UOM)
-
-                                    Spacer(Modifier.height(10.dp))
-
-                                    LabeledNumber(
-                                        value = qtyText,
-                                        onChange = {
-                                            qtyText = it
-                                            onUpdateLine(ln.LineNumber, it.toDoubleOrNull(), null, null)
-                                        },
-                                        label = "Quantity (≤ ${fmt(ln.Quantity)})",
-                                        errorText = qtyText.toDoubleOrNull()?.let { q -> if (q > ln.Quantity) "Cannot exceed ordered qty." else null },
-                                        enabled = true
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    LabeledText(lotText, { new -> lotText = new; onUpdateLine(ln.LineNumber, null, new, null) }, "Lot Number", true)
-                                    Spacer(Modifier.height(8.dp))
-                                    LabeledText(expText, { new -> expText = new; onUpdateLine(ln.LineNumber, null, null, new) }, "Expiry (YYYY-MM-DD)", true)
-                                }
-
-                                if (confirmDelete) {
-                                    AlertDialog(
-                                        onDismissRequest = { confirmDelete = false },
-                                        icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
-                                        title = { Text("Remove line ${ln.LineNumber}?") },
-                                        text = { Text("This will remove the line from this receipt. Re-fetch the PO to start over if needed.") },
-                                        confirmButton = {
-                                            TextButton(onClick = { confirmDelete = false; onRemoveLine(ln.LineNumber) }) { Text("Remove", color = Color(0xFFB00020)) }
-                                        },
-                                        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
-                                    )
                                 }
                             }
                         }
@@ -319,7 +360,72 @@ private fun PoAndReceiveCard(
 
         Spacer(Modifier.height(10.dp))
     }
+
+    // --- Add Line dialog ---
+    if (showAddDialog) {
+        AddLineDialog(
+            candidates = candidates,
+            onPick = { ln -> showAddDialog = false; onAddLine(ln) },
+            onDismiss = { showAddDialog = false }
+        )
+    }
 }
+
+@Composable
+private fun AddLineDialog(
+    candidates: List<PoLineItem>,
+    onPick: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selected: Int? by rememberSaveable { mutableStateOf(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Line Item") },
+        text = {
+            Column {
+                if (candidates.isEmpty()) {
+                    Text("All PO lines are already included.")
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.heightIn(max = 360.dp)) {
+                        items(candidates) { ln ->
+                            val itemCode = ln.Item?.takeIf { it.isNotBlank() } ?: "NA"
+                            Surface(
+                                onClick = { selected = ln.LineNumber },
+                                shape = RoundedCornerShape(12.dp),
+                                tonalElevation = 1.dp
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(selected = selected == ln.LineNumber, onClick = { selected = ln.LineNumber })
+                                    Spacer(Modifier.width(8.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text((ln.Description ?: "Item $itemCode"), fontWeight = FontWeight.SemiBold)
+                                        Spacer(Modifier.height(2.dp))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Chip("Line: ${ln.LineNumber}")
+                                            Chip("Item: $itemCode")
+                                            Chip("${fmt(ln.Quantity)} ${ln.UOM}")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { selected?.let(onPick) }, enabled = selected != null) { Text("Add") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
 
 @Composable
 private fun ReviewCard(

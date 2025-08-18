@@ -40,12 +40,14 @@ class GrnActivity : ComponentActivity() {
                     onFetchPo = { vm.fetchPo() },
                     onUpdateLine = { ln, q, l, e -> vm.updateLine(ln, q, l, e) },
                     onRemoveLine = { ln -> vm.removeLine(ln) },
+                    onAddLine = { vm.addLineFromPo(it) },   // NEW
                     onEditReceive = { vm.backToReceive() },
                     onReview = { vm.buildPayloadAndReview() },
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },
                     onBack = { finish() }
                 )
+
             }
         }
 

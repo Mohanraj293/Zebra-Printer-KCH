@@ -32,13 +32,25 @@ data class GrnUiState(
     val error: String? = null,
     val poNumber: String = "",
     val po: PoItem? = null,
+
+    // visible lines in UI (matched-only in scan mode)
     val lines: List<PoLineItem> = emptyList(),
     val lineInputs: List<LineInput> = emptyList(),
+
+    // NEW: keep the full PO lines for add-line dialog
+    val allPoLines: List<PoLineItem> = emptyList(),
+
+    // NEW: whether lines fetch is completed (to distinguish from “loading”)
+    val linesLoaded: Boolean = false,
+
     val payload: ReceiptRequest? = null,
     val receipt: ReceiptResponse? = null,
     val lineErrors: List<ProcessingError> = emptyList(),
+
+    // scan payload (unchanged)
     val extractedFromScan: List<com.lazymohan.zebraprinter.grn.util.ExtractedItem> = emptyList()
 )
+
 
 @HiltViewModel
 class GrnViewModel @Inject constructor(
@@ -74,7 +86,7 @@ class GrnViewModel @Inject constructor(
                 val extracted = _state.value.extractedFromScan
 
                 if (extracted.isNotEmpty()) {
-                    // --- MATCHED-ONLY mode (scan-driven) ---
+                    // Scan-driven: show only matched lines
                     val used = mutableSetOf<Int>()
                     val matchedPairs = items.mapNotNull { line ->
                         val safeItem = line.Item?.trim().orEmpty()
@@ -95,19 +107,19 @@ class GrnViewModel @Inject constructor(
                                 expiry = isoExpiry,
                                 description = line.Description ?: ""
                             )
-                            // keep only matched line + its input
                             line to input
                         } else null
                     }
 
                     _state.value = _state.value.copy(
+                        allPoLines = items,
                         lines = matchedPairs.map { it.first },
                         lineInputs = matchedPairs.map { it.second },
+                        linesLoaded = true,
                         step = GrnStep.SHOW_PO
                     )
                 } else {
-                    // --- MANUAL/DEFAULT mode (unchanged behavior) ---
-                    val used = mutableSetOf<Int>() // unused but keeps code symmetrical
+                    // Manual/default: show all lines as before
                     val inputs = items.map { line ->
                         val safeItem = line.Item?.trim().orEmpty()
                         LineInput(
@@ -122,16 +134,19 @@ class GrnViewModel @Inject constructor(
                         )
                     }
                     _state.value = _state.value.copy(
+                        allPoLines = items,
                         lines = items,
                         lineInputs = inputs,
+                        linesLoaded = true,
                         step = GrnStep.SHOW_PO
                     )
                 }
             }
             .onFailure { e ->
-                _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines")
+                _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines", linesLoaded = true)
             }
     }
+
 
 
     fun updateLine(lineNumber: Int, qty: Double? = null, lot: String? = null, expiry: String? = null) {
@@ -253,5 +268,31 @@ class GrnViewModel @Inject constructor(
             fetchPo()
         }
     }
+
+    fun addLineFromPo(lineNumber: Int) {
+        val s = _state.value
+        val already = s.lineInputs.any { it.lineNumber == lineNumber }
+        if (already) return
+
+        val poLine = s.allPoLines.firstOrNull { it.LineNumber == lineNumber } ?: return
+        val safeItem = poLine.Item?.trim().orEmpty()
+
+        val newInput = LineInput(
+            lineNumber = poLine.LineNumber,
+            itemNumber = safeItem,
+            uom = poLine.UOM,
+            maxQty = poLine.Quantity,
+            qty = 1.0,
+            lot = "",                 // force user to enter
+            expiry = "",              // force user to enter
+            description = poLine.Description ?: ""
+        )
+
+        _state.value = s.copy(
+            lines = s.lines + poLine,
+            lineInputs = s.lineInputs + newInput
+        )
+    }
+
 
 }

@@ -26,9 +26,8 @@ class OcrRepository @Inject constructor(
 ) {
     private val base = "http://kch-ocr.tarkalabs.com"
 
-    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    // PASTE YOUR JSON into FAKE_JSON below, matching OcrContentResponse schema
-    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    // For testing purposes, we can use a fake JSON response
+    // This should be replaced with actual API calls in production
     private val FAKE_JSON: String = """
 {
   "id": 123,
