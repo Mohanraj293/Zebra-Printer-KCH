@@ -5,11 +5,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
@@ -18,21 +21,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dokar.sheets.rememberBottomSheetState
 import com.lazymohan.zebraprinter.effects.HandleErrorLaunchedEffect
+import com.lazymohan.zebraprinter.grn.ui.Header
 import com.lazymohan.zebraprinter.product.data.Lots
 import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.lazymohan.zebraprinter.utils.EAMLoader
-import com.lazymohan.zebraprinter.utils.PrinterSelectionCard
 import com.tarkalabs.tarkaui.components.TUIAppTopBar
-import com.tarkalabs.tarkaui.components.TUIDivider
 import com.tarkalabs.tarkaui.components.TUIMobileButtonBlock
 import com.tarkalabs.tarkaui.components.TUISnackBarHost
 import com.tarkalabs.tarkaui.components.TUISnackBarState
@@ -72,6 +75,7 @@ fun PrinterScreenContent(
         )
     }
 
+    val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val bottomSheetState = rememberBottomSheetState()
     val scrollableState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -113,68 +117,72 @@ fun PrinterScreenContent(
                 .fillMaxSize()
         ) {
             Column {
-                VerticalSpacer(space = 16)
-                PrinterSelectionCard(
-                    selectedPrinter = uiState.selectedPrinter?.model,
-                    onPrinterSelectionClick = {
-                        handleEvents(PrinterEvents.UpdateBottomSheet(true))
-                        scope.launch {
-                            bottomSheetState.expand()
-                        }
-                    }
+                Header(
+                    gradient = gradient,
+                    title = "Products",
+                    onLogoClick = {
+
+                    },
+                    subtitle = "Search for products",
                 )
-                VerticalSpacer(space = 16)
-                TUIDivider()
-                Column(
+                VerticalSpacer(20)
+                Card(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollableState)
-                        .padding(16.dp)
+                        .padding(20.dp)
+                        .offset(y = (-18).dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(8.dp)
                 ) {
-                    TUITextRow(title = "Item Number: ${lots?.itemNumber ?: "N/A"}")
-                    VerticalSpacer(space = 8)
-                    TUITextRow(title = "Description: ${lots?.itemDescription ?: "N/A"}")
-                    VerticalSpacer(space = 8)
-                    TUITextRow(title = "Lot Number: ${lots?.lotNumber ?: "N/A"}")
-                    VerticalSpacer(space = 8)
-                    TUITextRow(title = "Status: ${lots?.statusCode ?: "N/A"}")
-                    VerticalSpacer(space = 8)
-                    TUITextRow(title = "Origination Date: ${dateTimeConverter.getDisplayDate(lots?.originationDate)}")
-                    VerticalSpacer(space = 8)
-                    TUITextRow(title = "Expiration Date: ${dateTimeConverter.getDisplayDate(lots?.expirationDate)}")
-                    VerticalSpacer(space = 8)
-                    TUITextRow(title = "GTIN Number: ${gtinNumber ?: "N/A"}")
-                    VerticalSpacer(space = 8)
-                    TUIInputField(
-                        label = "Enter no of Labels",
-                        onValueChange = { noOfCopies ->
-                            handleEvents(PrinterEvents.UpdateNoOfCopies(noOfCopies = noOfCopies))
-                        },
-                        value = uiState.noOfCopies,
-                        status = TUIInputFieldStatus.Normal,
-                        inputFieldTye = InputField,
-                        keyboardOption = KeyboardOptions.Default.copy(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Next
-                        ),
-                        keyboardAction = KeyboardActions(
-                            onNext = { focusManager.moveFocus(FocusDirection.Enter) }
+                    Column(Modifier.padding(20.dp)) {
+                        TUITextRow(title = "Item Number: ${lots?.itemNumber ?: "N/A"}")
+                        VerticalSpacer(space = 8)
+                        TUITextRow(title = "Description: ${lots?.itemDescription ?: "N/A"}")
+                        VerticalSpacer(space = 8)
+                        TUITextRow(title = "Lot Number: ${lots?.lotNumber ?: "N/A"}")
+                        VerticalSpacer(space = 8)
+                        TUITextRow(title = "Status: ${lots?.statusCode ?: "N/A"}")
+                        VerticalSpacer(space = 8)
+                        TUITextRow(
+                            title = "Origination Date: ${
+                                dateTimeConverter.getDisplayDate(
+                                    lots?.originationDate
+                                )
+                            }"
                         )
-                    )
-                    VerticalSpacer(space = 90)
+                        VerticalSpacer(space = 8)
+                        TUITextRow(title = "Expiration Date: ${dateTimeConverter.getDisplayDate(lots?.expirationDate)}")
+                        VerticalSpacer(space = 8)
+                        TUITextRow(title = "GTIN Number: ${gtinNumber ?: "N/A"}")
+                        VerticalSpacer(space = 8)
+                        TUIInputField(
+                            label = "Enter no of Labels",
+                            onValueChange = { noOfCopies ->
+                                handleEvents(PrinterEvents.UpdateNoOfCopies(noOfCopies = noOfCopies))
+                            },
+                            value = uiState.noOfCopies,
+                            status = TUIInputFieldStatus.Normal,
+                            inputFieldTye = InputField,
+                            keyboardOption = KeyboardOptions.Default.copy(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardAction = KeyboardActions(
+                                onNext = { focusManager.moveFocus(FocusDirection.Enter) }
+                            )
+                        )
+                        TUIMobileButtonBlock(
+                            primaryButtonLabel = "Print",
+                            primaryButtonOnClick = {
+                                handleEvents(PrinterEvents.Print(true))
+                            },
+                            primaryTrailingIcon = TarkaIcons.Regular.Print24,
+                            outlineButtonLabel = null,
+                            outlineButtonOnClick = {}
+                        )
+                    }
                 }
             }
-            TUIMobileButtonBlock(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter),
-                primaryButtonLabel = "Print",
-                primaryButtonOnClick = {
-                    handleEvents(PrinterEvents.Print(true))
-                },
-                primaryTrailingIcon = TarkaIcons.Regular.Print24,
-                outlineButtonLabel = null,
-                outlineButtonOnClick = {}
-            )
         }
         if (uiState.showDialog) {
             AvailablePrintersBottomSheet(
