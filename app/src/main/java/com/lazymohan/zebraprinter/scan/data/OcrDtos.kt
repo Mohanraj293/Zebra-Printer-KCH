@@ -35,7 +35,7 @@ data class ExtractedText(
 
 data class ExtractedItem(
     val description: String?,
-    @SerializedName("qty_delivered") val qtyDelivered: String?,
+    @SerializedName("qty_delivered") val qtyDelivered: Double?,
     @SerializedName("expiry_date") val expiryDate: String?,
     @SerializedName("batch_no") val batchNo: String?
 )

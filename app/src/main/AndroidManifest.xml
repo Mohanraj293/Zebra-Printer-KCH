@@ -83,6 +83,10 @@
         <activity
             android:name=".product.lots.LotsListActivity"
             android:exported="false" />
+        <activity
+            android:name=".scan.ui.ScanGrnActivity"
+            android:exported="false"
+            android:label="Scan GRN" />
 
     </application>
 </manifest>

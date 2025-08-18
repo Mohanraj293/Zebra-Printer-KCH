@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/ScanResultActivity.kt
 package com.lazymohan.zebraprinter.scan
 
 import android.content.Intent
@@ -10,11 +9,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lazymohan.zebraprinter.scan.model.ExtractedHeader
+import com.lazymohan.zebraprinter.scan.model.ExtractedItem
+import com.lazymohan.zebraprinter.scan.ui.ScanGrnActivity
 import com.lazymohan.zebraprinter.scan.ui.ScanResultViewModel
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
 
-@AndroidEntryPoint // <-- REQUIRED when using hiltViewModel() in this activity
+@AndroidEntryPoint // REQUIRED when using hiltViewModel() in this activity
 class ScanResultActivity : ComponentActivity() {
 
     companion object {
@@ -51,12 +53,15 @@ class ScanResultActivity : ComponentActivity() {
 
         setContent {
             TUITheme {
-                // If @AndroidEntryPoint is missing, this line typically triggers a crash
+                // If @AndroidEntryPoint is missing, this will crash
                 val vm: ScanResultViewModel = hiltViewModel()
+
+                // kick off upload/parse for the received pages
                 LaunchedEffect(uris) {
                     Log.d(TAG, "Starting upload/poll with ${uris.size} pages")
                     vm.start(uris)
                 }
+
                 ScanResultScreen(
                     pages = uris,
                     onBack = {
@@ -66,10 +71,27 @@ class ScanResultActivity : ComponentActivity() {
                     onRetake = {
                         Log.d(TAG, "onRetake -> finish()")
                         finish()
+                    },
+                    //NEW: when user taps “Proceed to GRN”, handoff parsed data to ScanGrnActivity
+                    onProceed = { header: ExtractedHeader, items: List<ExtractedItem> ->
+                        Log.d(TAG, "onProceed -> launching ScanGrnActivity with ${items.size} items")
+                        goToGrnFromScan(header, items)
                     }
                 )
             }
         }
+    }
+
+    /** Launch the GRN flow, passing the parsed delivery-slip payload. */
+    private fun goToGrnFromScan(header: ExtractedHeader, items: List<ExtractedItem>) {
+        val intent = Intent(this, ScanGrnActivity::class.java).apply {
+            putExtra(ScanGrnActivity.EXTRA_HEADER, header)
+            putParcelableArrayListExtra(
+                ScanGrnActivity.EXTRA_ITEMS,
+                ArrayList(items) // must be ArrayList for putParcelableArrayListExtra
+            )
+        }
+        startActivity(intent)
     }
 
     override fun onStart() {
