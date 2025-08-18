@@ -119,29 +119,41 @@ fun LandingScreenContent(
 
             // Welcome card
             item {
-                Card(
+                Box(
                     modifier = Modifier
-                        .padding(horizontal = 20.dp)
+                        .fillMaxWidth()
                         .offset(y = -overlap),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(20.dp)
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(Modifier.padding(20.dp)) {
-                        Text(
-                            "Welcome, $userName",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                color = Color(0xFF143A7B),
-                                fontWeight = FontWeight.ExtraBold
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth(0.92f)
+                            .wrapContentHeight(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "Welcome, $userName",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    color = Color(0xFF143A7B),
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                textAlign = TextAlign.Center
                             )
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            userRole,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = Color(0xFF687089)
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                userRole,
+                                style = MaterialTheme.typography.bodyMedium.copy(color = Color(0xFF687089)),
+                                textAlign = TextAlign.Center
                             )
-                        )
+                        }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
