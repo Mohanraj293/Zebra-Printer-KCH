@@ -3,6 +3,8 @@ package com.lazymohan.zebraprinter.scan.data
 
 import android.content.Context
 import android.net.Uri
+import com.google.gson.Gson
+import com.lazymohan.zebraprinter.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -12,7 +14,6 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
 import javax.inject.Inject
-import kotlin.io.readBytes
 
 sealed class OcrResult {
     data class Success(val content: OcrContentResponse) : OcrResult()
@@ -25,6 +26,44 @@ class OcrRepository @Inject constructor(
 ) {
     private val base = "http://kch-ocr.tarkalabs.com"
 
+    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    // PASTE YOUR JSON into FAKE_JSON below, matching OcrContentResponse schema
+    // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    private val FAKE_JSON: String = """
+{
+  "id": 123,
+  "filename": "slip.jpg",
+  "label": "delivery",
+  "status": "DONE",
+  "task_id": "task-abc",
+  "extracted_text": {
+    "invoice_no": "INV-2025-001",
+    "invoice_date": "2025-08-15",
+    "PO_no": "KHQ/PO/99387",
+    "items": [
+      {
+        "description": "NUTRYELT 10ML AMP (TRACE EL.) ADULT-10'S",
+        "qty_delivered": "3",
+        "expiry_date": "09/01/2026",
+        "batch_no": "D0615A04"
+      },
+      {
+        "description": "TACHYBEN (URAPIDIL) 50MG/10ML-AMP-5'S",
+        "qty_delivered": "3",
+        "expiry_date": "31/01/2026",
+        "batch_no": "F7201-03"
+      }
+    ]
+  },
+  "easy_ocr_text": null,
+  "tesseract_text": null,
+  "created_at": "2025-08-15T12:00:00Z"
+}
+""".trimIndent()
+
+    private fun parseFake(json: String): OcrContentResponse =
+        Gson().fromJson(json, OcrContentResponse::class.java)
+
     suspend fun uploadAndPoll(
         context: Context,
         imageUri: Uri,
@@ -32,6 +71,18 @@ class OcrRepository @Inject constructor(
         maxAttempts: Int = 60,
         intervalMs: Long = 1500
     ): OcrResult = withContext(Dispatchers.IO) {
+        // ---- FAKE SHORT-CIRCUIT ----
+        if (BuildConfig.OCR_FAKE) {
+            delay(400) // tiny delay to mimic network
+            return@withContext try {
+                val payload = parseFake(FAKE_JSON)
+                OcrResult.Success(payload)
+            } catch (e: Exception) {
+                OcrResult.ExceptionError("Fake JSON parse error: ${e.message}")
+            }
+        }
+        // ----------------------------
+
         try {
             val resolver = context.contentResolver
             val mime = resolver.getType(imageUri) ?: "image/jpeg"

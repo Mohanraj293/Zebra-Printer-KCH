@@ -19,14 +19,19 @@ class GrnActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+// inside onCreate, before setContent { ... } or keep your structure and put inside setContent using LaunchedEffect
         val initialPo = intent.getStringExtra("po_number")
+        val scanJson = intent.getStringExtra("scan_extract_json")
+
         setContent {
             TUITheme {
                 val vm: GrnViewModel = hiltViewModel()
                 val ui by vm.state.collectAsState()
                 val snack = remember { SnackbarHostState() }
 
-                LaunchedEffect(initialPo) { vm.prefillPoNumber(initialPo) }
+                LaunchedEffect(initialPo, scanJson) {
+                    vm.prefillFromScan(initialPo, scanJson)
+                }
 
                 GrnScreens(
                     ui = ui,
@@ -43,5 +48,6 @@ class GrnActivity : ComponentActivity() {
                 )
             }
         }
+
     }
 }

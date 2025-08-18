@@ -5,16 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.BuildConfig
 import com.lazymohan.zebraprinter.grn.data.*
-import com.lazymohan.zebraprinter.grn.util.ExtractedItem
 import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
 import com.lazymohan.zebraprinter.grn.util.parseToIso
-import com.lazymohan.zebraprinter.grn.util.toDoubleSafe
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.math.min
 
 enum class GrnStep { ENTER_PO, SHOW_PO, REVIEW, SUMMARY }
 
@@ -39,7 +36,8 @@ data class GrnUiState(
     val lineInputs: List<LineInput> = emptyList(),
     val payload: ReceiptRequest? = null,
     val receipt: ReceiptResponse? = null,
-    val lineErrors: List<ProcessingError> = emptyList()
+    val lineErrors: List<ProcessingError> = emptyList(),
+    val extractedFromScan: List<com.lazymohan.zebraprinter.grn.util.ExtractedItem> = emptyList()
 )
 
 @HiltViewModel
@@ -73,45 +71,45 @@ class GrnViewModel @Inject constructor(
     private fun prefetchPoLines(headerId: String) = viewModelScope.launch {
         repo.fetchPoLines(headerId)
             .onSuccess { items ->
-                // Simulated extracted items for matching
-                // In a real scenario, this would come from extraction API
-                val extractedItems = listOf(
-                    ExtractedItem(
-                        description = "NUTRYELT 10ML AMP (TRACE EL.) ADULT-10'S",
-                        qtyDelivered = toDoubleSafe("3"),
-                        expiryDate = "09/01/2026",
-                        batchNo = "D0615A04"
-                    ),
-                    ExtractedItem(
-                        description = "TACHYBEN (URAPIDIL) 50MG/10ML-AMP-5'S",
-                        qtyDelivered = toDoubleSafe("3"),
-                        expiryDate = "31/01/2026",
-                        batchNo = "F7201-03"
+                val extracted = _state.value.extractedFromScan
+
+                if (extracted.isNotEmpty()) {
+                    // --- MATCHED-ONLY mode (scan-driven) ---
+                    val used = mutableSetOf<Int>()
+                    val matchedPairs = items.mapNotNull { line ->
+                        val safeItem = line.Item?.trim().orEmpty()
+                        val poDesc = (line.Description ?: safeItem).trim()
+                        val matchIdx = bestMatchIndex(extracted, poDesc, used, threshold = 0.35)
+                        if (matchIdx != null) {
+                            used += matchIdx
+                            val ex = extracted[matchIdx]
+                            val isoExpiry = parseToIso(ex.expiryDate)
+                            val clampedQty = kotlin.math.min(ex.qtyDelivered, line.Quantity)
+                            val input = LineInput(
+                                lineNumber = line.LineNumber,
+                                itemNumber = safeItem,
+                                uom = line.UOM,
+                                maxQty = line.Quantity,
+                                qty = clampedQty,
+                                lot = ex.batchNo,
+                                expiry = isoExpiry,
+                                description = line.Description ?: ""
+                            )
+                            // keep only matched line + its input
+                            line to input
+                        } else null
+                    }
+
+                    _state.value = _state.value.copy(
+                        lines = matchedPairs.map { it.first },
+                        lineInputs = matchedPairs.map { it.second },
+                        step = GrnStep.SHOW_PO
                     )
-                )
-
-                val used = mutableSetOf<Int>()
-                val inputs = items.map { line ->
-                    val safeItem = line.Item?.trim().orEmpty()
-                    val poDesc = (line.Description ?: safeItem).trim()
-                    val matchIdx = bestMatchIndex(extractedItems, poDesc, used, threshold = 0.35)
-
-                    if (matchIdx != null) {
-                        used += matchIdx
-                        val ex = extractedItems[matchIdx]
-                        val isoExpiry = parseToIso(ex.expiryDate)
-                        val clampedQty = min(ex.qtyDelivered, line.Quantity)
-                        LineInput(
-                            lineNumber = line.LineNumber,
-                            itemNumber = safeItem,
-                            uom = line.UOM,
-                            maxQty = line.Quantity,
-                            qty = clampedQty,
-                            lot = ex.batchNo,
-                            expiry = isoExpiry,
-                            description = line.Description ?: ""
-                        )
-                    } else {
+                } else {
+                    // --- MANUAL/DEFAULT mode (unchanged behavior) ---
+                    val used = mutableSetOf<Int>() // unused but keeps code symmetrical
+                    val inputs = items.map { line ->
+                        val safeItem = line.Item?.trim().orEmpty()
                         LineInput(
                             lineNumber = line.LineNumber,
                             itemNumber = safeItem,
@@ -123,12 +121,18 @@ class GrnViewModel @Inject constructor(
                             description = line.Description ?: ""
                         )
                     }
+                    _state.value = _state.value.copy(
+                        lines = items,
+                        lineInputs = inputs,
+                        step = GrnStep.SHOW_PO
+                    )
                 }
-
-                _state.value = _state.value.copy(lines = items, lineInputs = inputs)
             }
-            .onFailure { e -> _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines") }
+            .onFailure { e ->
+                _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines")
+            }
     }
+
 
     fun updateLine(lineNumber: Int, qty: Double? = null, lot: String? = null, expiry: String? = null) {
         val updated = _state.value.lineInputs.map {
@@ -216,4 +220,38 @@ class GrnViewModel @Inject constructor(
     }
 
     fun startOver() { _state.value = GrnUiState() }
+
+    fun prefillFromScan(po: String?, scanJson: String?) {
+        var next = _state.value
+        if (!po.isNullOrBlank()) next = next.copy(poNumber = po)
+
+        if (!scanJson.isNullOrBlank()) {
+            try {
+                val transfer = com.google.gson.Gson().fromJson(
+                    scanJson,
+                    com.lazymohan.zebraprinter.scan.ScanExtractTransfer::class.java
+                )
+                val normalized = transfer.items.map {
+                    com.lazymohan.zebraprinter.grn.util.ExtractedItem(
+                        description = it.description,
+                        qtyDelivered = it.qty,
+                        expiryDate = it.expiry,
+                        batchNo = it.batchNo
+                    )
+                }
+                // prefer payload PO if not passed separately
+                val poNum = if (!po.isNullOrBlank()) po!! else transfer.poNumber
+                next = next.copy(poNumber = poNum, extractedFromScan = normalized)
+            } catch (e: Exception) {
+                next = next.copy(error = "Failed to read scan payload: ${e.message}")
+            }
+        }
+        _state.value = next
+
+        // Auto-fetch if we have a PO number
+        if (_state.value.poNumber.isNotBlank() && _state.value.step == GrnStep.ENTER_PO) {
+            fetchPo()
+        }
+    }
+
 }

@@ -47,6 +47,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 
 // ---------- helpers ----------
 private suspend fun saveUriToGallery(
@@ -115,6 +118,8 @@ fun ScanResultScreen(
 
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
 
+    val scrollState = rememberScrollState()
+
     Scaffold(containerColor = Color(0xFFF6F8FF), snackbarHost = { SnackbarHost(hostState = snack) }) { inner ->
         Box(Modifier.fillMaxSize().padding(inner)) {
             Column(Modifier.fillMaxSize()) {
@@ -145,7 +150,7 @@ fun ScanResultScreen(
                 }
 
                 // Content
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f).verticalScroll(scrollState)) {
 
                     // Preview card
                     Surface(
@@ -262,6 +267,37 @@ fun ScanResultScreen(
                                     }
                                 }
                             }
+
+                            // ... inside `is ScanUiState.Completed -> { val data = s.data ... }`
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = onRetake,
+                                    modifier = Modifier.weight(1f).height(52.dp)
+                                ) { Text("Retake / Re-scan") }
+
+                                Button(
+                                    onClick = {
+                                        val transfer = data.toTransfer()
+                                        if (transfer == null) {
+                                            scope.launch { snack.showSnackbar("No usable OCR data") }
+                                        } else {
+                                            val payload = scanGson.toJson(transfer)
+                                            val intent = android.content.Intent(ctx, com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java).apply {
+                                                putExtra("po_number", transfer.poNumber)
+                                                putExtra("scan_extract_json", payload)
+                                            }
+                                            ctx.startActivity(intent)
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f).height(52.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
+                                ) { Text("Create GRN", color = Color.White, fontWeight = FontWeight.Bold) }
+                            }
+
                         }
 
                         else -> {}
