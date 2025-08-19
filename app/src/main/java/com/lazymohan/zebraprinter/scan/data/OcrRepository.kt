@@ -26,8 +26,7 @@ class OcrRepository @Inject constructor(
 ) {
     private val base = "http://kch-ocr.tarkalabs.com"
 
-    // For testing purposes, we can use a fake JSON response
-    // This should be replaced with actual API calls in production
+    // For testing purposes, we can using sample JSON response
     private val FAKE_JSON: String = """
 {
   "id": 123,
@@ -38,17 +37,17 @@ class OcrRepository @Inject constructor(
   "extracted_text": {
     "invoice_no": "INV-2025-001",
     "invoice_date": "2025-08-15",
-    "PO_no": "KHQ/PO/99387",
+    "PO_no": "KHQ/PO/98308",
     "items": [
       {
-        "description": "NUTRYELT 10ML AMP (TRACE EL.) ADULT-10'S",
-        "qty_delivered": "3",
+        "description": "INOCULATION LOOP 1 MICRO (1000PC/BOX)",
+        "qty_delivered": "2",
         "expiry_date": "09/01/2026",
         "batch_no": "D0615A04"
       },
       {
-        "description": "TACHYBEN (URAPIDIL) 50MG/10ML-AMP-5'S",
-        "qty_delivered": "3",
+        "description": "INOCULATION LOOP 10 MICRO (1000PC/BOX) [GNRC]",
+        "qty_delivered": "1",
         "expiry_date": "31/01/2026",
         "batch_no": "F7201-03"
       }

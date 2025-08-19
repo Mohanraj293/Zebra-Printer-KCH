@@ -18,16 +18,14 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
@@ -59,26 +57,33 @@ private suspend fun saveUriToGallery(
 ): Boolean = withContext(Dispatchers.IO) {
     try {
         val resolver = context.contentResolver
-        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val collection =
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val name = "$fileBaseName.jpg"
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/KCH")
+                put(
+                    MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_PICTURES + "/KCH"
+                )
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
         }
         val itemUri = resolver.insert(collection, values) ?: return@withContext false
         resolver.openOutputStream(itemUri)?.use { out ->
-            resolver.openInputStream(source)?.use { `in` -> `in`.copyTo(out) } ?: return@withContext false
+            resolver.openInputStream(source)?.use { `in` -> `in`.copyTo(out) }
+                ?: return@withContext false
         }
         if (Build.VERSION.SDK_INT >= 29) {
             values.clear(); values.put(MediaStore.Images.Media.IS_PENDING, 0)
             resolver.update(itemUri, values, null, null)
         }
         true
-    } catch (_: Exception) { false }
+    } catch (_: Exception) {
+        false
+    }
 }
 
 @Composable
@@ -89,8 +94,15 @@ private fun SavedBanner(visible: Boolean, modifier: Modifier = Modifier) {
         exit = fadeOut() + slideOutVertically(targetOffsetY = { -40 }),
         modifier = modifier
     ) {
-        Surface(color = Color(0xFF1DB954), shape = RoundedCornerShape(24.dp), shadowElevation = 6.dp) {
-            Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            color = Color(0xFF1DB954),
+            shape = RoundedCornerShape(24.dp),
+            shadowElevation = 6.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(8.dp))
                 Text("Saved to Gallery", color = Color.White, fontWeight = FontWeight.SemiBold)
@@ -116,7 +128,8 @@ fun ScanResultScreen(
     var saving by remember { mutableStateOf(false) }
     var showSavedBanner by remember { mutableStateOf(false) }
 
-    val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
+    val gradient =
+        Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val scrollState = rememberScrollState()
 
     // Shared action for "Create GRN" button (bottom)
@@ -128,10 +141,11 @@ fun ScanResultScreen(
                 scope.launch { snack.showSnackbar("No usable OCR data") }
             } else {
                 val payload = scanGson.toJson(transfer)
-                val intent = Intent(ctx, com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java).apply {
-                    putExtra("po_number", transfer.poNumber)
-                    putExtra("scan_extract_json", payload)
-                }
+                val intent =
+                    Intent(ctx, com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java).apply {
+                        putExtra("po_number", transfer.poNumber)
+                        putExtra("scan_extract_json", payload)
+                    }
                 ctx.startActivity(intent)
             }
         } else {
@@ -141,7 +155,10 @@ fun ScanResultScreen(
 
     val canCreateGrn = state is ScanUiState.Completed
 
-    Scaffold(containerColor = Color(0xFFF6F8FF), snackbarHost = { SnackbarHost(hostState = snack) }) { inner ->
+    Scaffold(
+        containerColor = Color(0xFFF6F8FF),
+        snackbarHost = { SnackbarHost(hostState = snack) }
+    ) { inner ->
         Box(Modifier.fillMaxSize().padding(inner)) {
             Column(Modifier.fillMaxSize()) {
                 // Header
@@ -151,27 +168,56 @@ fun ScanResultScreen(
                         .background(gradient)
                         .padding(top = 28.dp, start = 24.dp, end = 24.dp, bottom = 18.dp)
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(modifier = Modifier.size(72.dp), shape = RoundedCornerShape(20.dp), color = Color.White) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(72.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color.White
+                        ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Text("KCH", style = MaterialTheme.typography.titleLarge.copy(color = Color(0xFF0E63FF), fontWeight = FontWeight.Bold))
+                                Text(
+                                    "KCH",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        color = Color(0xFF0E63FF),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
                             }
                         }
                         Spacer(Modifier.height(12.dp))
-                        Text("Scan Result", color = Color.White, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold), textAlign = TextAlign.Center)
+                        Text(
+                            "Scan Result",
+                            color = Color.White,
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.ExtraBold
+                            ),
+                            textAlign = TextAlign.Center
+                        )
                         Spacer(Modifier.height(6.dp))
                         val sub = when (state) {
                             is ScanUiState.Uploading -> "Uploading / Processing…"
                             is ScanUiState.Completed -> "Scanning completed"
                             is ScanUiState.Error -> "Scanning failed"
-                            else -> "Ready"
+                            is ScanUiState.Idle -> "Ready"
                         }
-                        Text(sub, color = Color.White.copy(alpha = 0.95f), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                        Text(
+                            sub,
+                            color = Color.White.copy(alpha = 0.95f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
 
                 // Content
-                Column(modifier = Modifier.weight(1f).verticalScroll(scrollState)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(scrollState)
+                ) {
 
                     // Preview card
                     Surface(
@@ -183,22 +229,42 @@ fun ScanResultScreen(
                     ) {
                         Column(Modifier.padding(16.dp)) {
                             if (pages.isEmpty()) {
-                                Box(Modifier.fillMaxWidth().height(280.dp), contentAlignment = Alignment.Center) {
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(280.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text("No image. Go back and scan again.")
                                 }
                             } else {
                                 Image(
                                     painter = rememberAsyncImagePainter(pages[selected]),
                                     contentDescription = null,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 520.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 280.dp, max = 520.dp),
                                     contentScale = ContentScale.Fit
                                 )
                                 if (pages.size > 1) {
                                     Spacer(Modifier.height(12.dp))
-                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
                                         itemsIndexed(pages) { idx, uri ->
-                                            ElevatedCard(onClick = { selected = idx }, modifier = Modifier.size(width = 96.dp, height = 120.dp)) {
-                                                Image(painter = rememberAsyncImagePainter(uri), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                            ElevatedCard(
+                                                onClick = { selected = idx },
+                                                modifier = Modifier.size(
+                                                    width = 96.dp,
+                                                    height = 120.dp
+                                                )
+                                            ) {
+                                                Image(
+                                                    painter = rememberAsyncImagePainter(uri),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
                                             }
                                         }
                                     }
@@ -215,17 +281,26 @@ fun ScanResultScreen(
                             ) {
                                 OutlinedButton(
                                     onClick = onRetake,
-                                    modifier = Modifier.weight(1f).height(48.dp)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
                                 ) { Text("Retake") }
 
                                 Button(
                                     onClick = {
                                         if (pages.isNotEmpty()) {
-                                            val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
+                                            val ts = SimpleDateFormat(
+                                                "yyyyMMdd_HHmmss",
+                                                Locale.US
+                                            ).format(System.currentTimeMillis())
                                             val fileBase = "KCH_${ts}_p${selected + 1}"
                                             scope.launch {
                                                 saving = true
-                                                val ok = saveUriToGallery(ctx, pages[selected], fileBase)
+                                                val ok = saveUriToGallery(
+                                                    ctx,
+                                                    pages[selected],
+                                                    fileBase
+                                                )
                                                 saving = false
                                                 if (ok) {
                                                     showSavedBanner = true
@@ -238,21 +313,35 @@ fun ScanResultScreen(
                                         }
                                     },
                                     enabled = pages.isNotEmpty(),
-                                    modifier = Modifier.weight(1f).height(48.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
-                                ) { Text("Download", color = Color.White, fontWeight = FontWeight.Bold) }
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF2E6BFF)
+                                    )
+                                ) {
+                                    Text(
+                                        "Download",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
-
                         }
                     }
 
                     // Status / Result area
                     when (val s = state) {
                         is ScanUiState.Uploading -> {
-                            Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                            Column(
+                                Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                            ) {
                                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                                 Spacer(Modifier.height(8.dp))
-                                Text("Please wait… this may take a few seconds.", color = Color(0xFF5C6370))
+                                Text(
+                                    "Please wait… this may take a few seconds.",
+                                    color = Color(0xFF5C6370)
+                                )
                             }
                         }
 
@@ -263,7 +352,12 @@ fun ScanResultScreen(
                                 color = Color(0xFFFFF1F0)
                             ) {
                                 Column(Modifier.padding(16.dp)) {
-                                    Text("Upload/Processing Error", style = MaterialTheme.typography.titleMedium, color = Color(0xFFB00020), fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        "Upload/Processing Error",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Color(0xFFB00020),
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                     Spacer(Modifier.height(8.dp))
                                     Text(s.message)
                                     s.raw?.let { raw ->
@@ -277,65 +371,190 @@ fun ScanResultScreen(
                         is ScanUiState.Completed -> {
                             val data = s.data
                             val xt = data.extractedText
+                            val items: List<ExtractedItem> = xt?.items ?: emptyList()
 
-                            // Summary card
+                            // Big, polished “invoice” card
                             Surface(
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier.padding(
+                                    horizontal = 20.dp,
+                                    vertical = 12.dp
+                                ),
+                                shape = RoundedCornerShape(22.dp),
                                 color = Color.White,
-                                tonalElevation = 1.dp
+                                tonalElevation = 1.dp,
+                                shadowElevation = 10.dp
                             ) {
-                                Column(Modifier.padding(16.dp)) {
-                                    Text("Invoice Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                    Spacer(Modifier.height(6.dp))
-                                    Text("Invoice No: ${xt?.invoiceNo ?: "-"}")
-                                    Text("Invoice Date: ${xt?.invoiceDate ?: "-"}")
-                                    Text("PO No: ${xt?.poNo ?: "-"}")
-                                }
-                            }
+                                Column {
 
-                            // Items list
-                            Surface(
-                                modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp),
-                                shape = RoundedCornerShape(20.dp),
-                                color = Color.White,
-                                tonalElevation = 1.dp
-                            ) {
-                                Column(Modifier.padding(16.dp)) {
-                                    Text("Extracted Items", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                    Spacer(Modifier.height(8.dp))
-                                    val items: List<ExtractedItem> = xt?.items ?: emptyList()
-                                    if (items.isEmpty()) {
-                                        Text("No items detected.")
-                                    } else {
-                                        LazyColumn(
-                                            modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            items(items) { item ->
-                                                Surface(shape = RoundedCornerShape(16.dp), tonalElevation = 1.dp) {
-                                                    Column(Modifier.padding(12.dp)) {
-                                                        Text(item.description ?: "-", fontWeight = FontWeight.SemiBold)
-                                                        Spacer(Modifier.height(4.dp))
-                                                        Text("Qty: ${item.qtyDelivered ?: "-"}")
-                                                        Text("Batch: ${item.batchNo ?: "-"}")
-                                                        Text("Expiry: ${item.expiryDate ?: "-"}")
-                                                    }
+                                    // Fancy ribbon header
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                Brush.horizontalGradient(
+                                                    listOf(
+                                                        Color(0xFF0E63FF),
+                                                        Color(0xFF5AA7FF)
+                                                    )
+                                                )
+                                            )
+                                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                                    ) {
+                                        Column {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Surface(
+                                                    color = Color.White.copy(alpha = 0.18f),
+                                                    shape = RoundedCornerShape(14.dp)
+                                                ) {
+                                                    Text(
+                                                        "OCR EXTRACT",
+                                                        modifier = Modifier.padding(
+                                                            horizontal = 10.dp,
+                                                            vertical = 4.dp
+                                                        ),
+                                                        color = Color.White,
+                                                        style = MaterialTheme.typography.labelMedium
+                                                    )
                                                 }
+                                                Spacer(Modifier.weight(1f))
+                                                Surface(
+                                                    color = Color.White.copy(alpha = 0.18f),
+                                                    shape = RoundedCornerShape(14.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "${items.size} item${if (items.size == 1) "" else "s"}",
+                                                        modifier = Modifier.padding(
+                                                            horizontal = 10.dp,
+                                                            vertical = 4.dp
+                                                        ),
+                                                        color = Color.White,
+                                                        style = MaterialTheme.typography.labelMedium
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.height(8.dp))
+                                            Text(
+                                                "Extracted Invoice",
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.headlineSmall.copy(
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                            )
+                                            Text(
+                                                "Auto-parsed from your delivery slip",
+                                                color = Color.White.copy(alpha = 0.9f),
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                        }
+                                    }
+
+                                    // Meta block — invoice details
+                                    Column(
+                                        Modifier.padding(
+                                            horizontal = 16.dp,
+                                            vertical = 14.dp
+                                        )
+                                    ) {
+                                        InvoiceMetaGrid(
+                                            left = listOf(
+                                                "Invoice No." to (xt?.invoiceNo?.ifBlank { "—" }
+                                                    ?: "—"),
+                                                "Invoice Date" to (xt?.invoiceDate?.ifBlank { "—" }
+                                                    ?: "—")
+                                            ),
+                                            right = listOf(
+                                                "PO Number" to (xt?.poNo?.ifBlank { "—" } ?: "—"),
+                                                "Extracted On" to java.text.SimpleDateFormat(
+                                                    "dd MMM yyyy, hh:mm a",
+                                                    java.util.Locale.getDefault()
+                                                ).format(System.currentTimeMillis())
+                                            )
+                                        )
+                                    }
+
+                                    Divider(color = Color(0xFFE8ECF5))
+
+                                    // Items table
+                                    Column(Modifier.padding(16.dp)) {
+                                        Text(
+                                            "Line Items",
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                color = Color(0xFF143A7B),
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+
+                                        if (items.isEmpty()) {
+                                            Surface(
+                                                color = Color(0xFFFFF4E5),
+                                                contentColor = Color(0xFF92400E),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Text(
+                                                    "No line items were detected on this invoice.",
+                                                    modifier = Modifier.padding(12.dp),
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                            }
+                                        } else {
+                                            // Header row
+                                            InvoiceTableHeader()
+
+                                            // Rows
+                                            items.forEachIndexed { i, it ->
+                                                val bg =
+                                                    if (i % 2 == 0) Color(0xFFF9FBFF) else Color.White
+                                                InvoiceTableRow(
+                                                    description = it.description ?: "—",
+                                                    qty = it.qtyDelivered ?: "—",
+                                                    batch = it.batchNo ?: "—",
+                                                    expiry = it.expiryDate ?: "—",
+                                                    background = bg
+                                                )
                                             }
                                         }
                                     }
+
+                                    Spacer(Modifier.height(6.dp))
                                 }
                             }
                         }
 
-                        else -> {}
+                        is ScanUiState.Idle -> {
+                            // Exhaustive branch: gentle hint when nothing started yet
+                            Surface(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                                shape = RoundedCornerShape(20.dp),
+                                color = Color.White
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text(
+                                        "Ready to Scan",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = Color(0xFF143A7B)
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        "Open the scanner and capture your delivery slip. Once the OCR finishes, we’ll show the extracted invoice here.",
+                                        color = Color(0xFF475569)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
                 // Bottom actions: Back + Create GRN
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     OutlinedButton(
@@ -355,7 +574,9 @@ fun ScanResultScreen(
             // Overlays
             SavedBanner(
                 visible = showSavedBanner,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp)
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp)
             )
 
             // Centered loader overlay for upload/poll/saving
@@ -363,7 +584,10 @@ fun ScanResultScreen(
             if (showLoader) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Surface(tonalElevation = 6.dp, shape = RoundedCornerShape(16.dp)) {
-                        Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             CircularProgressIndicator()
                             Spacer(Modifier.height(10.dp))
                             Text("Please wait…")
@@ -372,5 +596,129 @@ fun ScanResultScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun InvoiceMetaGrid(
+    left: List<Pair<String, String>>,
+    right: List<Pair<String, String>>
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            left.forEach { (k, v) -> MetaRow(k, v) }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            right.forEach { (k, v) -> MetaRow(k, v) }
+        }
+    }
+}
+
+@Composable
+private fun MetaRow(label: String, value: String) {
+    Column {
+        Text(label, color = Color(0xFF6B7280), style = MaterialTheme.typography.labelMedium)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = Color(0xFF0F172A)
+        )
+    }
+}
+@Composable
+private fun InvoiceTableHeader() {
+    Surface(
+        color = Color(0xFFEFF4FF),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HeaderCell("Description", 0.46f)
+            HeaderCell("Qty", 0.14f, TextAlign.Center)
+            HeaderCell("Batch / Expiry", 0.40f) // merged column
+        }
+    }
+}
+
+@Composable
+private fun RowScope.HeaderCell(
+    text: String,
+    cellWeight: Float,
+    align: TextAlign = TextAlign.Start
+) {
+    Text(
+        text = text,
+        modifier = Modifier.weight(cellWeight),
+        color = Color(0xFF1F2A44),
+        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+        textAlign = align,
+        maxLines = 1
+    )
+}
+
+@Composable
+private fun RowScope.BodyCell(
+    text: String,
+    cellWeight: Float,
+    align: TextAlign = TextAlign.Start
+) {
+    Text(
+        text = text,
+        modifier = Modifier.weight(cellWeight),
+        color = Color(0xFF0F172A),
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = align,
+        maxLines = 2
+    )
+}
+
+// NEW: dual-line value cell for the merged "Batch / Expiry" column
+@Composable
+private fun RowScope.DualLineCell(
+    top: String,            // Batch number
+    bottom: String,         // Expiry date
+    cellWeight: Float,
+    align: TextAlign = TextAlign.Start
+) {
+    Column(modifier = Modifier.weight(cellWeight)) {
+        Text(
+            text = top.ifBlank { "—" },
+            color = Color(0xFF0F172A),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = align,
+            maxLines = 1
+        )
+        Text(
+            text = bottom.ifBlank { "—" },
+            color = Color(0xFF475569),
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = align,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun InvoiceTableRow(
+    description: String,
+    qty: String,
+    batch: String,
+    expiry: String,
+    background: Color
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(background, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BodyCell(description, 0.46f)
+        BodyCell(qty, 0.14f, TextAlign.Center)
+        DualLineCell(batch, expiry, 0.40f) // Batch on top, Expiry below
     }
 }

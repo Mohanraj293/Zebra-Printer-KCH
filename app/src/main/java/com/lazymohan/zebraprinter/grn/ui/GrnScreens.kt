@@ -1,9 +1,11 @@
 // app/src/main/java/com/lazymohan/zebraprinter/grn/ui/GrnScreens.kt
 package com.lazymohan.zebraprinter.grn.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.*
@@ -34,6 +37,11 @@ import androidx.compose.ui.unit.dp
 import com.lazymohan.zebraprinter.grn.data.PoLineItem
 import java.text.NumberFormat
 import java.util.*
+import kotlin.math.max
+import kotlin.math.roundToInt
+
+// IMPORTANT: use the GRN module's ExtractedItem (the one you pass in ui.extractedFromScan)
+import com.lazymohan.zebraprinter.grn.util.ExtractedItem as SlipItem
 
 @Composable
 fun GrnScreens(
@@ -148,6 +156,7 @@ private fun Stepper(step: Int) {
     }
 }
 
+/* ------------------------- ENTER PO ------------------------- */
 
 @Composable
 private fun EnterPoCard(
@@ -156,35 +165,129 @@ private fun EnterPoCard(
     onFetchPo: () -> Unit,
     onBack: () -> Unit
 ) {
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val hasError = ui.error?.isNotBlank() == true
+
     Card(
-        modifier = Modifier.padding(20.dp).offset(y = (-12).dp),
+        modifier = Modifier
+            .padding(20.dp)
+            .offset(y = (-12).dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(8.dp)
     ) {
         Column(Modifier.padding(20.dp)) {
+
             OutlinedTextField(
                 value = ui.poNumber,
-                onValueChange = onEnterPo,
+                onValueChange = { onEnterPo(it.trim()) },
                 label = { Text("PO Number") },
                 placeholder = { Text("e.g., KHQ/PO/99387") },
                 singleLine = true,
+                isError = hasError,
+                supportingText = {
+                    if (hasError) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.ErrorOutline,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = ui.error.orEmpty(),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    } else {
+                        Text(
+                            "Enter the exact Oracle PO number.",
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            AnimatedVisibility(visible = hasError) {
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = RoundedCornerShape(16.dp),
+                    tonalElevation = 2.dp,
+                    shadowElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.ErrorOutline, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "We couldn’t find that PO",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            SmallTipChip("Check typos")
+                            SmallTipChip("Remove spaces")
+                            SmallTipChip("Use exact slashes")
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f).height(52.dp)) { Text("Back") }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                ) { Text("Back") }
+
                 Button(
                     onClick = onFetchPo,
                     enabled = ui.poNumber.isNotBlank() && !ui.loading,
-                    modifier = Modifier.weight(1f).height(52.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
-                ) { if (ui.loading) CircularProgressIndicator(strokeWidth = 2.dp, color = Color.White) else Text("Next", color = Color.White) }
+                ) {
+                    if (ui.loading) {
+                        CircularProgressIndicator(strokeWidth = 2.dp, color = Color.White)
+                    } else {
+                        Text("Next", color = Color.White)
+                    }
+                }
             }
-            if (ui.error != null) { Spacer(Modifier.height(8.dp)); Text(ui.error, color = Color(0xFFB00020)) }
         }
     }
 }
+
+@Composable
+private fun SmallTipChip(text: String) {
+    Surface(
+        color = Color.White.copy(alpha = 0.35f),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+/* --------------------- CONFIRM & RECEIVE --------------------- */
 
 @Composable
 private fun PoAndReceiveCard(
@@ -200,6 +303,13 @@ private fun PoAndReceiveCard(
     val candidates = ui.allPoLines.filter { it.LineNumber !in taken }
 
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    var showMatchDialog by rememberSaveable { mutableStateOf(false) }
+    val matches by remember(ui.extractedFromScan, ui.allPoLines) {
+        mutableStateOf(computeSlipMatches(ui.extractedFromScan, ui.allPoLines))
+    }
+    val slipCount = matches.size
+    val matchedCount = matches.count { it.matched }
+    val unmatchedCount = slipCount - matchedCount
 
     Column(Modifier.verticalScroll(rememberScrollState())) {
 
@@ -242,6 +352,21 @@ private fun PoAndReceiveCard(
                         onClick = { showAddDialog = true },
                         enabled = candidates.isNotEmpty()
                     ) { Text("Add Line") }
+                }
+
+                if (isScanMode && slipCount > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    SlipMatchBar(
+                        slipCount = slipCount,
+                        matchedCount = matchedCount,
+                        hasUnmatched = unmatchedCount > 0,
+                        onClick = { showMatchDialog = true }
+                    )
+                    Spacer(Modifier.height(6.dp))
+                } else if (isScanMode && slipCount == 0) {
+                    Spacer(Modifier.height(4.dp))
+                    InfoBanner("No items detected on the uploaded delivery slip.")
+                    Spacer(Modifier.height(6.dp))
                 }
 
                 if (isScanMode) {
@@ -361,7 +486,7 @@ private fun PoAndReceiveCard(
         Spacer(Modifier.height(10.dp))
     }
 
-    // --- Add Line dialog ---
+    // dialogs
     if (showAddDialog) {
         AddLineDialog(
             candidates = candidates,
@@ -369,7 +494,13 @@ private fun PoAndReceiveCard(
             onDismiss = { showAddDialog = false }
         )
     }
+    if (showMatchDialog) {
+        MatchBreakdownDialog(matches = matches, onDismiss = { showMatchDialog = false })
+    }
 }
+
+/* --------------------------- REVIEW --------------------------- */
+
 
 @Composable
 private fun AddLineDialog(
@@ -426,7 +557,6 @@ private fun AddLineDialog(
     )
 }
 
-
 @Composable
 private fun ReviewCard(
     ui: GrnUiState,
@@ -437,6 +567,13 @@ private fun ReviewCard(
     val totalQty = p.lines.sumOf { it.Quantity }
     val totalLines = p.lines.size
 
+    val matches by remember(ui.extractedFromScan, ui.allPoLines) {
+        mutableStateOf(computeSlipMatches(ui.extractedFromScan, ui.allPoLines))
+    }
+    val slipCount = matches.size
+    val matchedCount = matches.count { it.matched }
+    var showMatchDialog by rememberSaveable { mutableStateOf(false) }
+
     Column(Modifier.verticalScroll(rememberScrollState())) {
         Card(
             modifier = Modifier.padding(horizontal = 20.dp).offset(y = (-12).dp),
@@ -445,13 +582,23 @@ private fun ReviewCard(
             elevation = CardDefaults.cardElevation(10.dp)
         ) {
             Column(Modifier.padding(20.dp)) {
-                // Receipt-style heading
+
+                if (slipCount > 0) {
+                    SlipMatchBar(
+                        slipCount = slipCount,
+                        matchedCount = matchedCount,
+                        hasUnmatched = slipCount > matchedCount,
+                        compact = true,
+                        onClick = { showMatchDialog = true }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
                 Text("Receipt Preview", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold, color = Color(0xFF143A7B)))
                 Spacer(Modifier.height(8.dp))
                 Divider()
                 Spacer(Modifier.height(12.dp))
 
-                // Header block (like a receipt)
                 ReceiptRow("PO Number", p.lines.firstOrNull()?.DocumentNumber ?: "-")
                 ReceiptRow("Vendor", p.VendorName)
                 ReceiptRow("Site", p.VendorSiteCode)
@@ -470,7 +617,6 @@ private fun ReviewCard(
                         val lot = ln.lotItemLots.firstOrNull()?.LotNumber ?: "-"
                         val exp = ln.lotItemLots.firstOrNull()?.LotExpirationDate ?: "-"
                         Column {
-                            // one compact row
                             Text(
                                 text = "Line ${ln.DocumentLineNumber}  •  ${ln.ItemNumber}  •  Qty ${fmt(ln.Quantity)} ${ln.UnitOfMeasure}",
                                 fontFamily = FontFamily.Monospace
@@ -489,7 +635,6 @@ private fun ReviewCard(
                 Divider(thickness = 1.dp, color = Color(0xFFE7EAF3))
                 Spacer(Modifier.height(10.dp))
 
-                // Totals
                 ReceiptRow("Total Lines", totalLines.toString())
                 ReceiptRow("Total Quantity", fmt(totalQty))
 
@@ -498,7 +643,7 @@ private fun ReviewCard(
                     OutlinedButton(
                         onClick = onEditReceive,
                         modifier = Modifier.weight(1f).height(52.dp)
-                    ) { Text("Back to Receive") }   // takes user to edit lines
+                    ) { Text("Back to Receive") }
                     Button(
                         onClick = onSubmit,
                         enabled = !ui.loading && p.lines.isNotEmpty(),
@@ -510,11 +655,177 @@ private fun ReviewCard(
                     }
                 }
 
-                if (ui.error != null) { Spacer(Modifier.height(8.dp)); Text(ui.error, color = Color(0xFFB00020)) }
+                if (ui.error != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(ui.error, color = Color(0xFFB00020))
+                }
             }
         }
     }
+
+    if (showMatchDialog) {
+        MatchBreakdownDialog(matches = matches, onDismiss = { showMatchDialog = false })
+    }
 }
+
+/* -------------------- Banners, Dialog & helpers -------------------- */
+
+@Composable
+private fun SlipMatchBar(
+    slipCount: Int,
+    matchedCount: Int,
+    hasUnmatched: Boolean,
+    compact: Boolean = false,
+    onClick: () -> Unit
+) {
+    val bg = if (hasUnmatched) Color(0xFFFFF4E5) else Color(0xFFE9F9EF)
+    val fg = if (hasUnmatched) Color(0xFF92400E) else Color(0xFF166534)
+    Surface(
+        color = bg,
+        contentColor = fg,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        val base = "Delivery slip items: $slipCount • Matched to PO: $matchedCount"
+        val tail = if (hasUnmatched) " • Tap to see what didn’t match" else " • All mapped ✓"
+        Text(
+            text = base + if (compact) "" else tail,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+private data class MatchDetail(
+    val slip: SlipItem,
+    val best: PoLineItem?,
+    val similarity: Double
+) {
+    val matched: Boolean get() = best != null
+}
+
+/** Lightweight similarity with item-code boosting. */
+private fun computeSlipMatches(
+    slipItems: List<SlipItem>,
+    poLines: List<PoLineItem>,
+    threshold: Double = 0.42
+): List<MatchDetail> {
+    fun tokens(s: String?): Set<String> =
+        (s ?: "")
+            .lowercase()
+            .split(Regex("[^a-z0-9]+"))
+            .filter { it.length >= 3 }
+            .toSet()
+
+    fun jaccard(a: Set<String>, b: Set<String>): Double {
+        if (a.isEmpty() || b.isEmpty()) return 0.0
+        val inter = a.intersect(b).size.toDouble()
+        val union = a.union(b).size.toDouble()
+        return if (union == 0.0) 0.0 else inter / union
+    }
+
+    return slipItems.map { slip ->
+        val slipTok = tokens(slip.description)
+        var best: PoLineItem? = null
+        var bestScore = 0.0
+        for (po in poLines) {
+            val base = jaccard(slipTok, tokens(po.Description))
+            // boost if PO item code appears in slip text
+            val code = (po.Item ?: "").trim()
+            val boost = if (code.isNotBlank() && (slip.description?.contains(code, ignoreCase = true) == true)) 0.95 else 0.0
+            val score = max(base, boost)
+            if (score > bestScore) {
+                bestScore = score
+                best = po
+            }
+        }
+        MatchDetail(slip = slip, best = best.takeIf { bestScore >= threshold }, similarity = bestScore)
+    }
+}
+
+@Composable
+private fun MatchBreakdownDialog(
+    matches: List<MatchDetail>,
+    onDismiss: () -> Unit
+) {
+    val matched = matches.count { it.matched }
+    val total = matches.size
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delivery Slip Match Details") },
+        text = {
+            Column {
+                Text(
+                    "$matched of $total items matched to PO lines.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF334155)
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(matches) { m ->
+                        Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(
+                                    m.slip.description ?: "(no description)",
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                if (m.matched) {
+                                    val line = m.best!!
+                                    val pct = (m.similarity * 100).roundToInt()
+                                    Text(
+                                        "Matched → ${line.Item ?: "—"} • ${line.Description ?: ""}",
+                                        color = Color(0xFF0F766E)
+                                    )
+                                    LinearProgressIndicator(
+                                        progress = (pct / 100f).coerceIn(0f, 1f),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 6.dp),
+                                        color = Color(0xFF0EA5E9),
+                                        trackColor = Color(0xFFE0F2FE)
+                                    )
+                                    Text("$pct% similarity", style = MaterialTheme.typography.labelSmall, color = Color(0xFF155E75))
+                                } else {
+                                    Text("No PO match above threshold.", color = Color(0xFF9A3412))
+                                    Text(
+                                        "Tip: Add the correct PO line manually and enter Qty/Lot/Expiry.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF9A3412)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
+}
+
+@Composable
+private fun InfoBanner(text: String) {
+    Surface(color = Color(0xFFEFF4FF), shape = RoundedCornerShape(14.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Outlined.Description, contentDescription = null, tint = Color(0xFF2E6BFF))
+            Spacer(Modifier.width(8.dp))
+            Text(text, color = Color(0xFF143A7B))
+        }
+    }
+}
+
+/* -------------------- Review/Summary helpers -------------------- */
 
 @Composable
 private fun ReceiptRow(label: String, value: String) {
@@ -533,8 +844,10 @@ private fun SummaryCard(ui: GrnUiState, onStartOver: () -> Unit) {
             Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = Color(0xFF2ECC71), modifier = Modifier.size(96.dp))
         }
         Spacer(Modifier.height(10.dp))
-        Text("GRN Successfully Created", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.headlineSmall.copy(color = Color(0xFF0E9F6E), fontWeight = FontWeight.ExtraBold))
+        Text(
+            "GRN Successfully Created", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.headlineSmall.copy(color = Color(0xFF0E9F6E), fontWeight = FontWeight.ExtraBold)
+        )
         Spacer(Modifier.height(10.dp))
         Card(
             modifier = Modifier.padding(horizontal = 20.dp),
@@ -552,8 +865,10 @@ private fun SummaryCard(ui: GrnUiState, onStartOver: () -> Unit) {
                     ui.lineErrors.forEach { Text("• ${it.ItemDescription ?: "-"}: ${it.ErrorMessage ?: ""}", color = Color(0xFFB00020)) }
                 }
                 Spacer(Modifier.height(12.dp))
-                Button(onClick = onStartOver, modifier = Modifier.fillMaxWidth().height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))) { Text("Start New Receipt", color = Color.White) }
+                Button(
+                    onClick = onStartOver, modifier = Modifier.fillMaxWidth().height(52.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
+                ) { Text("Start New Receipt", color = Color.White) }
             }
         }
         Spacer(Modifier.height(18.dp))
@@ -562,7 +877,10 @@ private fun SummaryCard(ui: GrnUiState, onStartOver: () -> Unit) {
 
 @Composable private fun SectionHeader(title: String, badge: String? = null, badgeColor: Color = Color(0xFFEFF4FF)) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.padding(start = 20.dp, top = 12.dp).size(40.dp).clip(CircleShape).background(Color(0xFFEFF4FF)), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.padding(start = 20.dp, top = 12.dp).size(40.dp).clip(CircleShape).background(Color(0xFFEFF4FF)),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(Icons.Outlined.Description, contentDescription = null, tint = Color(0xFF2E6BFF))
         }
         Spacer(Modifier.width(10.dp))
