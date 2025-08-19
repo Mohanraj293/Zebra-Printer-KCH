@@ -27,6 +27,9 @@ android {
         buildConfigField("String", "ORGANIZATION_CODE", "\"KDH\"")
         buildConfigField("String", "DEFAULT_SUBINVENTORY", "\"DHHPHMAIN\"")
         buildConfigField("String", "DEFAULT_LOCATOR", "\"0.0.0\"")
+
+        buildConfigField("boolean", "OCR_FAKE", "false")
+        buildConfigField("String", "OCR_FAKE_ASSET", "\"\"")
         // =============================================================
     }
 
@@ -89,6 +92,9 @@ dependencies {
     implementation(libs.kotlinx.collections.immutable)
 
     implementation(libs.bundles.retrofit)
+
+    implementation("com.google.code.gson:gson:2.11.0")
+
 
     // ML Kit dependencies
     implementation("com.google.mlkit:text-recognition:16.0.0")
