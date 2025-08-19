@@ -131,6 +131,15 @@ class PrinterViewModel @AssistedInject constructor(
         }
     }
 
+    fun updateCanDiscoverPrinter(canDiscover: Boolean) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                canDiscoverPrinter = canDiscover
+            )
+        }
+        getZPLPrinterList()
+    }
+
     fun showLoading() {
         _uiState.update { it.copy(isLoading = true) }
     }

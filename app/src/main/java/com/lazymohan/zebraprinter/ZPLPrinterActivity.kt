@@ -75,7 +75,7 @@ class ZPLPrinterActivity : ComponentActivity() {
                     onResult = { granted ->
                         requestPrint.value = false
                         if (granted) {
-                            viewModel.printerDiscovery()
+                            viewModel.updateCanDiscoverPrinter(true)
                         } else {
                             viewModel.updateError("Bluetooth permission denied")
                         }
@@ -88,7 +88,7 @@ class ZPLPrinterActivity : ComponentActivity() {
     private fun handleEvents(event: PrinterEvents) {
         when (event) {
             is PrinterEvents.Print -> {
-                requestPrint.value = event.canDiscoverPrinter
+                viewModel.printerDiscovery()
             }
 
             is PrinterEvents.UpdateNoOfCopies -> {
@@ -109,6 +109,10 @@ class ZPLPrinterActivity : ComponentActivity() {
 
             is PrinterEvents.UpdateSelectedPrinter -> {
                 viewModel.updateSelectedPrinter(event.selectedPrinter)
+            }
+
+            is PrinterEvents.CanDiscover -> {
+                requestPrint.value = event.canDiscoverPrinter
             }
         }
     }
