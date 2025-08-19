@@ -305,7 +305,7 @@ private fun PoAndReceiveCard(
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var showMatchDialog by rememberSaveable { mutableStateOf(false) }
     val matches by remember(ui.extractedFromScan, ui.allPoLines) {
-        mutableStateOf(computeSlipMatches(ui.extractedFromScan, ui.allPoLines))
+        derivedStateOf { computeSlipMatches(ui.extractedFromScan, ui.allPoLines) }
     }
     val slipCount = matches.size
     val matchedCount = matches.count { it.matched }
@@ -568,7 +568,7 @@ private fun ReviewCard(
     val totalLines = p.lines.size
 
     val matches by remember(ui.extractedFromScan, ui.allPoLines) {
-        mutableStateOf(computeSlipMatches(ui.extractedFromScan, ui.allPoLines))
+        derivedStateOf { computeSlipMatches(ui.extractedFromScan, ui.allPoLines) }
     }
     val slipCount = matches.size
     val matchedCount = matches.count { it.matched }
@@ -919,11 +919,18 @@ private fun SummaryCard(ui: GrnUiState, onStartOver: () -> Unit) {
     OutlinedTextField(value = value, onValueChange = onChange, label = { Text(label) }, singleLine = true, enabled = enabled, modifier = Modifier.fillMaxWidth())
 }
 
-@Composable private fun LabeledNumber(value: String, onChange: (String) -> Unit, label: String, errorText: String?, enabled: Boolean) {
+@Composable
+private fun LabeledNumber(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String,
+    errorText: String?,
+    enabled: Boolean
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), // ← was Number
         label = { Text(label) },
         isError = errorText != null,
         singleLine = true,
@@ -932,5 +939,6 @@ private fun SummaryCard(ui: GrnUiState, onStartOver: () -> Unit) {
         modifier = Modifier.fillMaxWidth()
     )
 }
+
 
 private fun fmt(d: Double): String = NumberFormat.getNumberInstance(Locale.US).format(d)

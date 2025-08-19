@@ -96,11 +96,6 @@ dependencies {
     implementation("com.google.code.gson:gson:2.11.0")
 
 
-    // ML Kit dependencies
-    implementation("com.google.mlkit:text-recognition:16.0.0")
-    implementation("com.google.mlkit:barcode-scanning:17.2.0")
-    implementation("com.google.mlkit:face-detection:16.1.5")
-    implementation("com.google.mlkit:object-detection:17.0.0")
 
     // Document Scanner Options:
     // Option 1: Try the beta version
