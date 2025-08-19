@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -49,6 +50,8 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+
+
 // ---------- helpers ----------
 private suspend fun saveUriToGallery(
     context: Context,
@@ -85,6 +88,38 @@ private suspend fun saveUriToGallery(
         false
     }
 }
+
+private suspend fun copyUrisToCache(
+    context: Context,
+    uris: List<Uri>,
+    prefix: String = "delivery_slip_"
+): ArrayList<String> = withContext(Dispatchers.IO) {
+    val out = arrayListOf<String>()
+    val cr = context.contentResolver
+    var idx = 1
+    for (u in uris) {
+        try {
+            val ext = when (cr.getType(u)) {
+                "image/png" -> "png"
+                else -> "jpg" // ML Kit result is usually JPEG
+            }
+            val file = kotlin.io.path.createTempFile(
+                context.cacheDir.toPath(),
+                "${prefix}${idx}_",
+                ".$ext"
+            ).toFile()
+            cr.openInputStream(u)?.use { input ->
+                file.outputStream().use { outStream -> input.copyTo(outStream) }
+            }
+            out += file.absolutePath
+            idx++
+        } catch (_: Exception) {
+            // ignore individual copy failures
+        }
+    }
+    out
+}
+
 
 private data class UiRow(
     val description: String,
@@ -175,13 +210,27 @@ fun ScanResultScreen(
             if (transfer == null) {
                 scope.launch { snack.showSnackbar("No usable OCR data") }
             } else {
-                val payload = scanGson.toJson(transfer)
-                val intent =
-                    Intent(ctx, com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java).apply {
+                scope.launch {
+                    Log.d("ScanResultScreen", "Preparing to launch GrnActivity…")
+                    val cachePaths = copyUrisToCache(ctx, pages)
+                    Log.d("ScanResultScreen", "Cached ${cachePaths.size} files: $cachePaths")
+
+                    val payload = scanGson.toJson(transfer)
+                    Log.d("ScanResultScreen", "Transfer JSON size=${payload.length}")
+
+                    val intent = Intent(
+                        ctx,
+                        com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java
+                    ).apply {
                         putExtra("po_number", transfer.poNumber)
                         putExtra("scan_extract_json", payload)
+                        putStringArrayListExtra("scan_image_cache_paths", cachePaths)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                ctx.startActivity(intent)
+                    Log.d("ScanResultScreen", "Launching GrnActivity with pages=${pages.size}")
+                    ctx.startActivity(intent)
+                    (ctx as? android.app.Activity)?.finish()
+                }
             }
         } else {
             scope.launch { snack.showSnackbar("Complete scanning first") }
@@ -603,7 +652,7 @@ fun ScanResultScreen(
                         enabled = canCreateGrn,
                         modifier = Modifier.weight(1f).height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
-                    ) { Text("Create GRN", color = Color.White, fontWeight = FontWeight.Bold) }
+                    ) { Text("Next", color = Color.White, fontWeight = FontWeight.Bold) }
                 }
             }
 

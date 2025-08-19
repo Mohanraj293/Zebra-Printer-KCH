@@ -75,3 +75,15 @@ data class ProcessingError(
     val ItemDescription: String? = null,
     val ErrorMessage: String? = null
 )
+
+data class AttachmentRequest(
+    val UploadedFileName: String,
+    val CategoryName: String = "MISC",
+    val FileContents: String,
+    val Title: String? = null
+)
+
+data class AttachmentResponse(
+    val AttachmentId: String? = null,
+    val UploadedFileName: String? = null
+)

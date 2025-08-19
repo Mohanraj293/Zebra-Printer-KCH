@@ -23,7 +23,7 @@ android {
         buildConfigField("String", "FUSION_USERNAME", "\"RCA.Automation\"")
         buildConfigField("String", "FUSION_PASSWORD", "\"Kch12345\"")
 
-        buildConfigField("String", "EMPLOYEE_ID", "\"300000023921708\"")
+        buildConfigField("String", "EMPLOYEE_ID", "\"300000195955986\"")
         buildConfigField("String", "ORGANIZATION_CODE", "\"KDH\"")
         buildConfigField("String", "DEFAULT_SUBINVENTORY", "\"DHHPHMAIN\"")
         buildConfigField("String", "DEFAULT_LOCATOR", "\"0.0.0\"")
