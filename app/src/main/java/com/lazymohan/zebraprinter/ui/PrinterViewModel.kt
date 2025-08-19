@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.PrinterService
+import com.lazymohan.zebraprinter.app.AppPref
 import com.lazymohan.zebraprinter.model.DiscoveredPrinterInfo
 import com.lazymohan.zebraprinter.model.PrintContentModel
 import com.lazymohan.zebraprinter.product.data.Lots
@@ -26,7 +27,8 @@ class PrinterViewModel @AssistedInject constructor(
 ) : ViewModel() {
 
     init {
-        getZPLPrinterList()
+        if (AppPref.canDiscover)
+            getZPLPrinterList()
     }
 
     @AssistedFactory
@@ -137,6 +139,7 @@ class PrinterViewModel @AssistedInject constructor(
                 canDiscoverPrinter = canDiscover
             )
         }
+        AppPref.canDiscover = canDiscover
         getZPLPrinterList()
     }
 
