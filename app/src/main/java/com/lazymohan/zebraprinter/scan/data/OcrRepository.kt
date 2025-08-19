@@ -38,10 +38,10 @@ class OcrRepository @Inject constructor(
     "invoice_date": "08/08/25",
     "order_number": "",
     "sales_order_no": "111125137680",
-    "customer_ref_purchase_order_no": "KHQ/PO/101961",
+    "customer_ref_purchase_order_no": "KHQ/PO/99373",
     "items": [
       {
-        "description": "Profertil Female 2x28's",
+        "description": "MAGNESIUM 200 MG | CALCIUM 200 MG | VITAMIN D (AS CHOLECALCIFEROL) 0.005 MG",
         "details": [
           {
             "qty_delivered": "25",
@@ -51,7 +51,7 @@ class OcrRepository @Inject constructor(
           {
             "qty_delivered": "3",
             "expiry_date": "30/09/27",
-            "batch_no": "L24091906"
+            "batch_no": "L24091908"
           }
         ]
       }

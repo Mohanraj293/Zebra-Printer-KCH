@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.lazymohan.zebraprinter.grn.data.PoLineItem
 import java.text.NumberFormat
 import java.util.*
@@ -391,7 +392,7 @@ private fun PoAndReceiveCard(
                     }
                     else -> {
                         ui.lines.forEach { ln ->
-                            var expanded by rememberSaveable(ln.LineNumber) { mutableStateOf(false) }
+                            var expanded by rememberSaveable(ln.LineNumber) { mutableStateOf(true) }
                             var confirmDelete by rememberSaveable("${ln.LineNumber}-del") { mutableStateOf(false) }
 
                             val li = ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
@@ -409,7 +410,14 @@ private fun PoAndReceiveCard(
                                         Column(modifier = Modifier.weight(1f).clickable { expanded = !expanded }) {
                                             val itemCode = ln.Item?.takeIf { it.isNotBlank() } ?: "NA"
                                             val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
-                                            Text(title, style = MaterialTheme.typography.titleMedium, color = Color(0xFF143A7B), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                            Text(
+                                                title,
+                                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp),
+                                                color = Color(0xFF143A7B),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+
                                             Spacer(Modifier.height(2.dp))
                                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                                 Chip("Item: $itemCode"); Chip("${fmt(ln.Quantity)} ${ln.UOM} ordered")
