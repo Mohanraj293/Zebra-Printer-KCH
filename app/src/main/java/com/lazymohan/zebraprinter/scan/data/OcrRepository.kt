@@ -45,12 +45,12 @@ class OcrRepository @Inject constructor(
         "details": [
           {
             "qty_delivered": "25",
-            "expiry_date": "30/09/27",
+            "expiry_date": "2027-09-03",
             "batch_no": "L24091906"
           },
           {
             "qty_delivered": "3",
-            "expiry_date": "30/09/27",
+            "expiry_date": "2027-09-03",
             "batch_no": "L24091908"
           }
         ]
