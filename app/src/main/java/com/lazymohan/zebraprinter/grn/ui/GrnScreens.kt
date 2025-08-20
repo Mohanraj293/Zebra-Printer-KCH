@@ -5,21 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -78,8 +65,6 @@ import java.util.*
 import kotlin.math.max
 import kotlin.math.roundToInt
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem as SlipItem
-
-import java.util.Locale
 
 
 @Composable
@@ -204,7 +189,6 @@ private fun EnterPoCard(
     onFetchPo: () -> Unit,
     onBack: () -> Unit
 ) {
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val hasError = ui.error?.isNotBlank() == true
 
     Card(
@@ -234,7 +218,7 @@ private fun EnterPoCard(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = ui.error.orEmpty(),
+                                text = ui.error,
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
@@ -441,7 +425,7 @@ private fun PoAndReceiveCard(
                         onClick = { showMatchDialog = true }
                     )
                     Spacer(Modifier.height(6.dp))
-                } else if (isScanMode && slipCount == 0) {
+                } else if (isScanMode) {
                     Spacer(Modifier.height(4.dp))
                     InfoBanner("No items detected on the uploaded delivery slip.")
                     Spacer(Modifier.height(6.dp))
@@ -482,7 +466,7 @@ private fun PoAndReceiveCard(
                             val prefillQty = (slip?.qtyDelivered ?: 0.0).coerceAtMost(ln.Quantity)
                             val prefillLot = slip?.batchNo.orEmpty()
                             val prefillExp = slip?.expiryDate
-                                ?.let { com.lazymohan.zebraprinter.grn.util.toIsoYmd(it) }
+                                ?.let { toIsoYmd(it) }
                                 .orEmpty()
 
                             // Local text states start from: existing input -> prefill -> empty
@@ -498,7 +482,7 @@ private fun PoAndReceiveCard(
                             var lotText by rememberSaveable("${ln.LineNumber}-lot") {
                                 mutableStateOf(
                                     when {
-                                        !li?.lot.isNullOrBlank() -> li!!.lot
+                                        !li?.lot.isNullOrBlank() -> li.lot
                                         prefillLot.isNotBlank() -> prefillLot
                                         else -> ""
                                     }
@@ -507,7 +491,7 @@ private fun PoAndReceiveCard(
                             var expText by rememberSaveable("${ln.LineNumber}-exp") {
                                 mutableStateOf(
                                     when {
-                                        !li?.expiry.isNullOrBlank() -> com.lazymohan.zebraprinter.grn.util.toIsoYmd(li!!.expiry)
+                                        !li?.expiry.isNullOrBlank() -> toIsoYmd(li.expiry)
                                         prefillExp.isNotBlank() -> prefillExp
                                         else -> ""
                                     }
@@ -543,7 +527,7 @@ private fun PoAndReceiveCard(
                                 Column(Modifier.padding(14.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                         Column(modifier = Modifier.weight(1f).clickable { expanded = !expanded }) {
-                                            val itemCode = ln.Item?.takeIf { it.isNotBlank() } ?: "NA"
+                                            val itemCode = ln.Item.takeIf { it.isNotBlank() } ?: "NA"
                                             val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
                                             Text(
                                                 title,
@@ -573,7 +557,7 @@ private fun PoAndReceiveCard(
                                     if (expanded) {
                                         Spacer(Modifier.height(10.dp)); Divider(); Spacer(Modifier.height(10.dp))
 
-                                        if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description!!)
+                                        if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description)
                                         ReadFieldInline("Line #", ln.LineNumber.toString())
                                         ReadFieldInline("UOM", ln.UOM)
 
@@ -601,7 +585,7 @@ private fun PoAndReceiveCard(
                                         LabeledText(
                                             value = expText,
                                             onChange = { new ->
-                                                val normalized = com.lazymohan.zebraprinter.grn.util.toIsoYmd(new)
+                                                val normalized = toIsoYmd(new)
                                                 expText = normalized
                                                 onUpdateLine(ln.LineNumber, null, null, normalized)
                                             },
@@ -683,7 +667,7 @@ private fun AddLineDialog(
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.heightIn(max = 360.dp)) {
                         items(candidates) { ln ->
-                            val itemCode = ln.Item?.takeIf { it.isNotBlank() } ?: "NA"
+                            val itemCode = ln.Item.takeIf { it.isNotBlank() } ?: "NA"
                             Surface(
                                 onClick = { selected = ln.LineNumber },
                                 shape = RoundedCornerShape(12.dp),
@@ -896,7 +880,7 @@ private fun computeSlipMatches(
         for (po in poLines) {
             val base = jaccard(slipTok, tokens(po.Description))
             // boost if PO item code appears in slip text
-            val code = (po.Item ?: "").trim()
+            val code = po.Item.trim()
             val boost = if (code.isNotBlank() && (slip.description?.contains(code, ignoreCase = true) == true)) 0.95 else 0.0
             val score = max(base, boost)
             if (score > bestScore) {
@@ -934,7 +918,7 @@ private fun MatchBreakdownDialog(
                         Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 1.dp) {
                             Column(Modifier.padding(12.dp)) {
                                 Text(
-                                    m.slip.description ?: "(no description)",
+                                    m.slip.description,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Spacer(Modifier.height(4.dp))
@@ -942,7 +926,7 @@ private fun MatchBreakdownDialog(
                                     val line = m.best!!
                                     val pct = (m.similarity * 100).roundToInt()
                                     Text(
-                                        "Matched → ${line.Item ?: "—"} • ${line.Description ?: ""}",
+                                        "Matched → ${line.Item} • ${line.Description ?: ""}",
                                         color = Color(0xFF0F766E)
                                     )
                                     LinearProgressIndicator(
