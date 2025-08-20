@@ -18,7 +18,7 @@ data class OcrContentResponse(
     val id: Int?,
     val filename: String?,
     val label: String?,
-    val status: String?,
+    val status: String?, // e.g., "completed"
     @SerializedName("task_id") val taskId: String?,
     @SerializedName("extracted_text") val extractedText: ExtractedText?,
     @SerializedName("easy_ocr_text") val easyOcrText: String?,
@@ -29,12 +29,26 @@ data class OcrContentResponse(
 data class ExtractedText(
     @SerializedName("invoice_no") val invoiceNo: String?,
     @SerializedName("invoice_date") val invoiceDate: String?,
-    @SerializedName("PO_no") val poNo: String?,
+    @SerializedName(
+        value = "customer_ref_purchase_order_no",
+        alternate = ["PO_no", "po_no"]
+    )
+    val poNo: String?,
+    @SerializedName("order_number") val orderNumber: String? = null,
+    @SerializedName("sales_order_no") val salesOrderNo: String? = null,
+
     val items: List<ExtractedItem> = emptyList()
 )
 
 data class ExtractedItem(
     val description: String?,
+    val details: List<ExtractedDetail>? = null,
+    @SerializedName("qty_delivered") val qtyDelivered: String? = null,
+    @SerializedName("expiry_date") val expiryDate: String? = null,
+    @SerializedName("batch_no") val batchNo: String? = null
+)
+
+data class ExtractedDetail(
     @SerializedName("qty_delivered") val qtyDelivered: String?,
     @SerializedName("expiry_date") val expiryDate: String?,
     @SerializedName("batch_no") val batchNo: String?

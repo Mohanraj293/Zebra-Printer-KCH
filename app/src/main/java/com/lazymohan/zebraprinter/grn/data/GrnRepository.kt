@@ -22,4 +22,24 @@ class GrnRepository(private val api: FusionApi) {
     ): Result<List<ProcessingError>> = runCatching {
         api.getProcessingErrors(headerInterfaceId, interfaceTransactionId).items
     }
+
+    suspend fun uploadAttachment(
+        receiptId: String,
+        body: AttachmentRequest
+    ): Result<AttachmentResponse> = runCatching {
+        api.uploadReceiptAttachment(receiptId, body)
+    }
+
+    suspend fun uploadAttachments(
+        receiptId: String,
+        files: List<AttachmentRequest>
+    ): Result<List<AttachmentResponse>> = runCatching {
+        val out = mutableListOf<AttachmentResponse>()
+        for (f in files) {
+            runCatching { api.uploadReceiptAttachment(receiptId, f) }
+                .onSuccess { out += it }
+                .onFailure { }
+        }
+        out
+    }
 }

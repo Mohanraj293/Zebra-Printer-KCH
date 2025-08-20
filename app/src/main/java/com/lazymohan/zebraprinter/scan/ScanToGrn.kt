@@ -15,20 +15,39 @@ data class ScanExtractTransfer(
     val items: List<ScanExtractItem>
 )
 
+private fun parseQty(src: String?): Double {
+    if (src.isNullOrBlank()) return 0.0
+    val cleaned = src.replace(",", "").trim()
+    val match = Regex("""[-+]?\d*\.?\d+""").find(cleaned) ?: return 0.0
+    return match.value.toDoubleOrNull() ?: 0.0
+}
+
 fun OcrContentResponse.toTransfer(): ScanExtractTransfer? {
     val xt = extractedText ?: return null
-    val po = (xt.poNo ?: "").trim()
-    val items = xt.items.mapNotNull { it ->
-        val desc = (it.description ?: "").trim()
-        if (desc.isEmpty()) return@mapNotNull null
-        ScanExtractItem(
-            description = desc,
-            qty = (it.qtyDelivered ?: "0").replace(",", "").toDoubleOrNull() ?: 0.0,
-            expiry = it.expiryDate ?: "",
-            batchNo = it.batchNo ?: ""
-        )
+
+    val po = listOf(xt.poNo)
+        .firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
+
+    val items = buildList {
+        xt.items.forEach { item ->
+            val desc = item.description?.trim().orEmpty()
+            if (desc.isBlank()) return@forEach
+
+            // New schema path: details[]
+            if (!item.details.isNullOrEmpty()) {
+                item.details.forEach { d ->
+                    val qty = parseQty(d.qtyDelivered)
+                    val expiry = d.expiryDate?.trim().orEmpty()
+                    val batch = d.batchNo?.trim().orEmpty()
+                    if (qty > 0.0 || expiry.isNotBlank() || batch.isNotBlank()) {
+                        add(ScanExtractItem(desc, qty, expiry, batch))
+                    }
+                }
+            }
+        }
     }
-    if (po.isEmpty() && items.isEmpty()) return null
+
+    if (po.isBlank() && items.isEmpty()) return null
     return ScanExtractTransfer(poNumber = po, items = items)
 }
 
