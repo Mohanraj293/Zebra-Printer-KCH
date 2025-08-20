@@ -29,4 +29,11 @@ interface FusionApi {
         @Path("headerInterfaceId") headerInterfaceId: String,
         @Path("interfaceTransactionId") interfaceTransactionId: String
     ): ProcessingErrorsResponse
+
+    // Step 6: Upload attachments against the receipt request
+    @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests/{receiptid}/child/attachments")
+    suspend fun uploadReceiptAttachment(
+        @Path("receiptid") receiptId: String,
+        @Body body: AttachmentRequest
+    ): AttachmentResponse
 }
