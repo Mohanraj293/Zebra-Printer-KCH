@@ -391,10 +391,25 @@ private fun PoAndReceiveCard(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     SectionHeader("Lines", badge = "ENTER DETAILS", badgeColor = Color(0xFFE3F2FD))
                     Spacer(Modifier.weight(1f))
-                    TextButton(
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
                         onClick = { showAddDialog = true },
-                        enabled = candidates.isNotEmpty()
-                    ) { Text("Add Line") }
+                        enabled = candidates.isNotEmpty(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE3F2FD),
+                            contentColor = Color.Black
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            "Add Line",
+                            fontSize = 12.sp
+                        )
+                    }
                 }
 
                 if (isScanMode && slipCount > 0) {
