@@ -120,27 +120,31 @@ class PrinterImpl(
         // Ensure GTIN is 14 digits
         val gtin14 = contentModel.gtinNum.padStart(14, '0')
 
-        // Expiry date must be YYMMDD (strip "-")
+        // Expiry date must be YYMMDD
         val expiry = contentModel.expiryDate.replace("-", "")
 
-        // GS character (ASCII 29) for variable-length AIs
-        val gs = '\u001D'
+        // Build GS1 string (without GS for now)
+        val gs1Data = ")>501$gtin14" + "17$expiry" + "10${contentModel.batchNo}"
 
-        // Build GS1 element string with FNC1 ( )>5 )
-        val gs1Data = ")>5" + "01$gtin14" + "17$expiry" + "10${contentModel.batchNo}$gs"
-
-        return """
+        val zpl = """
         ^XA
-        ^FX^CF0,20^PW400^LL300
-        ^FS^FO0,50^FB400,1,0,C^FD#${contentModel.itemNum}
-        ^FS^FO0,90^FB400,5,,,C^FD${contentModel.description}
-        ^FS^FO0,160^FB400,1,0,C^GB420,1,1
-        ^FS^FO140,175^BY2,2
-        ^BQN,2,5
+        ^CF0,20
+        ^PW400
+        ^LL300
+
+        ^FO0,50^FB400,1,0,C^FD#${contentModel.itemNum}^FS
+        ^FO0,90^FB400,5,,,C^FD${contentModel.description}^FS
+        ^FO0,160^FB400,1,0,C^GB420,1,1^FS
+
+        ^FO120,150
+        ^BY2,2
+        ^BQN,2,4
         ^FDMA$gs1Data^FS
+
         ^PQ$copies
         ^XZ
-        """.trimIndent().toByteArray()
+        """.trimIndent()
+        return zpl.toByteArray(Charsets.UTF_8)
     }
 
     private fun ensureBluetoothPermission(context: Context): Boolean =

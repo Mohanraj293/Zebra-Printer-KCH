@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/landing/LandingScreenContent.kt
 package com.lazymohan.zebraprinter.landing
 
 import androidx.compose.foundation.background
