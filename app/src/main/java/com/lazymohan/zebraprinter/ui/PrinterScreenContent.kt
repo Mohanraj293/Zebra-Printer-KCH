@@ -34,6 +34,8 @@ import com.lazymohan.zebraprinter.grn.ui.Header
 import com.lazymohan.zebraprinter.product.data.Lots
 import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.lazymohan.zebraprinter.utils.EAMLoader
+import com.lazymohan.zebraprinter.utils.EAMLoaderStyle
+import com.lazymohan.zebraprinter.utils.PrinterSelectionCard
 import com.tarkalabs.tarkaui.components.TUIAppTopBar
 import com.tarkalabs.tarkaui.components.TUIMobileButtonBlock
 import com.tarkalabs.tarkaui.components.TUISnackBarHost
@@ -124,6 +126,23 @@ fun PrinterScreenContent(
                     subtitle = "Search for products",
                 )
                 VerticalSpacer(20)
+                PrinterSelectionCard(
+                    selectedPrinter = uiState.selectedPrinter?.model,
+                    onPrinterSelectionClick = {
+                        handleEvents(
+                            if (uiState.canDiscoverPrinter) {
+                                PrinterEvents.UpdateBottomSheet(show = true)
+                            } else {
+                                PrinterEvents.CanDiscover(
+                                    canDiscoverPrinter = true
+                                )
+                            }
+                        )
+                        scope.launch {
+                            bottomSheetState.expand()
+                        }
+                    }
+                )
                 Card(
                     modifier = Modifier
                         .padding(20.dp)
@@ -134,13 +153,13 @@ fun PrinterScreenContent(
                 ) {
                     Column(Modifier.padding(20.dp)) {
                         TUITextRow(title = "Item Number: ${lots?.itemNumber ?: "N/A"}")
-                        VerticalSpacer(space = 8)
+                        VerticalSpacer(space = 4)
                         TUITextRow(title = "Description: ${lots?.itemDescription ?: "N/A"}")
-                        VerticalSpacer(space = 8)
+                        VerticalSpacer(space = 4)
                         TUITextRow(title = "Lot Number: ${lots?.lotNumber ?: "N/A"}")
-                        VerticalSpacer(space = 8)
+                        VerticalSpacer(space = 4)
                         TUITextRow(title = "Status: ${lots?.statusCode ?: "N/A"}")
-                        VerticalSpacer(space = 8)
+                        VerticalSpacer(space = 4)
                         TUITextRow(
                             title = "Origination Date: ${
                                 dateTimeConverter.getDisplayDate(
@@ -148,11 +167,11 @@ fun PrinterScreenContent(
                                 )
                             }"
                         )
-                        VerticalSpacer(space = 8)
+                        VerticalSpacer(space = 4)
                         TUITextRow(title = "Expiration Date: ${dateTimeConverter.getDisplayDate(lots?.expirationDate)}")
-                        VerticalSpacer(space = 8)
+                        VerticalSpacer(space = 4)
                         TUITextRow(title = "GTIN Number: ${gtinNumber ?: "N/A"}")
-                        VerticalSpacer(space = 8)
+                        VerticalSpacer(space = 4)
                         TUIInputField(
                             label = "Enter no of Labels",
                             onValueChange = { noOfCopies ->
@@ -172,7 +191,8 @@ fun PrinterScreenContent(
                         TUIMobileButtonBlock(
                             primaryButtonLabel = "Print",
                             primaryButtonOnClick = {
-                                handleEvents(PrinterEvents.Print(true))
+                                if (uiState.selectedPrinter != null)
+                                    handleEvents(PrinterEvents.Print)
                             },
                             primaryTrailingIcon = TarkaIcons.Regular.Print24,
                             outlineButtonLabel = null,
@@ -202,7 +222,7 @@ fun PrinterScreenContent(
             )
         }
         if (uiState.isLoading) {
-            EAMLoader()
+            EAMLoader(loaderStyle = EAMLoaderStyle.S)
         }
     }
 }
