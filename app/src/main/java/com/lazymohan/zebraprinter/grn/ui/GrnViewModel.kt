@@ -150,14 +150,38 @@ class GrnViewModel @Inject constructor(
 
 
     fun updateLine(lineNumber: Int, qty: Double? = null, lot: String? = null, expiry: String? = null) {
-        val updated = _state.value.lineInputs.map {
-            if (it.lineNumber == lineNumber) it.copy(
-                qty = qty ?: it.qty,
-                lot = lot ?: it.lot,
-                expiry = expiry ?: it.expiry
-            ) else it
+        val s = _state.value
+        var found = false
+
+        val updated = s.lineInputs.map {
+            if (it.lineNumber == lineNumber) {
+                found = true
+                it.copy(
+                    qty = qty ?: it.qty,
+                    lot = lot ?: it.lot,
+                    expiry = expiry ?: it.expiry
+                )
+            } else it
         }
-        _state.value = _state.value.copy(lineInputs = updated)
+
+        val finalInputs =
+            if (!found) {
+                val poLine = s.allPoLines.firstOrNull { it.LineNumber == lineNumber }
+                if (poLine != null) {
+                    updated + LineInput(
+                        lineNumber = poLine.LineNumber,
+                        itemNumber = poLine.Item?.trim().orEmpty(),
+                        uom = poLine.UOM,
+                        maxQty = poLine.Quantity,
+                        qty = qty ?: 0.0,
+                        lot = lot ?: "",
+                        expiry = expiry ?: "",
+                        description = poLine.Description ?: ""
+                    )
+                } else updated
+            } else updated
+
+        _state.value = s.copy(lineInputs = finalInputs)
     }
 
     fun removeLine(lineNumber: Int) {
@@ -174,7 +198,8 @@ class GrnViewModel @Inject constructor(
             .filter { it.qty > 0.0 && it.lot.isNotBlank() && it.expiry.isNotBlank() }
             .associateBy { it.lineNumber }
 
-        val linesForPayload = s.lines.filter { selectedInputs.containsKey(it.LineNumber) }
+        val linesForPayload = s.allPoLines.filter { selectedInputs.containsKey(it.LineNumber) }
+
         val lines = linesForPayload.map { line ->
             val inp = selectedInputs.getValue(line.LineNumber)
             ReceiptLine(
@@ -205,6 +230,7 @@ class GrnViewModel @Inject constructor(
             EmployeeId = BuildConfig.EMPLOYEE_ID,
             lines = lines
         )
+
         _state.value = s.copy(payload = payload, step = GrnStep.REVIEW)
     }
 

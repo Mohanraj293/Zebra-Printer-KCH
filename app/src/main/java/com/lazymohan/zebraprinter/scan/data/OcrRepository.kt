@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/data/OcrRepository.kt
 package com.lazymohan.zebraprinter.scan.data
 
 import android.content.Context
@@ -40,16 +39,19 @@ class OcrRepository @Inject constructor(
     "PO_no": "KHQ/PO/98308",
     "items": [
       {
-        "description": "INOCULATION LOOP 1 MICRO (1000PC/BOX)",
-        "qty_delivered": "2",
-        "expiry_date": "09/01/2026",
-        "batch_no": "D0615A04"
-      },
-      {
-        "description": "INOCULATION LOOP 10 MICRO (1000PC/BOX) [GNRC]",
-        "qty_delivered": "1",
-        "expiry_date": "31/01/2026",
-        "batch_no": "F7201-03"
+        "description": "MAGNESIUM 200 MG | CALCIUM 200 MG | VITAMIN D (AS CHOLECALCIFEROL) 0.005 MG",
+        "details": [
+          {
+            "qty_delivered": "25",
+            "expiry_date": "2027-09-03",
+            "batch_no": "L24091906"
+          },
+          {
+            "qty_delivered": "3",
+            "expiry_date": "2027-09-03",
+            "batch_no": "L24091908"
+          }
+        ]
       }
     ]
   },
