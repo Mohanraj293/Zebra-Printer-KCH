@@ -2,7 +2,6 @@
 package com.lazymohan.zebraprinter.grn.ui
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,15 +19,9 @@ class GrnActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
+// inside onCreate, before setContent { ... } or keep your structure and put inside setContent using LaunchedEffect
         val initialPo = intent.getStringExtra("po_number")
         val scanJson = intent.getStringExtra("scan_extract_json")
-
-        val scanImageCachePaths: ArrayList<String>? =
-            intent.getStringArrayListExtra("scan_image_cache_paths")
-
-
-        Log.d("GrnActivity", "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}")
 
         setContent {
             TUITheme {
@@ -36,18 +29,9 @@ class GrnActivity : ComponentActivity() {
                 val ui by vm.state.collectAsState()
                 val snack = remember { SnackbarHostState() }
 
-                LaunchedEffect(initialPo, scanJson, scanImageCachePaths) {
-                    android.util.Log.d(
-                        "GrnActivity",
-                        "prefillFromScan(po=$initialPo, jsonLen=${scanJson?.length ?: 0}, paths=${scanImageCachePaths?.size ?: 0})"
-                    )
-                    vm.prefillFromScan(
-                        po = initialPo,
-                        scanJson = scanJson,
-                        cachePaths = scanImageCachePaths ?: arrayListOf()  // <-- correct param name
-                    )
+                LaunchedEffect(initialPo, scanJson) {
+                    vm.prefillFromScan(initialPo, scanJson)
                 }
-
 
                 GrnScreens(
                     ui = ui,
@@ -56,14 +40,16 @@ class GrnActivity : ComponentActivity() {
                     onFetchPo = { vm.fetchPo() },
                     onUpdateLine = { ln, q, l, e -> vm.updateLine(ln, q, l, e) },
                     onRemoveLine = { ln -> vm.removeLine(ln) },
-                    onAddLine = { vm.addLineFromPo(it) },
+                    onAddLine = { vm.addLineFromPo(it) },   // NEW
                     onEditReceive = { vm.backToReceive() },
                     onReview = { vm.buildPayloadAndReview() },
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },
                     onBack = { finish() }
                 )
+
             }
         }
+
     }
 }

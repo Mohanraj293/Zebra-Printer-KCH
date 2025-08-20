@@ -1,3 +1,4 @@
+// app/src/main/java/com/lazymohan/zebraprinter/scan/data/OcrRepository.kt
 package com.lazymohan.zebraprinter.scan.data
 
 import android.content.Context
@@ -28,38 +29,33 @@ class OcrRepository @Inject constructor(
     // For testing purposes, we can using sample JSON response
     private val FAKE_JSON: String = """
 {
-  "id": 113,
-  "filename": "KCH_20250818_133321_p1_2.jpg",
+  "id": 123,
+  "filename": "slip.jpg",
   "label": "delivery",
-  "status": "completed",
-  "task_id": "95232f4e-fbaf-4ab3-a3f0-450400104d3d",
+  "status": "DONE",
+  "task_id": "task-abc",
   "extracted_text": {
-    "invoice_no": "14353317",
-    "invoice_date": "08/08/25",
-    "order_number": "",
-    "sales_order_no": "111125137680",
-    "customer_ref_purchase_order_no": "KHQ/PO/99373",
+    "invoice_no": "INV-2025-001",
+    "invoice_date": "2025-08-15",
+    "PO_no": "KHQ/PO/98308",
     "items": [
       {
-        "description": "MAGNESIUM 200 MG | CALCIUM 200 MG | VITAMIN D (AS CHOLECALCIFEROL) 0.005 MG",
-        "details": [
-          {
-            "qty_delivered": "25",
-            "expiry_date": "30/09/27",
-            "batch_no": "L24091906"
-          },
-          {
-            "qty_delivered": "3",
-            "expiry_date": "30/09/27",
-            "batch_no": "L24091908"
-          }
-        ]
+        "description": "INOCULATION LOOP 1 MICRO (1000PC/BOX)",
+        "qty_delivered": "2",
+        "expiry_date": "09/01/2026",
+        "batch_no": "D0615A04"
+      },
+      {
+        "description": "INOCULATION LOOP 10 MICRO (1000PC/BOX) [GNRC]",
+        "qty_delivered": "1",
+        "expiry_date": "31/01/2026",
+        "batch_no": "F7201-03"
       }
     ]
   },
   "easy_ocr_text": null,
   "tesseract_text": null,
-  "created_at": "CURRENT_TIMESTAMP"
+  "created_at": "2025-08-15T12:00:00Z"
 }
 """.trimIndent()
 
@@ -98,7 +94,7 @@ class OcrRepository @Inject constructor(
             val labelBody = label.toRequestBody("text/plain".toMediaTypeOrNull())
 
             val upload: Response<OcrUploadResponse> =
-                api.upload("$base/image-to-llm", filePart, labelBody)
+                api.upload("$base/upload", filePart, labelBody)
 
             if (upload.code() != 201) {
                 return@withContext OcrResult.HttpError(

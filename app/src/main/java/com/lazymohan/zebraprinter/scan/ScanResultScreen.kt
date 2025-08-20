@@ -10,7 +10,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -50,8 +49,6 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-
-
 // ---------- helpers ----------
 private suspend fun saveUriToGallery(
     context: Context,
@@ -86,73 +83,6 @@ private suspend fun saveUriToGallery(
         true
     } catch (_: Exception) {
         false
-    }
-}
-
-private suspend fun copyUrisToCache(
-    context: Context,
-    uris: List<Uri>,
-    prefix: String = "delivery_slip_"
-): ArrayList<String> = withContext(Dispatchers.IO) {
-    val out = arrayListOf<String>()
-    val cr = context.contentResolver
-    var idx = 1
-    for (u in uris) {
-        try {
-            val ext = when (cr.getType(u)) {
-                "image/png" -> "png"
-                else -> "jpg" // ML Kit result is usually JPEG
-            }
-            val file = kotlin.io.path.createTempFile(
-                context.cacheDir.toPath(),
-                "${prefix}${idx}_",
-                ".$ext"
-            ).toFile()
-            cr.openInputStream(u)?.use { input ->
-                file.outputStream().use { outStream -> input.copyTo(outStream) }
-            }
-            out += file.absolutePath
-            idx++
-        } catch (_: Exception) {
-            // ignore individual copy failures
-        }
-    }
-    out
-}
-
-
-private data class UiRow(
-    val description: String,
-    val qty: String,
-    val batch: String,
-    val expiry: String
-)
-
-private fun flattenUi(items: List<ExtractedItem>): List<UiRow> = buildList {
-    items.forEach { item ->
-        val desc = item.description ?: "—"
-        val details = item.details
-        if (!details.isNullOrEmpty()) {
-            details.forEach { d ->
-                add(
-                    UiRow(
-                        description = desc,
-                        qty = d.qtyDelivered?.ifBlank { "—" } ?: "—",
-                        batch = d.batchNo?.ifBlank { "—" } ?: "—",
-                        expiry = d.expiryDate?.ifBlank { "—" } ?: "—"
-                    )
-                )
-            }
-        } else {
-            add(
-                UiRow(
-                    description = desc,
-                    qty = item.qtyDelivered?.ifBlank { "—" } ?: "—",
-                    batch = item.batchNo?.ifBlank { "—" } ?: "—",
-                    expiry = item.expiryDate?.ifBlank { "—" } ?: "—"
-                )
-            )
-        }
     }
 }
 
@@ -210,27 +140,13 @@ fun ScanResultScreen(
             if (transfer == null) {
                 scope.launch { snack.showSnackbar("No usable OCR data") }
             } else {
-                scope.launch {
-                    Log.d("ScanResultScreen", "Preparing to launch GrnActivity…")
-                    val cachePaths = copyUrisToCache(ctx, pages)
-                    Log.d("ScanResultScreen", "Cached ${cachePaths.size} files: $cachePaths")
-
-                    val payload = scanGson.toJson(transfer)
-                    Log.d("ScanResultScreen", "Transfer JSON size=${payload.length}")
-
-                    val intent = Intent(
-                        ctx,
-                        com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java
-                    ).apply {
+                val payload = scanGson.toJson(transfer)
+                val intent =
+                    Intent(ctx, com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java).apply {
                         putExtra("po_number", transfer.poNumber)
                         putExtra("scan_extract_json", payload)
-                        putStringArrayListExtra("scan_image_cache_paths", cachePaths)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    Log.d("ScanResultScreen", "Launching GrnActivity with pages=${pages.size}")
-                    ctx.startActivity(intent)
-                    (ctx as? android.app.Activity)?.finish()
-                }
+                ctx.startActivity(intent)
             }
         } else {
             scope.launch { snack.showSnackbar("Complete scanning first") }
@@ -455,8 +371,7 @@ fun ScanResultScreen(
                         is ScanUiState.Completed -> {
                             val data = s.data
                             val xt = data.extractedText
-                            val rawItems: List<ExtractedItem> = xt?.items ?: emptyList()
-                            val rows: List<UiRow> = flattenUi(rawItems)
+                            val items: List<ExtractedItem> = xt?.items ?: emptyList()
 
                             // Big, polished “invoice” card
                             Surface(
@@ -510,7 +425,7 @@ fun ScanResultScreen(
                                                     shape = RoundedCornerShape(14.dp)
                                                 ) {
                                                     Text(
-                                                        text = "${rows.size} item${if (rows.size == 1) "" else "s"}",
+                                                        text = "${items.size} item${if (items.size == 1) "" else "s"}",
                                                         modifier = Modifier.padding(
                                                             horizontal = 10.dp,
                                                             vertical = 4.dp
@@ -552,9 +467,9 @@ fun ScanResultScreen(
                                             ),
                                             right = listOf(
                                                 "PO Number" to (xt?.poNo?.ifBlank { "—" } ?: "—"),
-                                                "Extracted On" to SimpleDateFormat(
+                                                "Extracted On" to java.text.SimpleDateFormat(
                                                     "dd MMM yyyy, hh:mm a",
-                                                    Locale.getDefault()
+                                                    java.util.Locale.getDefault()
                                                 ).format(System.currentTimeMillis())
                                             )
                                         )
@@ -573,7 +488,7 @@ fun ScanResultScreen(
                                         )
                                         Spacer(Modifier.height(8.dp))
 
-                                        if (rows.isEmpty()) {
+                                        if (items.isEmpty()) {
                                             Surface(
                                                 color = Color(0xFFFFF4E5),
                                                 contentColor = Color(0xFF92400E),
@@ -590,14 +505,14 @@ fun ScanResultScreen(
                                             InvoiceTableHeader()
 
                                             // Rows
-                                            rows.forEachIndexed { i, r ->
+                                            items.forEachIndexed { i, it ->
                                                 val bg =
                                                     if (i % 2 == 0) Color(0xFFF9FBFF) else Color.White
                                                 InvoiceTableRow(
-                                                    description = r.description,
-                                                    qty = r.qty,
-                                                    batch = r.batch,
-                                                    expiry = r.expiry,
+                                                    description = it.description ?: "—",
+                                                    qty = it.qtyDelivered ?: "—",
+                                                    batch = it.batchNo ?: "—",
+                                                    expiry = it.expiryDate ?: "—",
                                                     background = bg
                                                 )
                                             }
@@ -652,7 +567,7 @@ fun ScanResultScreen(
                         enabled = canCreateGrn,
                         modifier = Modifier.weight(1f).height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
-                    ) { Text("Next", color = Color.White, fontWeight = FontWeight.Bold) }
+                    ) { Text("Create GRN", color = Color.White, fontWeight = FontWeight.Bold) }
                 }
             }
 
@@ -710,7 +625,6 @@ private fun MetaRow(label: String, value: String) {
         )
     }
 }
-
 @Composable
 private fun InvoiceTableHeader() {
     Surface(
@@ -762,7 +676,7 @@ private fun RowScope.BodyCell(
     )
 }
 
-// dual-line value cell for the merged "Batch / Expiry" column
+// NEW: dual-line value cell for the merged "Batch / Expiry" column
 @Composable
 private fun RowScope.DualLineCell(
     top: String,            // Batch number
