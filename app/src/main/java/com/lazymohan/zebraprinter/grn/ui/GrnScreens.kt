@@ -53,6 +53,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -341,11 +343,19 @@ private fun PoAndReceiveCard(
     onReview: () -> Unit
 ) {
     val isScanMode = ui.extractedFromScan.isNotEmpty()
-    val taken = ui.lineInputs.map { it.lineNumber }.toSet()
+
+    // Treat anything already visible or captured in inputs as "taken"
+    val takenByInputs = ui.lineInputs.map { it.lineNumber }.toSet()
+    val takenByVisible = ui.lines.map { it.LineNumber }.toSet()
+    val taken = takenByInputs + takenByVisible
+
+    // Candidates now exclude already-added lines
     val candidates = ui.allPoLines.filter { it.LineNumber !in taken }
 
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var showMatchDialog by rememberSaveable { mutableStateOf(false) }
+
+    // ---- matches
     val matches by remember(ui.extractedFromScan, ui.allPoLines) {
         derivedStateOf { computeSlipMatches(ui.extractedFromScan, ui.allPoLines) }
     }
@@ -353,9 +363,27 @@ private fun PoAndReceiveCard(
     val matchedCount = matches.count { it.matched }
     val unmatchedCount = slipCount - matchedCount
 
-    Column(Modifier.verticalScroll(rememberScrollState())) {
+    // Map PO LineNumber -> best slip item (highest similarity)
+    val prefillByLine: Map<Int, SlipItem> = remember(matches) {
+        matches
+            .filter { it.matched && it.best?.LineNumber != null }
+            .groupBy { it.best!!.LineNumber }
+            .mapValues { (_, list) -> list.maxBy { it.similarity }.slip }
+    }
 
-        // --- PO header card ---
+    // In scan mode, show matched + manually added lines
+    val matchedLineNos by remember(matches) {
+        derivedStateOf { matches.mapNotNull { it.best?.LineNumber }.toSet() }
+    }
+    val manualLineNos = remember(ui.lines) { ui.lines.map { it.LineNumber }.toSet() }
+    val renderSet = remember(matchedLineNos, manualLineNos) { matchedLineNos + manualLineNos }
+
+    val linesToRender = remember(isScanMode, renderSet, ui.allPoLines, ui.lines) {
+        if (isScanMode) ui.allPoLines.filter { it.LineNumber in renderSet } else ui.lines
+    }
+
+    Column(Modifier.verticalScroll(rememberScrollState())) {
+        // --- PO header
         Card(
             modifier = Modifier.padding(horizontal = 20.dp).offset(y = (-12).dp),
             shape = RoundedCornerShape(20.dp),
@@ -366,7 +394,8 @@ private fun PoAndReceiveCard(
                 SectionHeader("Purchase Order Details", badge = "READ-ONLY", badgeColor = Color(0xFFDFF7E6))
                 val po = ui.po
                 if (po == null) {
-                    Spacer(Modifier.height(8.dp)); Text("Loading PO…", color = Color(0xFF6B7280))
+                    Spacer(Modifier.height(8.dp))
+                    Text("Loading PO…", color = Color(0xFF6B7280))
                 } else {
                     ReadField("PO Number:", po.OrderNumber)
                     ReadField("Vendor:", po.Supplier)
@@ -379,7 +408,7 @@ private fun PoAndReceiveCard(
 
         Spacer(Modifier.height(10.dp))
 
-        // --- Lines card (with add + no-match handling) ---
+        // --- Lines card
         Card(
             modifier = Modifier.padding(horizontal = 20.dp),
             shape = RoundedCornerShape(20.dp),
@@ -390,10 +419,17 @@ private fun PoAndReceiveCard(
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     SectionHeader("Lines", badge = "ENTER DETAILS", badgeColor = Color(0xFFE3F2FD))
                     Spacer(Modifier.weight(1f))
-                    TextButton(
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Button(
                         onClick = { showAddDialog = true },
-                        enabled = candidates.isNotEmpty()
-                    ) { Text("Add Line") }
+                        enabled = candidates.isNotEmpty(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE3F2FD),
+                            contentColor = Color.Black
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) { Text("Add Line", fontSize = 12.sp) }
                 }
 
                 if (isScanMode && slipCount > 0) {
@@ -413,7 +449,7 @@ private fun PoAndReceiveCard(
 
                 if (isScanMode) {
                     Text(
-                        "Showing only lines matched from scanned slip.",
+                        "Showing matched lines plus any you add manually.",
                         color = Color(0xFF334155),
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -425,28 +461,86 @@ private fun PoAndReceiveCard(
                         Spacer(Modifier.height(8.dp))
                         Text("Loading lines…", color = Color(0xFF6B7280))
                     }
-                    ui.lines.isEmpty() -> {
+                    linesToRender.isEmpty() -> {
                         Spacer(Modifier.height(8.dp))
-                        val msg = if (isScanMode) "No matches found between scanned items and PO lines. Use “Add Line” to include items manually."
-                        else "No PO lines found."
+                        val msg = if (isScanMode)
+                            "No matches found between scanned items and PO lines. Use “Add Line” to include items manually."
+                        else
+                            "No PO lines found."
                         Text(msg, color = Color(0xFF8B5CF6))
                     }
                     else -> {
-                        ui.lines.forEach { ln ->
+                        linesToRender.forEach { ln ->
                             var expanded by rememberSaveable(ln.LineNumber) { mutableStateOf(true) }
                             var confirmDelete by rememberSaveable("${ln.LineNumber}-del") { mutableStateOf(false) }
 
+                            // Current values from store
                             val li = ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
+
+                            // Prefill from slip match
+                            val slip = prefillByLine[ln.LineNumber]
+                            val prefillQty = (slip?.qtyDelivered ?: 0.0).coerceAtMost(ln.Quantity)
+                            val prefillLot = slip?.batchNo.orEmpty()
+                            val prefillExp = slip?.expiryDate
+                                ?.let { com.lazymohan.zebraprinter.grn.util.toIsoYmd(it) }
+                                .orEmpty()
+
+                            // Local text states start from: existing input -> prefill -> empty
                             var qtyText by rememberSaveable("${ln.LineNumber}-qty") {
-                                mutableStateOf(if ((li?.qty ?: 0.0) == 0.0) "" else (li?.qty?.toString() ?: ""))
+                                mutableStateOf(
+                                    when {
+                                        (li?.qty ?: 0.0) > 0.0 -> li!!.qty.toString()
+                                        prefillQty > 0.0 -> prefillQty.toString()
+                                        else -> ""
+                                    }
+                                )
                             }
-                            var lotText by rememberSaveable("${ln.LineNumber}-lot") { mutableStateOf(li?.lot.orEmpty()) }
-                            var expText by rememberSaveable("${ln.LineNumber}-exp") { mutableStateOf(li?.expiry.orEmpty()) }
+                            var lotText by rememberSaveable("${ln.LineNumber}-lot") {
+                                mutableStateOf(
+                                    when {
+                                        !li?.lot.isNullOrBlank() -> li!!.lot
+                                        prefillLot.isNotBlank() -> prefillLot
+                                        else -> ""
+                                    }
+                                )
+                            }
+                            var expText by rememberSaveable("${ln.LineNumber}-exp") {
+                                mutableStateOf(
+                                    when {
+                                        !li?.expiry.isNullOrBlank() -> com.lazymohan.zebraprinter.grn.util.toIsoYmd(li!!.expiry)
+                                        prefillExp.isNotBlank() -> prefillExp
+                                        else -> ""
+                                    }
+                                )
+                            }
+
+                            // Push prefill into store once, without overriding user input
+                            LaunchedEffect(ln.LineNumber, slip) {
+                                val needQty = (li?.qty ?: 0.0) <= 0.0 && prefillQty > 0.0
+                                val needLot = li?.lot.isNullOrBlank() && prefillLot.isNotBlank()
+                                val needExp = li?.expiry.isNullOrBlank() && prefillExp.isNotBlank()
+                                if (needQty || needLot || needExp) {
+                                    onUpdateLine(
+                                        ln.LineNumber,
+                                        if (needQty) prefillQty else null,
+                                        if (needLot) prefillLot else null,
+                                        if (needExp) prefillExp else null
+                                    )
+                                    if (needQty) qtyText = prefillQty.toString()
+                                    if (needLot) lotText = prefillLot
+                                    if (needExp) expText = prefillExp
+                                }
+                            }
 
                             Spacer(Modifier.height(10.dp))
-                            Surface(tonalElevation = 2.dp, shadowElevation = 2.dp, shape = RoundedCornerShape(16.dp), color = Color(0xFFFDFEFF), modifier = Modifier.fillMaxWidth()) {
+                            Surface(
+                                tonalElevation = 2.dp,
+                                shadowElevation = 2.dp,
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFFFDFEFF),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Column(Modifier.padding(14.dp)) {
-
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                         Column(modifier = Modifier.weight(1f).clickable { expanded = !expanded }) {
                                             val itemCode = ln.Item?.takeIf { it.isNotBlank() } ?: "NA"
@@ -465,7 +559,11 @@ private fun PoAndReceiveCard(
                                             }
                                         }
                                         IconButton(onClick = { expanded = !expanded }) {
-                                            Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null, tint = Color(0xFF334155))
+                                            Icon(
+                                                if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                                                contentDescription = null,
+                                                tint = Color(0xFF334155)
+                                            )
                                         }
                                         IconButton(onClick = { confirmDelete = true }) {
                                             Icon(Icons.Outlined.Delete, contentDescription = "Remove line", tint = Color(0xFFB00020))
@@ -488,13 +586,28 @@ private fun PoAndReceiveCard(
                                                 onUpdateLine(ln.LineNumber, it.toDoubleOrNull(), null, null)
                                             },
                                             label = "Quantity (≤ ${fmt(ln.Quantity)})",
-                                            errorText = qtyText.toDoubleOrNull()?.let { q -> if (q > ln.Quantity) "Cannot exceed ordered qty." else null },
+                                            errorText = qtyText.toDoubleOrNull()
+                                                ?.let { q -> if (q > ln.Quantity) "Cannot exceed ordered qty." else null },
                                             enabled = true
                                         )
                                         Spacer(Modifier.height(8.dp))
-                                        LabeledText(lotText, { new -> lotText = new; onUpdateLine(ln.LineNumber, null, new, null) }, "Lot Number", true)
+                                        LabeledText(
+                                            value = lotText,
+                                            onChange = { new -> lotText = new; onUpdateLine(ln.LineNumber, null, new, null) },
+                                            label = "Lot Number",
+                                            enabled = true
+                                        )
                                         Spacer(Modifier.height(8.dp))
-                                        LabeledText(expText, { new -> expText = new; onUpdateLine(ln.LineNumber, null, null, new) }, "Expiry (YYYY-MM-DD)", true)
+                                        LabeledText(
+                                            value = expText,
+                                            onChange = { new ->
+                                                val normalized = com.lazymohan.zebraprinter.grn.util.toIsoYmd(new)
+                                                expText = normalized
+                                                onUpdateLine(ln.LineNumber, null, null, normalized)
+                                            },
+                                            label = "Expiry (YYYY-MM-DD)",
+                                            enabled = true
+                                        )
                                     }
 
                                     if (confirmDelete) {
@@ -504,7 +617,9 @@ private fun PoAndReceiveCard(
                                             title = { Text("Remove line ${ln.LineNumber}?") },
                                             text = { Text("This will remove the line from this receipt. You can add it back using “Add Line”.") },
                                             confirmButton = {
-                                                TextButton(onClick = { confirmDelete = false; onRemoveLine(ln.LineNumber) }) { Text("Remove", color = Color(0xFFB00020)) }
+                                                TextButton(onClick = { confirmDelete = false; onRemoveLine(ln.LineNumber) }) {
+                                                    Text("Remove", color = Color(0xFFB00020))
+                                                }
                                             },
                                             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
                                         )
@@ -516,7 +631,6 @@ private fun PoAndReceiveCard(
                 }
 
                 Spacer(Modifier.height(16.dp))
-
                 val hasAtLeastOneValid =
                     ui.lineInputs.any { it.qty > 0.0 && it.lot.isNotBlank() && it.expiry.isNotBlank() }
 
@@ -535,7 +649,6 @@ private fun PoAndReceiveCard(
         Spacer(Modifier.height(10.dp))
     }
 
-    // dialogs
     if (showAddDialog) {
         AddLineDialog(
             candidates = candidates,
@@ -547,6 +660,7 @@ private fun PoAndReceiveCard(
         MatchBreakdownDialog(matches = matches, onDismiss = { showMatchDialog = false })
     }
 }
+
 
 /* --------------------------- REVIEW --------------------------- */
 
