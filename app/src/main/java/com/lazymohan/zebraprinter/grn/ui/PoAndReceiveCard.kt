@@ -16,10 +16,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lazymohan.zebraprinter.grn.data.PoLineItem
-import com.lazymohan.zebraprinter.grn.util.toIsoYmd
+import com.lazymohan.zebraprinter.grn.util.ExtractedItem
+import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
+import com.lazymohan.zebraprinter.grn.util.similarity
 
 @Composable
 fun PoAndReceiveCard(
@@ -31,48 +34,48 @@ fun PoAndReceiveCard(
     onReview: () -> Unit
 ) {
     val isScanMode = ui.extractedFromScan.isNotEmpty()
-
-    // Track already added lines
-    val takenByInputs = ui.lineInputs.map { it.lineNumber }.toSet()
-    val takenByVisible = ui.lines.map { it.LineNumber }.toSet()
-    val taken = takenByInputs + takenByVisible
-
+    val taken = ui.lineInputs.map { it.lineNumber }.toSet()
     val candidates = ui.allPoLines.filter { it.LineNumber !in taken }
 
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var showMatchDialog by rememberSaveable { mutableStateOf(false) }
-
-    // slip matches
     val matches by remember(ui.extractedFromScan, ui.allPoLines) {
-        derivedStateOf { computeSlipMatches(ui.extractedFromScan, ui.allPoLines) }
-    }
-    val slipCount = matches.size
-    val matchedCount = matches.count { it.matched }
-    val unmatchedCount = slipCount - matchedCount
+        derivedStateOf {
+            val extracted = ui.extractedFromScan
+            val used = mutableSetOf<Int>()
 
-    // Prefill best slip data
-    val prefillByLine: Map<Int, com.lazymohan.zebraprinter.grn.util.ExtractedItem> =
-        remember(matches) {
-            matches
-                .filter { it.matched && it.best?.LineNumber != null }
-                .groupBy { it.best!!.LineNumber }
-                .mapValues { (_, list) -> list.maxBy { it.similarity }.slip }
+            // 1. Try to match slip items against PO lines
+            val poMatches = ui.allPoLines.map { line ->
+                val safeItem = line.Item.trim().orEmpty()
+                val poDesc = (line.Description ?: safeItem).trim()
+                val idx = bestMatchIndex(extracted, poDesc, used, threshold = 0.01)
+                if (idx != null) {
+                    used += idx
+                    MatchDetail(
+                        slip = extracted[idx],
+                        best = line,
+                        similarity = similarity(extracted[idx].description, poDesc)
+                    )
+                } else {
+                    // PO line didn’t get any match
+                    MatchDetail(
+                        slip = ExtractedItem("", 0.0, "", ""),
+                        best = line,
+                        similarity = 0.0
+                    )
+                }
+            }
+            poMatches
         }
-
-    // decide what to render
-    val matchedLineNos by remember(matches) {
-        derivedStateOf { matches.mapNotNull { it.best?.LineNumber }.toSet() }
     }
-    val manualLineNos = remember(ui.lines) { ui.lines.map { it.LineNumber }.toSet() }
-    val renderSet = remember(matchedLineNos, manualLineNos) { matchedLineNos + manualLineNos }
 
-    val linesToRender = remember(isScanMode, renderSet, ui.allPoLines, ui.lines) {
-        if (isScanMode) ui.allPoLines.filter { it.LineNumber in renderSet } else ui.lines
-    }
+    val slipCount = matches.size
+    val matchedCount = matches.count { it.similarity != 0.0 }
+    val unmatchedCount = slipCount - matchedCount
 
     Column(Modifier.verticalScroll(rememberScrollState())) {
 
-        /* --- PO Header --- */
+        // --- PO header card ---
         Card(
             modifier = Modifier.padding(horizontal = 20.dp).offset(y = (-12).dp),
             shape = RoundedCornerShape(20.dp),
@@ -80,11 +83,7 @@ fun PoAndReceiveCard(
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(Modifier.padding(20.dp)) {
-                SectionHeader(
-                    "Purchase Order Details",
-                    badge = "READ-ONLY",
-                    badgeColor = Color(0xFFDFF7E6)
-                )
+                SectionHeader("Purchase Order Details", badge = "READ-ONLY", badgeColor = Color(0xFFDFF7E6))
                 val po = ui.po
                 if (po == null) {
                     Spacer(Modifier.height(8.dp))
@@ -101,7 +100,7 @@ fun PoAndReceiveCard(
 
         Spacer(Modifier.height(10.dp))
 
-        /* --- PO Lines --- */
+        // --- Lines card (with add + no-match handling) ---
         Card(
             modifier = Modifier.padding(horizontal = 20.dp),
             shape = RoundedCornerShape(20.dp),
@@ -113,7 +112,10 @@ fun PoAndReceiveCard(
                     SectionHeader("Lines", badge = "ENTER DETAILS", badgeColor = Color(0xFFE3F2FD))
                     Spacer(Modifier.weight(1f))
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
                     Button(
                         onClick = { showAddDialog = true },
                         enabled = candidates.isNotEmpty(),
@@ -122,7 +124,9 @@ fun PoAndReceiveCard(
                             contentColor = Color.Black
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                    ) { Text("Add Line", fontSize = 12.sp) }
+                    ) {
+                        Text("Add Line", fontSize = 12.sp)
+                    }
                 }
 
                 if (isScanMode && slipCount > 0) {
@@ -142,7 +146,7 @@ fun PoAndReceiveCard(
 
                 if (isScanMode) {
                     Text(
-                        "Showing matched lines plus any you add manually.",
+                        "Showing only lines matched from scanned slip.",
                         color = Color(0xFF334155),
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -154,20 +158,19 @@ fun PoAndReceiveCard(
                         Spacer(Modifier.height(8.dp))
                         Text("Loading lines…", color = Color(0xFF6B7280))
                     }
-                    linesToRender.isEmpty() -> {
+                    ui.lines.isEmpty() -> {
                         Spacer(Modifier.height(8.dp))
-                        val msg = if (isScanMode)
-                            "No matches found between scanned items and PO lines. Use “Add Line” to include items manually."
-                        else
-                            "No PO lines found."
+                        val msg =
+                            if (isScanMode) "No matches found between scanned items and PO lines. Use “Add Line” to include items manually."
+                            else "No PO lines found."
                         Text(msg, color = Color(0xFF8B5CF6))
                     }
                     else -> {
-                        linesToRender.forEach { ln ->
+                        ui.lines.forEach { ln ->
+                            val li = ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
                             LineCard(
-                                line = ln,
-                                ui = ui,
-                                slip = prefillByLine[ln.LineNumber],
+                                ln = ln,
+                                li = li,
                                 onUpdateLine = onUpdateLine,
                                 onRemoveLine = onRemoveLine
                             )
@@ -176,17 +179,14 @@ fun PoAndReceiveCard(
                 }
 
                 Spacer(Modifier.height(16.dp))
+
                 val hasAtLeastOneValid =
                     ui.lineInputs.any { it.qty > 0.0 && it.lot.isNotBlank() && it.expiry.isNotBlank() }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedButton(
-                        onClick = onBack,
-                        modifier = Modifier.weight(1f).height(52.dp)
-                    ) { Text("Back") }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f).height(52.dp)) {
+                        Text("Back")
+                    }
                     Button(
                         onClick = onReview,
                         enabled = hasAtLeastOneValid,
@@ -200,6 +200,7 @@ fun PoAndReceiveCard(
         Spacer(Modifier.height(10.dp))
     }
 
+    // dialogs
     if (showAddDialog) {
         AddLineDialog(
             candidates = candidates,
@@ -212,68 +213,23 @@ fun PoAndReceiveCard(
     }
 }
 
+
+
 @Composable
-private fun LineCard(
-    line: PoLineItem,
-    ui: GrnUiState,
-    slip: com.lazymohan.zebraprinter.grn.util.ExtractedItem?,
+fun LineCard(
+    ln: PoLineItem,
+    li: LineInput?,
     onUpdateLine: (Int, Double?, String?, String?) -> Unit,
     onRemoveLine: (Int) -> Unit
 ) {
-    var expanded by rememberSaveable(line.LineNumber) { mutableStateOf(true) }
-    var confirmDelete by rememberSaveable("${line.LineNumber}-del") { mutableStateOf(false) }
+    var expanded by rememberSaveable(ln.LineNumber) { mutableStateOf(true) }
+    var confirmDelete by rememberSaveable("${ln.LineNumber}-del") { mutableStateOf(false) }
 
-    val li = ui.lineInputs.firstOrNull { it.lineNumber == line.LineNumber }
-
-    val prefillQty = (slip?.qtyDelivered ?: 0.0).coerceAtMost(line.Quantity)
-    val prefillLot = slip?.batchNo.orEmpty()
-    val prefillExp = slip?.expiryDate?.let { toIsoYmd(it) }.orEmpty()
-
-    var qtyText by rememberSaveable("${line.LineNumber}-qty") {
-        mutableStateOf(
-            when {
-                (li?.qty ?: 0.0) > 0.0 -> li!!.qty.toString()
-                prefillQty > 0.0 -> prefillQty.toString()
-                else -> ""
-            }
-        )
+    var qtyText by rememberSaveable("${ln.LineNumber}-qty") {
+        mutableStateOf(if ((li?.qty ?: 0.0) == 0.0) "" else (li?.qty?.toString() ?: ""))
     }
-    var lotText by rememberSaveable("${line.LineNumber}-lot") {
-        mutableStateOf(
-            when {
-                !li?.lot.isNullOrBlank() -> li.lot
-                prefillLot.isNotBlank() -> prefillLot
-                else -> ""
-            }
-        )
-    }
-    var expText by rememberSaveable("${line.LineNumber}-exp") {
-        mutableStateOf(
-            when {
-                !li?.expiry.isNullOrBlank() -> toIsoYmd(li.expiry)
-                prefillExp.isNotBlank() -> prefillExp
-                else -> ""
-            }
-        )
-    }
-
-    // prefill injection
-    LaunchedEffect(line.LineNumber, slip) {
-        val needQty = (li?.qty ?: 0.0) <= 0.0 && prefillQty > 0.0
-        val needLot = li?.lot.isNullOrBlank() && prefillLot.isNotBlank()
-        val needExp = li?.expiry.isNullOrBlank() && prefillExp.isNotBlank()
-        if (needQty || needLot || needExp) {
-            onUpdateLine(
-                line.LineNumber,
-                if (needQty) prefillQty else null,
-                if (needLot) prefillLot else null,
-                if (needExp) prefillExp else null
-            )
-            if (needQty) qtyText = prefillQty.toString()
-            if (needLot) lotText = prefillLot
-            if (needExp) expText = prefillExp
-        }
-    }
+    var lotText by rememberSaveable("${ln.LineNumber}-lot") { mutableStateOf(li?.lot.orEmpty()) }
+    var expText by rememberSaveable("${ln.LineNumber}-exp") { mutableStateOf(li?.expiry.orEmpty()) }
 
     Spacer(Modifier.height(10.dp))
     Surface(
@@ -284,20 +240,26 @@ private fun LineCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(14.dp)) {
+
+            // --- Header row with expand + delete ---
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f).clickable { expanded = !expanded }) {
-                    val itemCode = line.Item.takeIf { it.isNotBlank() } ?: "NA"
-                    val title = (line.Description ?: "").ifBlank { "Item $itemCode" }
+                Column(
+                    modifier = Modifier.weight(1f).clickable { expanded = !expanded }
+                ) {
+                    val itemCode = ln.Item.takeIf { it.isNotBlank() } ?: "NA"
+                    val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
                     Text(
                         title,
                         style = MaterialTheme.typography.titleMedium.copy(fontSize = 14.sp),
                         color = Color(0xFF143A7B),
-                        maxLines = 2
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
+
                     Spacer(Modifier.height(2.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Chip("Item: $itemCode")
-                        Chip("${fmt(line.Quantity)} ${line.UOM} ordered")
+                        Chip("${fmt(ln.Quantity)} ${ln.UOM} ordered")
                     }
                 }
                 IconButton(onClick = { expanded = !expanded }) {
@@ -312,14 +274,15 @@ private fun LineCard(
                 }
             }
 
+            // --- Expanded content ---
             if (expanded) {
                 Spacer(Modifier.height(10.dp))
                 HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
                 Spacer(Modifier.height(10.dp))
 
-                if (!line.Description.isNullOrBlank()) ReadFieldInline("Description", line.Description)
-                ReadFieldInline("Line #", line.LineNumber.toString())
-                ReadFieldInline("UOM", line.UOM)
+                if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description)
+                ReadFieldInline("Line #", ln.LineNumber.toString())
+                ReadFieldInline("UOM", ln.UOM)
 
                 Spacer(Modifier.height(10.dp))
 
@@ -327,41 +290,39 @@ private fun LineCard(
                     value = qtyText,
                     onChange = {
                         qtyText = it
-                        onUpdateLine(line.LineNumber, it.toDoubleOrNull(), null, null)
+                        onUpdateLine(ln.LineNumber, it.toDoubleOrNull(), null, null)
                     },
-                    label = "Quantity (≤ ${fmt(line.Quantity)})",
-                    errorText = qtyText.toDoubleOrNull()
-                        ?.let { q -> if (q > line.Quantity) "Cannot exceed ordered qty." else null },
+                    label = "Quantity (≤ ${fmt(ln.Quantity)})",
+                    errorText = qtyText.toDoubleOrNull()?.let { q ->
+                        if (q > ln.Quantity) "Cannot exceed ordered qty." else null
+                    },
                     enabled = true
                 )
                 Spacer(Modifier.height(8.dp))
                 LabeledText(
-                    value = lotText,
-                    onChange = { new -> lotText = new; onUpdateLine(line.LineNumber, null, new, null) },
-                    label = "Lot Number",
-                    enabled = true
+                    lotText,
+                    { new -> lotText = new; onUpdateLine(ln.LineNumber, null, new, null) },
+                    "Lot Number",
+                    true
                 )
                 Spacer(Modifier.height(8.dp))
                 LabeledText(
-                    value = expText,
-                    onChange = { new ->
-                        val normalized = toIsoYmd(new)
-                        expText = normalized
-                        onUpdateLine(line.LineNumber, null, null, normalized)
-                    },
-                    label = "Expiry (YYYY-MM-DD)",
-                    enabled = true
+                    expText,
+                    { new -> expText = new; onUpdateLine(ln.LineNumber, null, null, new) },
+                    "Expiry (YYYY-MM-DD)",
+                    true
                 )
             }
 
+            // --- Delete confirmation ---
             if (confirmDelete) {
                 AlertDialog(
                     onDismissRequest = { confirmDelete = false },
                     icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
-                    title = { Text("Remove line ${line.LineNumber}?") },
+                    title = { Text("Remove line ${ln.LineNumber}?") },
                     text = { Text("This will remove the line from this receipt. You can add it back using “Add Line”.") },
                     confirmButton = {
-                        TextButton(onClick = { confirmDelete = false; onRemoveLine(line.LineNumber) }) {
+                        TextButton(onClick = { confirmDelete = false; onRemoveLine(ln.LineNumber) }) {
                             Text("Remove", color = Color(0xFFB00020))
                         }
                     },
