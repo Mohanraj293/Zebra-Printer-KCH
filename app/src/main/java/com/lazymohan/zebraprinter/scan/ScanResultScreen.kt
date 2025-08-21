@@ -27,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
@@ -202,7 +203,7 @@ fun ScanResultScreen(
         Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val scrollState = rememberScrollState()
 
-    // Shared action for "Create GRN" button (bottom)
+    // Shared action for "Next" button (bottom) in the Result screen
     val launchCreateGrn: () -> Unit = {
         val s = state
         if (s is ScanUiState.Completed) {
@@ -218,6 +219,7 @@ fun ScanResultScreen(
                     val payload = scanGson.toJson(transfer)
                     Log.d("ScanResultScreen", "Transfer JSON size=${payload.length}")
 
+                    // launching activity to create GRN
                     val intent = Intent(
                         ctx,
                         com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java
@@ -560,7 +562,11 @@ fun ScanResultScreen(
                                         )
                                     }
 
-                                    Divider(color = Color(0xFFE8ECF5))
+                                    HorizontalDivider(
+                                        Modifier,
+                                        DividerDefaults.Thickness,
+                                        color = Color(0xFFE8ECF5)
+                                    )
 
                                     // Items table
                                     Column(Modifier.padding(16.dp)) {

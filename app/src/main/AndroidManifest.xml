@@ -43,10 +43,9 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
-        <!-- Launcher / Home -->
+        <!-- Launcher -->
         <activity
-            android:name=".landing.LandingActivity"
+            android:name=".auth.ui.LoginActivity"
             android:exported="true"
             android:theme="@style/Theme.ZebraPrinterKCH">
             <intent-filter>
@@ -54,6 +53,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".landing.LandingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ZebraPrinterKCH" />
+
+        <!-- Launcher / Home -->
 
         <!-- Scan flow -->
         <activity
