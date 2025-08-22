@@ -10,10 +10,12 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +45,10 @@ fun PoAndReceiveCard(
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var showMatchDialog by rememberSaveable { mutableStateOf(false) }
     var scannedText by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Verified lines & last scanned GTIN
+    var verifiedLines by rememberSaveable { mutableStateOf(setOf<Int>()) }
+    var lastScannedGtin by rememberSaveable { mutableStateOf<String?>(null) }
 
     val matches by remember(ui.extractedFromScan, ui.allPoLines) {
         derivedStateOf {
@@ -76,6 +82,22 @@ fun PoAndReceiveCard(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    fun isLineVerified(lnNumber: Int) = lnNumber in verifiedLines
+
+    // All selected lines must be verified & details valid
+    val allowReview by remember(ui.lineInputs, ui.lines, verifiedLines) {
+        derivedStateOf {
+            if (ui.lineInputs.isEmpty()) return@derivedStateOf false
+            ui.lineInputs.all { li ->
+                val ln = ui.lines.firstOrNull { it.LineNumber == li.lineNumber } ?: return@all false
+                val qtyOk = li.qty > 0.0 && li.qty <= ln.Quantity
+                val fieldsOk = li.lot.isNotBlank() && li.expiry.isNotBlank()
+                val verifiedOk = isLineVerified(li.lineNumber)
+                qtyOk && fieldsOk && verifiedOk
+            }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -171,9 +193,7 @@ fun PoAndReceiveCard(
                             ),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(20.dp)
-                        ) {
-                            Text("➕ Add Item", fontSize = 13.sp)
-                        }
+                        ) { Text("➕ Add Item", fontSize = 13.sp) }
                     }
 
                     if (isScanMode && slipCount > 0) {
@@ -212,6 +232,7 @@ fun PoAndReceiveCard(
                                 LineCard(
                                     ln = ln,
                                     li = li,
+                                    isVerified = isLineVerified(ln.LineNumber),
                                     onUpdateLine = onUpdateLine,
                                     onRemoveLine = onRemoveLine,
                                     snackbarHostState = snackbarHostState
@@ -232,25 +253,23 @@ fun PoAndReceiveCard(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(52.dp)
-                        ) {
-                            Text("Back")
-                        }
+                        ) { Text("Back") }
+
                         Button(
                             onClick = onReview,
-                            enabled = ui.lineInputs.any { it.qty > 0.0 && it.lot.isNotBlank() && it.expiry.isNotBlank() },
+                            enabled = allowReview,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(52.dp),
+                                .height(52.dp)
+                                .alpha(if (allowReview) 1f else 0.35f), // dim until ready
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
-                        ) {
-                            Text("Review & Submit", color = Color.White)
-                        }
+                        ) { Text("Review & Submit", color = Color.White) }
                     }
                 }
             }
         }
 
-        // --- Floating GS1 QR Scanner Button ---
+        // --- Floating GS1/GTIN QR Scanner Button ---
         FloatingActionButton(
             onClick = {
                 val options = GmsBarcodeScannerOptions.Builder()
@@ -261,13 +280,38 @@ fun PoAndReceiveCard(
                 scanner.startScan()
                     .addOnSuccessListener { barcode ->
                         val raw = barcode.rawValue.orEmpty()
-                        if (isGs1Qr(raw) && parseGs1(raw) != null) {
-                            scannedText = raw
-                        } else {
+
+                        // 1) Extract GTIN from raw using util
+                        val gt = extractGtinFromRaw(raw)
+                        if (gt == null) {
                             scope.launch {
-                                snackbarHostState.showSnackbar("Cannot scan this format. Only GS1 QR supported.")
+                                snackbarHostState.showSnackbar("Couldn't find a valid GTIN in scan.")
                             }
+                            return@addOnSuccessListener
                         }
+
+                        scannedText = raw
+                        lastScannedGtin = gt
+
+                        // 2) Mark any matching PO lines as verified
+                        val matched = ui.allPoLines
+                            .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
+                            .map { it.LineNumber }
+                            .toSet()
+
+                        verifiedLines = verifiedLines + matched
+
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                if (matched.isEmpty())
+                                    "GTIN $gt scanned. No PO line GTIN matched."
+                                else
+                                    "GTIN $gt verified for lines: ${matched.sorted().joinToString(", ")}"
+                            )
+                        }
+                    }
+                    .addOnFailureListener {
+                        scope.launch { snackbarHostState.showSnackbar("Scan cancelled.") }
                     }
             },
             containerColor = Color(0xFF2E6BFF),
@@ -275,50 +319,29 @@ fun PoAndReceiveCard(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 20.dp, bottom = 20.dp)
-        ) {
-            Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan GS1 QR")
-        }
+        ) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan GS1/GTIN QR") }
     }
 
     if (showAddDialog) {
         AddLineDialog(
             candidates = candidates,
-            onPick = { ln -> showAddDialog = false; onAddLine(ln) },
+            onPick = { lnNumber -> showAddDialog = false; onAddLine(lnNumber) },
             onDismiss = { showAddDialog = false }
         )
     }
     if (showMatchDialog) {
         MatchBreakdownDialog(matches = matches, onDismiss = { showMatchDialog = false })
     }
-
-    if (scannedText != null) {
-        AlertDialog(
-            onDismissRequest = { scannedText = null },
-            title = { Text("Scanned GS1 QR") },
-            text = { Text(scannedText!!, color = Color(0xFF111827)) },
-            confirmButton = { TextButton(onClick = { scannedText = null }) { Text("Close") } }
-        )
-    }
 }
 
 // --- Small reusable Tag ---
 @Composable
 fun Tag(text: String, bg: Color, textColor: Color) {
-    Surface(
-        color = bg,
-        shape = RoundedCornerShape(8.dp),
-        tonalElevation = 0.dp
-    ) {
-        Text(
-            text,
-            color = textColor,
-            fontSize = 11.sp,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
+    Surface(color = bg, shape = RoundedCornerShape(8.dp), tonalElevation = 0.dp) {
+        Text(text, color = textColor, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
     }
 }
 
-// --- Read Field ---
 @Composable
 fun ReadFieldCompact(label: String, value: String?, modifier: Modifier = Modifier) {
     Column(modifier) {
@@ -332,6 +355,7 @@ fun ReadFieldCompact(label: String, value: String?, modifier: Modifier = Modifie
 fun LineCard(
     ln: PoLineItem,
     li: LineInput?,
+    isVerified: Boolean,
     onUpdateLine: (Int, Double?, String?, String?) -> Unit,
     onRemoveLine: (Int) -> Unit,
     snackbarHostState: SnackbarHostState
@@ -345,7 +369,10 @@ fun LineCard(
     var lotText by rememberSaveable("${ln.LineNumber}-lot") { mutableStateOf(li?.lot.orEmpty()) }
     var expText by rememberSaveable("${ln.LineNumber}-exp") { mutableStateOf(li?.expiry.orEmpty()) }
 
-    val allDetailsFilled = qtyText.isNotBlank() && lotText.isNotBlank() && expText.isNotBlank()
+    val qtyNum = qtyText.toDoubleOrNull()
+    val detailsOk = qtyNum != null && qtyNum > 0.0 && qtyNum <= ln.Quantity &&
+            lotText.isNotBlank() && expText.isNotBlank()
+
     val scope = rememberCoroutineScope()
 
     Spacer(Modifier.height(10.dp))
@@ -356,14 +383,11 @@ fun LineCard(
         color = Color(0xFFFDFEFF),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { expanded = !expanded } // expand/collapse by card click
+            .clickable { expanded = !expanded }
     ) {
         Column(Modifier.padding(14.dp)) {
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
                     val itemCode = ln.Item.takeIf { it.isNotBlank() } ?: "NA"
                     val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
@@ -387,20 +411,22 @@ fun LineCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Chip("Not Verified", bg = Color(0xFFFFEBEE), textColor = Color(0xFFD32F2F))
-                        if (allDetailsFilled) {
+                        if (isVerified) {
+                            Chip("Verified", bg = Color(0xFFE8F5E9), textColor = Color(0xFF2E7D32))
+                        } else {
+                            Chip("Not Verified", bg = Color(0xFFFFEBEE), textColor = Color(0xFFD32F2F))
+                        }
+
+                        if (detailsOk) {
                             Chip("Details Filled", bg = Color(0xFFE8F5E9), textColor = Color(0xFF2E7D32))
                         } else {
-                            Chip("Details Required", bg = Color(0xFFFFEBEE), textColor = Color(0xFFD32F2F))
+                            Chip("Details Required", bg = Color(0xFFFFF7ED), textColor = Color(0xFF9A3412))
                         }
 
-                        Spacer(Modifier.weight(1f)) // pushes icons to right side of same row
-
+                        Spacer(Modifier.weight(1f))
                         IconButton(onClick = {
                             scope.launch { snackbarHostState.showSnackbar("Will go to printing… page") }
-                        }) {
-                            Icon(Icons.Default.Print, contentDescription = "Print", tint = Color(0xFF334155))
-                        }
+                        }) { Icon(Icons.Filled.Print, contentDescription = "Print", tint = Color(0xFF334155)) }
 
                         IconButton(onClick = { confirmDelete = true }) {
                             Icon(Icons.Outlined.Delete, contentDescription = "Remove line", tint = Color(0xFFB00020))
@@ -429,7 +455,11 @@ fun LineCard(
                     },
                     label = "Quantity (≤ ${fmt(ln.Quantity)})",
                     errorText = qtyText.toDoubleOrNull()?.let { q ->
-                        if (q > ln.Quantity) "Cannot exceed ordered qty." else null
+                        when {
+                            q <= 0.0 -> "Quantity must be > 0"
+                            q > ln.Quantity -> "Cannot exceed ordered qty."
+                            else -> null
+                        }
                     },
                     enabled = true
                 )

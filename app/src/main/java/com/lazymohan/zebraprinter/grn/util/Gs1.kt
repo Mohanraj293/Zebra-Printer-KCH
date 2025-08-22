@@ -24,7 +24,6 @@ fun isGs1Qr(raw0: String?): Boolean {
     return false
 }
 
-/** Best-effort parse; returns null if GTIN (01) is not found. */
 fun parseGs1(raw0: String): Gs1Result? {
     val s = raw0.trim()
         .removePrefix("]Q3")
@@ -42,4 +41,43 @@ fun parseGs1(raw0: String): Gs1Result? {
         "20$yy-$mm-$dd"
     }
     return Gs1Result(raw0, gtin = gtin, lot = lot, expiryYmd = expiryYmd, serial = serial)
+}
+
+fun isValidGtin14(s: String): Boolean {
+    if (!Regex("\\d{14}").matches(s)) return false
+    val d = s.map { it - '0' }
+    // Compute from right (exclude check digit at index 13). Pattern 3,1,3,1,...
+    var sum = 0
+    for (i in 12 downTo 0) {
+        val weight = if ((12 - i) % 2 == 0) 3 else 1
+        sum += d[i] * weight
+    }
+    val check = (10 - (sum % 10)) % 10
+    return d[13] == check
+}
+
+fun extractGtinFromRaw(raw0: String?): String? {
+    if (raw0.isNullOrBlank()) return null
+    val raw = raw0.trim()
+
+    // 1) If it's GS1-ish, let the GS1 parser try first.
+    runCatching { parseGs1(raw) }.getOrNull()?.gtin?.let { gt ->
+        if (isValidGtin14(gt)) return gt
+    }
+
+    // Compact (remove whitespace) for easier matching.
+    val compact = raw.replace(Regex("\\s+"), "")
+
+    // 2) Prefer explicit AI (01) followed by 14 digits.
+    Regex("(?:\\(01\\)|01)(\\d{14})").find(compact)?.groupValues?.get(1)?.let { c ->
+        if (isValidGtin14(c)) return c
+    }
+
+    // 3) Fallback: any 14-digit run that is a valid GTIN-14.
+    Regex("\\d{14}").findAll(compact).forEach { m ->
+        val cand = m.value
+        if (isValidGtin14(cand)) return cand
+    }
+
+    return null
 }

@@ -190,18 +190,18 @@ fun PrinterScreenContent(
                                 onNext = { focusManager.moveFocus(FocusDirection.Enter) }
                             )
                         )
-                        TUIMobileButtonBlock(
-                            primaryButtonLabel = "Print",
-                            primaryButtonOnClick = {
-                                if (uiState.selectedPrinter != null)
-                                    handleEvents(PrinterEvents.Print)
-                            },
-                            primaryTrailingIcon = TarkaIcons.Regular.Print24,
-                            outlineButtonLabel = null,
-                            outlineButtonOnClick = {}
-                        )
                     }
                 }
+                TUIMobileButtonBlock(
+                    primaryButtonLabel = "Print",
+                    primaryButtonOnClick = {
+                        if (uiState.selectedPrinter != null)
+                            handleEvents(PrinterEvents.Print)
+                    },
+                    primaryTrailingIcon = TarkaIcons.Regular.Print24,
+                    outlineButtonLabel = null,
+                    outlineButtonOnClick = {}
+                )
             }
         }
         if (uiState.showDialog) {
