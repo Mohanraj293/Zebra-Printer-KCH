@@ -12,11 +12,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class GrnActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var dateTimeConverter: DateTimeConverter
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -63,7 +69,8 @@ class GrnActivity : ComponentActivity() {
                     onReview = { vm.buildPayloadAndReview() },
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },
-                    onBack = { finish() }
+                    onBack = { finish() },
+                    dateTimeConverter = dateTimeConverter
                 )
             }
         }

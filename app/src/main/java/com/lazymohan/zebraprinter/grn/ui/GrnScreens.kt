@@ -10,11 +10,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.lazymohan.zebraprinter.utils.DateTimeConverter
 
 @Composable
 fun GrnScreens(
     ui: GrnUiState,
     snackbarHostState: SnackbarHostState,
+    dateTimeConverter: DateTimeConverter,
     onEnterPo: (String) -> Unit,
     onFetchPo: () -> Unit,
     onUpdateLine: (Int, Double?, String?, String?) -> Unit,
@@ -74,7 +76,8 @@ fun GrnScreens(
                     onRemoveLine = onRemoveLine,
                     onAddLine = onAddLine,
                     onReview = onReview,
-                    snackbarHostState = snackbarHostState
+                    snackbarHostState = snackbarHostState,
+                    dateTimeConverter = dateTimeConverter
                 )
                 GrnStep.REVIEW   -> ReviewCard(ui, onSubmit, onEditReceive)
                 GrnStep.SUMMARY  -> SummaryCard(ui, onStartOver)

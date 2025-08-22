@@ -1,7 +1,18 @@
 package com.lazymohan.zebraprinter.grn.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -9,10 +20,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -24,8 +55,14 @@ import androidx.compose.ui.unit.sp
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.grn.data.PoLineItem
-import com.lazymohan.zebraprinter.grn.util.*
+import com.lazymohan.zebraprinter.grn.util.ExtractedItem
+import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
+import com.lazymohan.zebraprinter.grn.util.extractGtinFromRaw
+import com.lazymohan.zebraprinter.grn.util.similarity
+import com.lazymohan.zebraprinter.product.data.Lots
+import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import kotlinx.coroutines.launch
 
 @Composable
@@ -36,6 +73,7 @@ fun PoAndReceiveCard(
     onRemoveLine: (Int) -> Unit,
     onAddLine: (Int) -> Unit,
     onReview: () -> Unit,
+    dateTimeConverter: DateTimeConverter,
     snackbarHostState: SnackbarHostState
 ) {
     val isScanMode = ui.extractedFromScan.isNotEmpty()
@@ -230,12 +268,14 @@ fun PoAndReceiveCard(
                             ui.lines.forEach { ln ->
                                 val li = ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
                                 LineCard(
+                                    context = context,
                                     ln = ln,
                                     li = li,
                                     isVerified = isLineVerified(ln.LineNumber),
                                     onUpdateLine = onUpdateLine,
                                     onRemoveLine = onRemoveLine,
-                                    snackbarHostState = snackbarHostState
+                                    snackbarHostState = snackbarHostState,
+                                    dateTimeConverter = dateTimeConverter
                                 )
                             }
                         }
@@ -353,11 +393,13 @@ fun ReadFieldCompact(label: String, value: String?, modifier: Modifier = Modifie
 // --- LineCard with expand + print ---
 @Composable
 fun LineCard(
+    context: android.content.Context,
     ln: PoLineItem,
     li: LineInput?,
     isVerified: Boolean,
     onUpdateLine: (Int, Double?, String?, String?) -> Unit,
     onRemoveLine: (Int) -> Unit,
+    dateTimeConverter: DateTimeConverter,
     snackbarHostState: SnackbarHostState
 ) {
     var confirmDelete by rememberSaveable("${ln.LineNumber}-del") { mutableStateOf(false) }
@@ -424,9 +466,31 @@ fun LineCard(
                         }
 
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick = {
-                            scope.launch { snackbarHostState.showSnackbar("Will go to printing… page") }
-                        }) { Icon(Icons.Filled.Print, contentDescription = "Print", tint = Color(0xFF334155)) }
+                        IconButton(
+                            onClick = {
+                                context.startActivity(
+                                    ZPLPrinterActivity.getCallingIntent(
+                                        context = context,
+                                        gtinNumber = ln.GTIN ?: "",
+                                        product = Lots(
+                                            lotNumber = lotText,
+                                            itemDescription = ln.Description ?: "",
+                                            itemNumber = ln.Item,
+                                            statusCode = "Active",
+                                            originationDate = null,
+                                            expirationDate = dateTimeConverter.convertStringToDate(expText),
+                                            inventoryItemId = 0L
+                                        )
+                                    )
+                                )
+                            }
+                        ) {
+                            Icon(
+                                Icons.Filled.Print,
+                                contentDescription = "Print",
+                                tint = Color(0xFF334155)
+                            )
+                        }
 
                         IconButton(onClick = { confirmDelete = true }) {
                             Icon(Icons.Outlined.Delete, contentDescription = "Remove line", tint = Color(0xFFB00020))

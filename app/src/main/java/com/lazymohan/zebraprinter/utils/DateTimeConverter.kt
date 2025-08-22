@@ -28,4 +28,15 @@ class DateTimeConverter(
             ""
         }
     }
+
+    fun convertStringToDate(dateString: String): Date? {
+        return try {
+            val simpleDateFormat = SimpleDateFormat(dateTimeFormat.dateFormat, Locale.getDefault())
+            simpleDateFormat.timeZone = TimeZone.getDefault()
+            simpleDateFormat.parse(dateString)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

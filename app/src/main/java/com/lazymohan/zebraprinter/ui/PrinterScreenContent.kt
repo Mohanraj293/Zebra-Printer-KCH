@@ -162,14 +162,6 @@ fun PrinterScreenContent(
                         VerticalSpacer(space = 4)
                         TUITextRow(title = "Status: ${lots?.statusCode ?: "N/A"}")
                         VerticalSpacer(space = 4)
-                        TUITextRow(
-                            title = "Origination Date: ${
-                                dateTimeConverter.getDisplayDate(
-                                    lots?.originationDate
-                                )
-                            }"
-                        )
-                        VerticalSpacer(space = 4)
                         TUITextRow(title = "Expiration Date: ${dateTimeConverter.getDisplayDate(lots?.expirationDate)}")
                         VerticalSpacer(space = 4)
                         TUITextRow(title = "GTIN Number: ${gtinNumber ?: "N/A"}")
