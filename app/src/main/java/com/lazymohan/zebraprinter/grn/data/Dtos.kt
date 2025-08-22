@@ -20,6 +20,14 @@ data class PoLineItem(
     val Quantity: Double,
     val UOM: String,
     val Description: String? = null,
+    val GTIN: String? = null
+)
+
+// --- GTIN lookup ---
+data class GtinResponse(val items: List<GtinItem> = emptyList())
+data class GtinItem(
+    val Item: String? = null,
+    val GTIN: String? = null
 )
 
 // --- Receipt request ---

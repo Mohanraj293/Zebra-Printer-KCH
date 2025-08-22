@@ -175,10 +175,6 @@ fun PoAndReceiveCard(
                             Text("➕ Add Item", fontSize = 13.sp)
                         }
                     }
-                    Text(
-                        "Enter Qty / Lot / Expiry for received items",
-                        style = MaterialTheme.typography.labelSmall.copy(color = Color.Gray)
-                    )
 
                     if (isScanMode && slipCount > 0) {
                         Spacer(Modifier.height(6.dp))
@@ -233,14 +229,18 @@ fun PoAndReceiveCard(
                     ) {
                         OutlinedButton(
                             onClick = onBack,
-                            modifier = Modifier.weight(1f).height(52.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp)
                         ) {
                             Text("Back")
                         }
                         Button(
                             onClick = onReview,
                             enabled = ui.lineInputs.any { it.qty > 0.0 && it.lot.isNotBlank() && it.expiry.isNotBlank() },
-                            modifier = Modifier.weight(1f).height(52.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
                         ) {
                             Text("Review & Submit", color = Color.White)
@@ -360,10 +360,14 @@ fun LineCard(
     ) {
         Column(Modifier.padding(14.dp)) {
 
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Column(modifier = Modifier.weight(1f)) {
                     val itemCode = ln.Item.takeIf { it.isNotBlank() } ?: "NA"
                     val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
+
                     Text(
                         title,
                         style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp),
@@ -379,24 +383,29 @@ fun LineCard(
                     }
 
                     Spacer(Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Chip("Not Verified", bg = Color(0xFFFFEBEE), textColor = Color(0xFFD32F2F))
                         if (allDetailsFilled) {
                             Chip("Details Filled", bg = Color(0xFFE8F5E9), textColor = Color(0xFF2E7D32))
                         } else {
                             Chip("Details Required", bg = Color(0xFFFFEBEE), textColor = Color(0xFFD32F2F))
                         }
+
+                        Spacer(Modifier.weight(1f)) // pushes icons to right side of same row
+
+                        IconButton(onClick = {
+                            scope.launch { snackbarHostState.showSnackbar("Will go to printing… page") }
+                        }) {
+                            Icon(Icons.Default.Print, contentDescription = "Print", tint = Color(0xFF334155))
+                        }
+
+                        IconButton(onClick = { confirmDelete = true }) {
+                            Icon(Icons.Outlined.Delete, contentDescription = "Remove line", tint = Color(0xFFB00020))
+                        }
                     }
-                }
-
-                IconButton(onClick = {
-                    scope.launch { snackbarHostState.showSnackbar("Will go to printing… page") }
-                }) {
-                    Icon(Icons.Default.Print, contentDescription = "Print", tint = Color(0xFF334155))
-                }
-
-                IconButton(onClick = { confirmDelete = true }) {
-                    Icon(Icons.Outlined.Delete, contentDescription = "Remove line", tint = Color(0xFFB00020))
                 }
             }
 
@@ -408,6 +417,7 @@ fun LineCard(
                 if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description)
                 ReadFieldInline("Line #", ln.LineNumber.toString())
                 ReadFieldInline("UOM", ln.UOM)
+                ReadFieldInline("GTIN", ln.GTIN?.takeIf { it.isNotBlank() } ?: "—")
 
                 Spacer(Modifier.height(10.dp))
 

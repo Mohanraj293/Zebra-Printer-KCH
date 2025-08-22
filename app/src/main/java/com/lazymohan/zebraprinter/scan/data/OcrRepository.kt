@@ -38,10 +38,10 @@ class OcrRepository @Inject constructor(
     "invoice_date": "30/06/2025",
     "order_number": "DXB-06",
     "sales_order_no": "5285622",
-    "customer_ref_purchase_order_no": "KHQ/PO/99368",
+    "customer_ref_purchase_order_no": "KHQ/PO/99387",
     "items": [
       {
-        "description": "FORXIGA 10MG TABS OF 28S",
+        "description": "Aciclovir 400 mg (Zovirax) tablets — 25 blister pack",
         "details": [
           {
             "qty_delivered": "50",

@@ -17,6 +17,13 @@ interface FusionApi {
         @Path("poHeaderId") poHeaderId: String
     ): PoLinesResponse
 
+    // GTIN lookup for an Item
+    @GET("fscmRestApi/resources/11.13.18.05/GTINRelationships")
+    suspend fun getGtinForItem(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String // q='Item=MC10134'
+    ): GtinResponse
+
     // Step 4: Create receipt (GRN)
     @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
     suspend fun createReceipt(
