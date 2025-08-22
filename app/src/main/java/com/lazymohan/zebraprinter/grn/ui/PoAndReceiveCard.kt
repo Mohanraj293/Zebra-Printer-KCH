@@ -480,7 +480,8 @@ fun LineCard(
                                             originationDate = null,
                                             expirationDate = dateTimeConverter.convertStringToDate(expText),
                                             inventoryItemId = 0L
-                                        )
+                                        ),
+                                        qty = qtyText
                                     )
                                 )
                             }

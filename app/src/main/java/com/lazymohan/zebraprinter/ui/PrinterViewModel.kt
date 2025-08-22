@@ -95,7 +95,7 @@ class PrinterViewModel @AssistedInject constructor(
             printerService.connectAndPrint(
                 macAddress = _uiState.value.selectedPrinter?.macAddress.orEmpty(),
                 itemData = printModel,
-                noOfCopies = _uiState.value.noOfCopies.toInt()
+                noOfCopies = _uiState.value.noOfCopies.toDouble().toInt()
             )
             hideLoading()
             clearData(_uiState.value.selectedPrinter ?: DiscoveredPrinterInfo("", ""))
