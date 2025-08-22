@@ -68,12 +68,13 @@ fun GrnScreens(
             when (ui.step) {
                 GrnStep.ENTER_PO -> EnterPoCard(ui, onEnterPo, onFetchPo, onBack)
                 GrnStep.SHOW_PO  -> PoAndReceiveCard(
-                    ui,
-                    onBack,
-                    onUpdateLine,
-                    onRemoveLine,
-                    onAddLine,
-                    onReview
+                    ui = ui,
+                    onBack = onBack,
+                    onUpdateLine = onUpdateLine,
+                    onRemoveLine = onRemoveLine,
+                    onAddLine = onAddLine,
+                    onReview = onReview,
+                    snackbarHostState = snackbarHostState
                 )
                 GrnStep.REVIEW   -> ReviewCard(ui, onSubmit, onEditReceive)
                 GrnStep.SUMMARY  -> SummaryCard(ui, onStartOver)

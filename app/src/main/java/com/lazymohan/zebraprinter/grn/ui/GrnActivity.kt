@@ -27,8 +27,10 @@ class GrnActivity : ComponentActivity() {
         val scanImageCachePaths: ArrayList<String>? =
             intent.getStringArrayListExtra("scan_image_cache_paths")
 
-
-        Log.d("GrnActivity", "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}")
+        Log.d(
+            "GrnActivity",
+            "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}"
+        )
 
         setContent {
             TUITheme {
@@ -44,7 +46,7 @@ class GrnActivity : ComponentActivity() {
                     vm.prefillFromScan(
                         po = initialPo,
                         scanJson = scanJson,
-                        cachePaths = scanImageCachePaths ?: arrayListOf()  // <-- correct param name
+                        cachePaths = scanImageCachePaths ?: arrayListOf()
                     )
                 }
 

@@ -28,7 +28,7 @@ android {
         buildConfigField("String", "DEFAULT_SUBINVENTORY", "\"DHHPHMAIN\"")
         buildConfigField("String", "DEFAULT_LOCATOR", "\"0.0.0\"")
 
-        buildConfigField("boolean", "OCR_FAKE", "false")
+        buildConfigField("boolean", "OCR_FAKE", "true")
         buildConfigField("String", "OCR_FAKE_ASSET", "\"\"")
         // =============================================================
     }
@@ -99,21 +99,11 @@ dependencies {
     implementation("com.google.code.gson:gson:2.11.0")
 
 
-
-    // Document Scanner Options:
-    // Option 1: Try the beta version
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
     implementation("com.google.android.gms:play-services-base:18.5.0")
 
-//    // Option 2: If document scanner not available, use CameraX for custom document scanning
-//    implementation("androidx.camera:camera-core:1.4.0")
-//    implementation("androidx.camera:camera-camera2:1.4.0")
-//    implementation("androidx.camera:camera-lifecycle:1.4.0")
-//    implementation("androidx.camera:camera-view:1.4.0")
-//    implementation("androidx.camera:camera-extensions:1.4.0")
-//
-//    // Image processing libraries
-//    implementation("com.github.yalantis:ucrop:2.2.8")
     implementation("io.coil-kt:coil-compose:2.6.0")
-//    implementation("androidx.activity:activity-compose:1.9.2")
+
+    // ML Kit Google Code Scanner (QR scanner UI)
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 }
