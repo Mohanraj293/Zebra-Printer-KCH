@@ -7,7 +7,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -23,14 +22,6 @@ fun ReviewCard(
     val p = ui.payload ?: return
     val totalQty = p.lines.sumOf { it.Quantity }
     val totalLines = p.lines.size
-
-    val matches by remember(ui.extractedFromScan, ui.allPoLines) {
-        derivedStateOf { computeSlipMatches(ui.extractedFromScan, ui.allPoLines) }
-    }
-    val slipCount = matches.size
-    val matchedCount = matches.count { it.matched }
-    var showMatchDialog by rememberSaveable { mutableStateOf(false) }
-
     Column(Modifier.verticalScroll(rememberScrollState())) {
         Card(
             modifier = Modifier.padding(horizontal = 20.dp).offset(y = (-12).dp),
@@ -39,17 +30,6 @@ fun ReviewCard(
             elevation = CardDefaults.cardElevation(10.dp)
         ) {
             Column(Modifier.padding(20.dp)) {
-
-                if (slipCount > 0) {
-                    SlipMatchBar(
-                        slipCount = slipCount,
-                        matchedCount = matchedCount,
-                        hasUnmatched = slipCount > matchedCount,
-                        compact = true,
-                        onClick = { showMatchDialog = true }
-                    )
-                    Spacer(Modifier.height(12.dp))
-                }
 
                 Text(
                     "Receipt Preview",
@@ -134,9 +114,5 @@ fun ReviewCard(
                 }
             }
         }
-    }
-
-    if (showMatchDialog) {
-        MatchBreakdownDialog(matches = matches, onDismiss = { showMatchDialog = false })
     }
 }

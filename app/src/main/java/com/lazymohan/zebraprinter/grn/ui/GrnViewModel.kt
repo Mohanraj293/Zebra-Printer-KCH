@@ -25,7 +25,8 @@ data class LineInput(
     val qty: Double = 1.0,
     val lot: String = "BATCH20250811",
     val expiry: String = "2026-08-15",
-    val description: String = ""
+    val description: String = "",
+    val gtin: String? = null
 )
 
 data class GrnUiState(
@@ -66,10 +67,6 @@ class GrnViewModel @Inject constructor(
     private val _state = MutableStateFlow(GrnUiState())
     val state: StateFlow<GrnUiState> = _state
 
-    fun prefillPoNumber(po: String?) {
-        if (!po.isNullOrBlank()) _state.value = _state.value.copy(poNumber = po)
-    }
-
     fun setPoNumber(po: String) { _state.value = _state.value.copy(poNumber = po) }
 
     fun fetchPo() = viewModelScope.launch {
@@ -99,9 +96,9 @@ class GrnViewModel @Inject constructor(
                     // Scan-driven: show only matched lines
                     val used = mutableSetOf<Int>()
                     val matchedPairs = items.mapNotNull { line ->
-                        val safeItem = line.Item?.trim().orEmpty()
+                        val safeItem = line.Item.trim().orEmpty()
                         val poDesc = (line.Description ?: safeItem).trim()
-                        val matchIdx = bestMatchIndex(extracted, poDesc, used, threshold = 0.35)
+                        val matchIdx = bestMatchIndex(extracted, poDesc, used, 0.01)
                         if (matchIdx != null) {
                             used += matchIdx
                             val ex = extracted[matchIdx]
@@ -115,7 +112,8 @@ class GrnViewModel @Inject constructor(
                                 qty = clampedQty,
                                 lot = ex.batchNo,
                                 expiry = isoExpiry,
-                                description = line.Description ?: ""
+                                description = line.Description ?: "",
+                                gtin = line.GTIN
                             )
                             line to input
                         } else null
@@ -131,7 +129,7 @@ class GrnViewModel @Inject constructor(
                 } else {
                     // Manual/default: show all lines
                     val inputs = items.map { line ->
-                        val safeItem = line.Item?.trim().orEmpty()
+                        val safeItem = line.Item.trim().orEmpty()
                         LineInput(
                             lineNumber = line.LineNumber,
                             itemNumber = safeItem,
@@ -140,7 +138,8 @@ class GrnViewModel @Inject constructor(
                             qty = 1.0,
                             lot = "BATCH20250811",
                             expiry = "2026-08-15",
-                            description = line.Description ?: ""
+                            description = line.Description ?: "",
+                            gtin = line.GTIN
                         )
                     }
                     _state.value = _state.value.copy(
@@ -179,13 +178,14 @@ class GrnViewModel @Inject constructor(
                 if (poLine != null) {
                     updated + LineInput(
                         lineNumber = poLine.LineNumber,
-                        itemNumber = poLine.Item?.trim().orEmpty(),
+                        itemNumber = poLine.Item.trim().orEmpty(),
                         uom = poLine.UOM,
                         maxQty = poLine.Quantity,
                         qty = qty ?: 0.0,
                         lot = lot ?: "",
                         expiry = expiry ?: "",
-                        description = poLine.Description ?: ""
+                        description = poLine.Description ?: "",
+                        gtin = poLine.GTIN
                     )
                 } else updated
             } else updated
@@ -339,7 +339,7 @@ class GrnViewModel @Inject constructor(
                         batchNo = it.batchNo
                     )
                 }
-                val poNum = if (!po.isNullOrBlank()) po!! else transfer.poNumber
+                val poNum = if (!po.isNullOrBlank()) po else transfer.poNumber
                 next = next.copy(
                     poNumber = poNum,
                     extractedFromScan = normalized,
@@ -368,7 +368,7 @@ class GrnViewModel @Inject constructor(
         if (already) return
 
         val poLine = s.allPoLines.firstOrNull { it.LineNumber == lineNumber } ?: return
-        val safeItem = poLine.Item?.trim().orEmpty()
+        val safeItem = poLine.Item.trim().orEmpty()
 
         val newInput = LineInput(
             lineNumber = poLine.LineNumber,
@@ -378,7 +378,8 @@ class GrnViewModel @Inject constructor(
             qty = 1.0,
             lot = "",
             expiry = "",
-            description = poLine.Description ?: ""
+            description = poLine.Description ?: "",
+            gtin = poLine.GTIN
         )
 
         _state.value = s.copy(

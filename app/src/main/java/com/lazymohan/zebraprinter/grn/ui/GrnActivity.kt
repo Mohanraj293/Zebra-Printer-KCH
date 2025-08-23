@@ -12,11 +12,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class GrnActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var dateTimeConverter: DateTimeConverter
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -27,8 +33,10 @@ class GrnActivity : ComponentActivity() {
         val scanImageCachePaths: ArrayList<String>? =
             intent.getStringArrayListExtra("scan_image_cache_paths")
 
-
-        Log.d("GrnActivity", "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}")
+        Log.d(
+            "GrnActivity",
+            "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}"
+        )
 
         setContent {
             TUITheme {
@@ -44,7 +52,7 @@ class GrnActivity : ComponentActivity() {
                     vm.prefillFromScan(
                         po = initialPo,
                         scanJson = scanJson,
-                        cachePaths = scanImageCachePaths ?: arrayListOf()  // <-- correct param name
+                        cachePaths = scanImageCachePaths ?: arrayListOf()
                     )
                 }
 
@@ -61,7 +69,8 @@ class GrnActivity : ComponentActivity() {
                     onReview = { vm.buildPayloadAndReview() },
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },
-                    onBack = { finish() }
+                    onBack = { finish() },
+                    dateTimeConverter = dateTimeConverter
                 )
             }
         }

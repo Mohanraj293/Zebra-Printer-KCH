@@ -1,6 +1,8 @@
 // app/src/main/java/com/lazymohan/zebraprinter/grn/data/GrnRepository.kt
 package com.lazymohan.zebraprinter.grn.data
 
+import android.util.Log
+
 class GrnRepository(private val api: FusionApi) {
 
     suspend fun fetchPo(orderNumber: String): Result<PoItem> = runCatching {
@@ -9,7 +11,29 @@ class GrnRepository(private val api: FusionApi) {
     }
 
     suspend fun fetchPoLines(poHeaderId: String): Result<List<PoLineItem>> = runCatching {
-        api.getPoLines(poHeaderId).items
+        val raw = api.getPoLines(poHeaderId).items
+
+        // each PO line with GTIN using GTINRelationships API
+        raw.map { line ->
+            val itemNum = line.Item.trim().orEmpty()
+            val gtin = fetchGtin(itemNum)
+            if (gtin != null) {
+                Log.d("GRN", "GTIN for $itemNum -> $gtin")
+            } else {
+                Log.d("GRN", "No GTIN found for $itemNum")
+            }
+            line.copy(GTIN = gtin)
+        }
+    }
+
+    private suspend fun fetchGtin(itemNumber: String): String? {
+        return try {
+            val resp = api.getGtinForItem(q = "Item=$itemNumber")
+            resp.items.firstOrNull()?.GTIN
+        } catch (e: Exception) {
+            Log.e("GRN", "GTIN lookup failed for $itemNumber: ${e.message}")
+            null
+        }
     }
 
     suspend fun createReceipt(request: ReceiptRequest): Result<ReceiptResponse> = runCatching {

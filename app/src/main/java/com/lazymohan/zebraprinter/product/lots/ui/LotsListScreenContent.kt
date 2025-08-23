@@ -132,7 +132,6 @@ fun LotsListMainContent(
                 lotNumber = lot.lotNumber.orEmpty(),
                 description = lot.itemDescription.orEmpty(),
                 statusCode = lot.statusCode.orEmpty(),
-                organisationDate = dateTimeConverter.getDisplayDate(lot.originationDate),
                 expirationDate = dateTimeConverter.getDisplayDate(lot.expirationDate),
                 onClick = {
                     handleEvent(
@@ -165,7 +164,6 @@ fun LotCard(
     lotNumber: String,
     description: String,
     statusCode: String,
-    organisationDate: String,
     expirationDate: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -200,13 +198,6 @@ fun LotCard(
             Text(
                 modifier = Modifier.fillMaxWidth(),
                 text = "Status Code: $statusCode",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TUITheme.colors.onSurface
-            )
-            VerticalSpacer(8)
-            Text(
-                modifier = Modifier.fillMaxWidth(),
-                text = "Organisation Date: $organisationDate",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TUITheme.colors.onSurface
             )

@@ -162,14 +162,6 @@ fun PrinterScreenContent(
                         VerticalSpacer(space = 4)
                         TUITextRow(title = "Status: ${lots?.statusCode ?: "N/A"}")
                         VerticalSpacer(space = 4)
-                        TUITextRow(
-                            title = "Origination Date: ${
-                                dateTimeConverter.getDisplayDate(
-                                    lots?.originationDate
-                                )
-                            }"
-                        )
-                        VerticalSpacer(space = 4)
                         TUITextRow(title = "Expiration Date: ${dateTimeConverter.getDisplayDate(lots?.expirationDate)}")
                         VerticalSpacer(space = 4)
                         TUITextRow(title = "GTIN Number: ${gtinNumber ?: "N/A"}")
@@ -190,18 +182,18 @@ fun PrinterScreenContent(
                                 onNext = { focusManager.moveFocus(FocusDirection.Enter) }
                             )
                         )
-                        TUIMobileButtonBlock(
-                            primaryButtonLabel = "Print",
-                            primaryButtonOnClick = {
-                                if (uiState.selectedPrinter != null)
-                                    handleEvents(PrinterEvents.Print)
-                            },
-                            primaryTrailingIcon = TarkaIcons.Regular.Print24,
-                            outlineButtonLabel = null,
-                            outlineButtonOnClick = {}
-                        )
                     }
                 }
+                TUIMobileButtonBlock(
+                    primaryButtonLabel = "Print",
+                    primaryButtonOnClick = {
+                        if (uiState.selectedPrinter != null)
+                            handleEvents(PrinterEvents.Print)
+                    },
+                    primaryTrailingIcon = TarkaIcons.Regular.Print24,
+                    outlineButtonLabel = null,
+                    outlineButtonOnClick = {}
+                )
             }
         }
         if (uiState.showDialog) {

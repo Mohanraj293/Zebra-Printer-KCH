@@ -28,30 +28,75 @@ class OcrRepository @Inject constructor(
     // For testing purposes, we can using sample JSON response
     private val FAKE_JSON: String = """
 {
-  "id": 113,
-  "filename": "KCH_20250818_133321_p1_2.jpg",
+  "id": 205997918,
+  "filename": "MPC_205997918_page-0001.jpg",
   "label": "delivery",
   "status": "completed",
-  "task_id": "95232f4e-fbaf-4ab3-a3f0-450400104d3d",
+  "task_id": "generated-task-id",
   "extracted_text": {
-    "invoice_no": "14353317",
-    "invoice_date": "08/08/25",
-    "order_number": "",
-    "sales_order_no": "111125137680",
-    "customer_ref_purchase_order_no": "KHQ/PO/99373",
+    "invoice_no": "205997918",
+    "invoice_date": "30/06/2025",
+    "order_number": "DXB-06",
+    "sales_order_no": "5285622",
+    "customer_ref_purchase_order_no": "KHQ/PO/99387",
     "items": [
       {
-        "description": "MAGNESIUM 200 MG | CALCIUM 200 MG | VITAMIN D (AS CHOLECALCIFEROL) 0.005 MG",
+        "description": "Aciclovir 400 mg (Zovirax) tablets — 25 blister pack",
+        "details": [
+          {
+            "qty_delivered": "50",
+            "expiry_date": "2027-03-31",
+            "batch_no": "SR328"
+          },
+          {
+            "qty_delivered": "2",
+            "expiry_date": "2027-03-31",
+            "batch_no": "SR328"
+          }
+        ]
+      },
+      {
+        "description": "XIGDUO XR 10/500 OF 30'S",
         "details": [
           {
             "qty_delivered": "25",
-            "expiry_date": "2027-09-03",
-            "batch_no": "L24091906"
+            "expiry_date": "2027-03-31",
+            "batch_no": "WH0319"
           },
           {
-            "qty_delivered": "3",
-            "expiry_date": "2027-09-03",
-            "batch_no": "L24091908"
+            "qty_delivered": "1",
+            "expiry_date": "2027-03-31",
+            "batch_no": "WH0319"
+          }
+        ]
+      },
+      {
+        "description": "XIGDUO XR 5/1000 OF 60'S",
+        "details": [
+          {
+            "qty_delivered": "100",
+            "expiry_date": "2026-08-31",
+            "batch_no": "WM0085"
+          },
+          {
+            "qty_delivered": "4",
+            "expiry_date": "2026-08-31",
+            "batch_no": "WM0085"
+          }
+        ]
+      },
+      {
+        "description": "PULMICORT NEB.SOL 0.25MG/ML 20'S 2ML",
+        "details": [
+          {
+            "qty_delivered": "100",
+            "expiry_date": "2026-04-30",
+            "batch_no": "SEVG"
+          },
+          {
+            "qty_delivered": "4",
+            "expiry_date": "2026-04-30",
+            "batch_no": "SEVG"
           }
         ]
       }
@@ -112,7 +157,7 @@ class OcrRepository @Inject constructor(
             val checkUrl = when {
                 body?.checkStatusUrl.isNullOrBlank() ->
                     return@withContext OcrResult.ExceptionError("Missing check_status_url")
-                body!!.checkStatusUrl!!.startsWith("http") -> body.checkStatusUrl!!
+                body.checkStatusUrl.startsWith("http") -> body.checkStatusUrl
                 else -> "$base${body.checkStatusUrl}"
             }
 

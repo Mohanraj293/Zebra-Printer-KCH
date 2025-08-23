@@ -44,11 +44,15 @@ class ZPLPrinterActivity : ComponentActivity() {
         fun getCallingIntent(
             context: Context,
             gtinNumber: String,
-            product: Lots
+            product: Lots,
+            qty: String? = null
         ): Intent {
             return Intent(context, ZPLPrinterActivity::class.java).apply {
                 putExtra("product", product)
                 putExtra("gtinNumber", gtinNumber)
+                if (!qty.isNullOrEmpty()) {
+                    putExtra("qty", qty)
+                }
             }
         }
     }
@@ -61,6 +65,10 @@ class ZPLPrinterActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             val product = intent.getSerializableExtra("product") as? Lots
             val gtinNumber: String? = intent.getStringExtra("gtinNumber")
+            val qty: String? = intent.getStringExtra("qty")
+            if (!qty.isNullOrEmpty()) {
+                viewModel.updateNoOfCopies(qty)
+            }
             TUITheme {
                 PrinterScreenContent(
                     handleEvents = ::handleEvents,

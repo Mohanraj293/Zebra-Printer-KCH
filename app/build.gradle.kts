@@ -67,9 +67,11 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.material.icons.core)
+    implementation(libs.androidx.material.icons.extended)
     implementation(libs.material3)
+    implementation(libs.ui.graphics)
+    implementation(libs.androidx.foundation)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -94,24 +96,10 @@ dependencies {
 
     implementation(libs.bundles.retrofit)
 
-    implementation("com.google.code.gson:gson:2.11.0")
+    implementation(libs.play.services.mlkit.document.scanner)
+    implementation(libs.play.services.base)
+    implementation(libs.coil.compose)
 
-
-
-    // Document Scanner Options:
-    // Option 1: Try the beta version
-    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
-    implementation("com.google.android.gms:play-services-base:18.5.0")
-
-//    // Option 2: If document scanner not available, use CameraX for custom document scanning
-//    implementation("androidx.camera:camera-core:1.4.0")
-//    implementation("androidx.camera:camera-camera2:1.4.0")
-//    implementation("androidx.camera:camera-lifecycle:1.4.0")
-//    implementation("androidx.camera:camera-view:1.4.0")
-//    implementation("androidx.camera:camera-extensions:1.4.0")
-//
-//    // Image processing libraries
-//    implementation("com.github.yalantis:ucrop:2.2.8")
-    implementation("io.coil-kt:coil-compose:2.6.0")
-//    implementation("androidx.activity:activity-compose:1.9.2")
+    // ML Kit Google Code Scanner (QR scanner UI)
+    implementation(libs.play.services.code.scanner)
 }
