@@ -67,8 +67,8 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.material.icons.core)
+    implementation(libs.androidx.material.icons.extended)
     implementation(libs.material3)
     implementation(libs.ui.graphics)
     implementation(libs.androidx.foundation)
@@ -96,14 +96,10 @@ dependencies {
 
     implementation(libs.bundles.retrofit)
 
-    implementation("com.google.code.gson:gson:2.11.0")
-
-
-    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
-    implementation("com.google.android.gms:play-services-base:18.5.0")
-
-    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation(libs.play.services.mlkit.document.scanner)
+    implementation(libs.play.services.base)
+    implementation(libs.coil.compose)
 
     // ML Kit Google Code Scanner (QR scanner UI)
-    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    implementation(libs.play.services.code.scanner)
 }

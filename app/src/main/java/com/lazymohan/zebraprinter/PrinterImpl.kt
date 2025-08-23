@@ -65,14 +65,12 @@ class PrinterImpl(
             context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val adapter = bluetoothManager.adapter
         if (!ensureBluetoothPermission(context)) return emptyList()
-        return adapter?.bondedDevices
-            ?.filter { isZebraDevice(it) }
-            ?.map {
-                DiscoveredPrinterInfo(
-                    macAddress = it.address,
-                    model = it.name
-                )
-            }.orEmpty()
+        return adapter?.bondedDevices?.map {
+            DiscoveredPrinterInfo(
+                macAddress = it.address,
+                model = it.name
+            )
+        }.orEmpty()
     }
 
     override fun disconnect() {
