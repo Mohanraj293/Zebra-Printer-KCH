@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/GrnActivity.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import android.os.Bundle
@@ -20,8 +19,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class GrnActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var dateTimeConverter: DateTimeConverter
+    @Inject lateinit var dateTimeConverter: DateTimeConverter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,14 +27,9 @@ class GrnActivity : ComponentActivity() {
 
         val initialPo = intent.getStringExtra("po_number")
         val scanJson = intent.getStringExtra("scan_extract_json")
+        val scanImageCachePaths: ArrayList<String>? = intent.getStringArrayListExtra("scan_image_cache_paths")
 
-        val scanImageCachePaths: ArrayList<String>? =
-            intent.getStringArrayListExtra("scan_image_cache_paths")
-
-        Log.d(
-            "GrnActivity",
-            "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}"
-        )
+        Log.d("GrnActivity", "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}")
 
         setContent {
             TUITheme {
@@ -45,10 +38,6 @@ class GrnActivity : ComponentActivity() {
                 val snack = remember { SnackbarHostState() }
 
                 LaunchedEffect(initialPo, scanJson, scanImageCachePaths) {
-                    android.util.Log.d(
-                        "GrnActivity",
-                        "prefillFromScan(po=$initialPo, jsonLen=${scanJson?.length ?: 0}, paths=${scanImageCachePaths?.size ?: 0})"
-                    )
                     vm.prefillFromScan(
                         po = initialPo,
                         scanJson = scanJson,
@@ -56,21 +45,23 @@ class GrnActivity : ComponentActivity() {
                     )
                 }
 
-
                 GrnScreens(
                     ui = ui,
                     snackbarHostState = snack,
+                    dateTimeConverter = dateTimeConverter,
                     onEnterPo = { vm.setPoNumber(it) },
                     onFetchPo = { vm.fetchPo() },
                     onUpdateLine = { ln, q, l, e -> vm.updateLine(ln, q, l, e) },
                     onRemoveLine = { ln -> vm.removeLine(ln) },
                     onAddLine = { vm.addLineFromPo(it) },
+                    onAddSection = { vm.addSection(it) },
+                    onRemoveSection = { ln, sec -> vm.removeSection(ln, sec) },
+                    onUpdateSection = { ln, sec, q, l, e -> vm.updateLineSection(ln, sec, q, l, e) },
                     onEditReceive = { vm.backToReceive() },
-                    onReview = { vm.buildPayloadAndReview() },
+                    onReview = { vm.buildPayloadsAndReview() },
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },
-                    onBack = { finish() },
-                    dateTimeConverter = dateTimeConverter
+                    onBack = { finish() }
                 )
             }
         }

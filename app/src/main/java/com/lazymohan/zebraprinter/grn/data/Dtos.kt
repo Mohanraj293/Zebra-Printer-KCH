@@ -33,6 +33,7 @@ data class GtinItem(
 // --- Receipt request ---
 data class ReceiptRequest(
     val ReceiptSourceCode: String = "VENDOR",
+    val ReceiptHeaderId: Long? = null,
     val OrganizationCode: String,
     val VendorName: String,
     val VendorSiteCode: String,
@@ -55,6 +56,7 @@ data class ReceiptLine(
     val SoldtoLegalEntity: String,
     val Subinventory: String,
     val Locator: String,
+    val DestinationTypeCode: String = "INVENTORY",
     val lotItemLots: List<LotItem>
 )
 
@@ -64,11 +66,12 @@ data class LotItem(
     val LotExpirationDate: String
 )
 
-// --- Receipt response (minimal) ---
+// --- Receipt response ---
 data class ReceiptResponse(
     val ReceiptNumber: String? = null,
     val ReturnStatus: String? = null,
     val HeaderInterfaceId: String? = null,
+    val ReceiptHeaderId: Long? = null,
     val lines: List<ReceiptLineResponse>? = null
 )
 
@@ -84,6 +87,7 @@ data class ProcessingError(
     val ErrorMessage: String? = null
 )
 
+// --- Attachments ---
 data class AttachmentRequest(
     val UploadedFileName: String,
     val CategoryName: String = "MISC",

@@ -22,15 +22,16 @@ fun GrnScreens(
     onUpdateLine: (Int, Double?, String?, String?) -> Unit,
     onRemoveLine: (Int) -> Unit,
     onAddLine: (Int) -> Unit,
+    onAddSection: (Int) -> Unit,
+    onRemoveSection: (Int, Int) -> Unit,
+    onUpdateSection: (Int, Int, Double?, String?, String?) -> Unit,
     onEditReceive: () -> Unit,
     onReview: () -> Unit,
     onSubmit: () -> Unit,
     onStartOver: () -> Unit,
     onBack: () -> Unit
 ) {
-    val gradient = Brush.verticalGradient(
-        listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF))
-    )
+    val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
 
     Scaffold(
         containerColor = Color(0xFFF6F8FF),
@@ -75,6 +76,9 @@ fun GrnScreens(
                     onUpdateLine = onUpdateLine,
                     onRemoveLine = onRemoveLine,
                     onAddLine = onAddLine,
+                    onAddSection = onAddSection,
+                    onRemoveSection = onRemoveSection,
+                    onUpdateSection = onUpdateSection,
                     onReview = onReview,
                     snackbarHostState = snackbarHostState,
                     dateTimeConverter = dateTimeConverter

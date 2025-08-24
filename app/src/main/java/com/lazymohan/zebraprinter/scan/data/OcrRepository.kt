@@ -38,40 +38,25 @@ class OcrRepository @Inject constructor(
     "invoice_date": "30/06/2025",
     "order_number": "DXB-06",
     "sales_order_no": "5285622",
-    "customer_ref_purchase_order_no": "KHQ/PO/99387",
+    "customer_ref_purchase_order_no": "KHQ/PO/99368",
     "items": [
       {
-        "description": "Aciclovir 400 mg (Zovirax) tablets — 25 blister pack",
+        "description": "NEXIUM 40MG TABS OF 14'S",
         "details": [
           {
-            "qty_delivered": "50",
+            "qty_delivered": "300",
             "expiry_date": "2027-03-31",
             "batch_no": "SR328"
           },
           {
-            "qty_delivered": "2",
+            "qty_delivered": "24",
             "expiry_date": "2027-03-31",
             "batch_no": "SR328"
           }
         ]
       },
       {
-        "description": "XIGDUO XR 10/500 OF 30'S",
-        "details": [
-          {
-            "qty_delivered": "25",
-            "expiry_date": "2027-03-31",
-            "batch_no": "WH0319"
-          },
-          {
-            "qty_delivered": "1",
-            "expiry_date": "2027-03-31",
-            "batch_no": "WH0319"
-          }
-        ]
-      },
-      {
-        "description": "XIGDUO XR 5/1000 OF 60'S",
+        "description": "PULMICORT NEB.SOL OF 0.5MG OF 20'S",
         "details": [
           {
             "qty_delivered": "100",
@@ -82,21 +67,6 @@ class OcrRepository @Inject constructor(
             "qty_delivered": "4",
             "expiry_date": "2026-08-31",
             "batch_no": "WM0085"
-          }
-        ]
-      },
-      {
-        "description": "PULMICORT NEB.SOL 0.25MG/ML 20'S 2ML",
-        "details": [
-          {
-            "qty_delivered": "100",
-            "expiry_date": "2026-04-30",
-            "batch_no": "SEVG"
-          },
-          {
-            "qty_delivered": "4",
-            "expiry_date": "2026-04-30",
-            "batch_no": "SEVG"
           }
         ]
       }
