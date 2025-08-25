@@ -78,15 +78,7 @@ class PrinterViewModel @AssistedInject constructor(
 
             if (gtinNum.isEmpty()) {
                 updateSnackBarMessage(
-                    message = SnackBarMessage.StringMessage("GTIN Number is missing"),
-                    type = TUISnackBarType.Error
-                )
-                hideLoading()
-                return@launchWithHandler
-            }
-            if (!isValidInput()) {
-                updateSnackBarMessage(
-                    message = SnackBarMessage.StringMessage("Please enter a valid number of copies"),
+                    message = SnackBarMessage.StringMessage("GTIN Number is missing, cannot print label"),
                     type = TUISnackBarType.Error
                 )
                 hideLoading()
@@ -95,6 +87,14 @@ class PrinterViewModel @AssistedInject constructor(
             if (_uiState.value.selectedPrinter == null) {
                 updateSnackBarMessage(
                     message = SnackBarMessage.StringMessage("Please select a printer"),
+                    type = TUISnackBarType.Error
+                )
+                hideLoading()
+                return@launchWithHandler
+            }
+            if (!isValidInput()) {
+                updateSnackBarMessage(
+                    message = SnackBarMessage.StringMessage("Please enter a valid number of copies"),
                     type = TUISnackBarType.Error
                 )
                 hideLoading()
@@ -130,7 +130,7 @@ class PrinterViewModel @AssistedInject constructor(
     }
 
     fun isValidInput() = _uiState.value.run {
-        noOfCopies.toInt() > 0
+        (noOfCopies.toIntOrNull() ?: 0) > 0
     }
 
     fun updateError(errorMessage: String) {
