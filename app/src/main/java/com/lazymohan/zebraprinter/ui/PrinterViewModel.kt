@@ -76,6 +76,14 @@ class PrinterViewModel @AssistedInject constructor(
                 expiryDate = lots.expirationDate.toString(),
             )
 
+            if (gtinNum.isEmpty()) {
+                updateSnackBarMessage(
+                    message = SnackBarMessage.StringMessage("GTIN Number is missing"),
+                    type = TUISnackBarType.Error
+                )
+                hideLoading()
+                return@launchWithHandler
+            }
             if (!isValidInput()) {
                 updateSnackBarMessage(
                     message = SnackBarMessage.StringMessage("Please enter a valid number of copies"),

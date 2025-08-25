@@ -45,7 +45,7 @@ class GrnActivity : ComponentActivity() {
                 val snack = remember { SnackbarHostState() }
 
                 LaunchedEffect(initialPo, scanJson, scanImageCachePaths) {
-                    android.util.Log.d(
+                    Log.d(
                         "GrnActivity",
                         "prefillFromScan(po=$initialPo, jsonLen=${scanJson?.length ?: 0}, paths=${scanImageCachePaths?.size ?: 0})"
                     )
