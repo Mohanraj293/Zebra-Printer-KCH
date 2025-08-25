@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,6 +80,7 @@ fun PrinterScreenContent(
         )
     }
 
+    val scrollableState = rememberScrollState()
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val bottomSheetState = rememberBottomSheetState()
     val scope = rememberCoroutineScope()
@@ -119,7 +122,9 @@ fun PrinterScreenContent(
                 .fillMaxSize()
         ) {
             Column(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .verticalScroll(scrollableState)
+                    .fillMaxSize()
             ) {
                 Header(
                     gradient = gradient,
@@ -187,8 +192,7 @@ fun PrinterScreenContent(
                 TUIMobileButtonBlock(
                     primaryButtonLabel = "Print",
                     primaryButtonOnClick = {
-                        if (uiState.selectedPrinter != null)
-                            handleEvents(PrinterEvents.Print)
+                        handleEvents(PrinterEvents.Print)
                     },
                     primaryTrailingIcon = TarkaIcons.Regular.Print24,
                     outlineButtonLabel = null,
