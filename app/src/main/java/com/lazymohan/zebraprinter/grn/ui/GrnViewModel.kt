@@ -3,10 +3,23 @@ package com.lazymohan.zebraprinter.grn.ui
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
 import com.lazymohan.zebraprinter.BuildConfig
-import com.lazymohan.zebraprinter.grn.data.*
+import com.lazymohan.zebraprinter.grn.data.AttachmentRequest
+import com.lazymohan.zebraprinter.grn.data.GrnRepository
+import com.lazymohan.zebraprinter.grn.data.LotItem
+import com.lazymohan.zebraprinter.grn.data.PoItem
+import com.lazymohan.zebraprinter.grn.data.PoLineItem
+import com.lazymohan.zebraprinter.grn.data.ProcessingError
+import com.lazymohan.zebraprinter.grn.data.ReceiptLine
+import com.lazymohan.zebraprinter.grn.data.ReceiptRequest
+import com.lazymohan.zebraprinter.grn.data.ReceiptResponse
+import com.lazymohan.zebraprinter.grn.data.TOItem
+import com.lazymohan.zebraprinter.grn.data.ToLineItem
+import com.lazymohan.zebraprinter.grn.util.ExtractedItem
 import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
 import com.lazymohan.zebraprinter.grn.util.parseToIso
+import com.lazymohan.zebraprinter.scan.ScanExtractTransfer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +46,15 @@ data class LineInput(
     val sections: List<LineSectionInput> = listOf(LineSectionInput(section = 1))
 )
 
+data class LineInputTo(
+    val lineNumber: Int,
+    val itemNumber: String,
+    val uom: String,
+    val description: String = "",
+    val subInventory: String = "",
+    val sections: List<LineSectionInput> = listOf(LineSectionInput(section = 1))
+)
+
 data class StagedReceipt(val sectionIndex: Int, val request: ReceiptRequest)
 
 enum class PartStatus { PENDING, SUBMITTING, SUCCESS, FAILED }
@@ -56,13 +78,17 @@ data class GrnUiState(
     val error: String? = null,
     val poNumber: String = "",
     val po: PoItem? = null,
+    val to: TOItem? = null,
 
     // visible lines in UI (matched-only in scan mode)
     val lines: List<PoLineItem> = emptyList(),
+    val toLines: List<ToLineItem> = emptyList(),
     val lineInputs: List<LineInput> = emptyList(),
+    val toLineInputs: List<LineInputTo> = emptyList(),
 
     // keep the full PO lines for add-line dialog
     val allPoLines: List<PoLineItem> = emptyList(),
+    val allToLines: List<ToLineItem> = emptyList(),
     // whether lines fetch is completed (to distinguish from “loading”)
     val linesLoaded: Boolean = false,
 
@@ -90,7 +116,9 @@ class GrnViewModel @Inject constructor(
     private val _state = MutableStateFlow(GrnUiState())
     val state: StateFlow<GrnUiState> = _state
 
-    fun setPoNumber(po: String) { _state.value = _state.value.copy(poNumber = po) }
+    fun setPoNumber(po: String) {
+        _state.value = _state.value.copy(poNumber = po)
+    }
 
     fun fetchPo() = viewModelScope.launch {
         val s = _state.value
@@ -104,17 +132,42 @@ class GrnViewModel @Inject constructor(
             }
             .onFailure { e ->
                 Log.e("GRN", "fetchPo failed: ${e.message}")
-                _state.value = _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
+                _state.value =
+                    _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
+            }
+    }
+
+    fun fetchTo() = viewModelScope.launch {
+        val s = _state.value
+        if (s.poNumber.isBlank()) return@launch
+        _state.value = s.copy(loading = true, error = null)
+        repo.fetchTo(s.poNumber)
+            .onSuccess { to ->
+                _state.value = _state.value.copy(loading = false, to = to, step = GrnStep.SHOW_PO)
+                prefetchToLines(to.HeaderId)
+            }
+            .onFailure { e ->
+                _state.value =
+                    _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
             }
     }
 
     private fun PoLineItem.toLineInput(initial: LineSectionInput? = null) = LineInput(
         lineNumber = LineNumber,
-        itemNumber = Item.trim().orEmpty(),
+        itemNumber = Item.trim(),
         uom = UOM,
         maxQty = Quantity,
         description = Description ?: "",
         gtin = GTIN,
+        sections = listOf(initial ?: LineSectionInput(section = 1))
+    )
+
+    private fun ToLineItem.toLineInput(initial: LineSectionInput? = null) = LineInputTo(
+        lineNumber = LineNumber,
+        itemNumber = ItemNumber,
+        uom = UnitOfMeasure,
+        description = ItemDescription,
+        subInventory = Subinventory ?: "",
         sections = listOf(initial ?: LineSectionInput(section = 1))
     )
 
@@ -129,7 +182,7 @@ class GrnViewModel @Inject constructor(
                     // Scan-driven; build section-1 from OCR values
                     val used = mutableSetOf<Int>()
                     val matchedPairs = items.mapNotNull { line ->
-                        val safeItem = line.Item.trim().orEmpty()
+                        val safeItem = line.Item.trim()
                         val poDesc = (line.Description ?: safeItem).trim()
                         val matchIdx = bestMatchIndex(extracted, poDesc, used, 0.01)
                         if (matchIdx != null) {
@@ -137,7 +190,10 @@ class GrnViewModel @Inject constructor(
                             val ex = extracted[matchIdx]
                             val isoExpiry = parseToIso(ex.expiryDate)
                             val sec1 = LineSectionInput(
-                                section = 1, qty = ex.qtyDelivered, lot = ex.batchNo, expiry = isoExpiry
+                                section = 1,
+                                qty = ex.qtyDelivered,
+                                lot = ex.batchNo,
+                                expiry = isoExpiry
                             )
                             line to line.toLineInput(initial = sec1)
                         } else null
@@ -164,7 +220,62 @@ class GrnViewModel @Inject constructor(
             }
             .onFailure { e ->
                 Log.e("GRN", "fetchPoLines failed: ${e.message}")
-                _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines", linesLoaded = true)
+                _state.value = _state.value.copy(
+                    error = e.message ?: "Failed to load PO lines",
+                    linesLoaded = true
+                )
+            }
+    }
+
+    private fun prefetchToLines(headerId: Long) = viewModelScope.launch {
+        repo.fetchToLines(headerId)
+            .onSuccess { items ->
+                val extracted = _state.value.extractedFromScan
+
+                if (extracted.isNotEmpty()) {
+                    val used = mutableSetOf<Int>()
+                    val matchedPairs = items.mapNotNull { line ->
+                        val poDesc = line.ItemDescription.trim()
+                        val matchIdx = bestMatchIndex(extracted, poDesc, used, 0.01)
+                        if (matchIdx != null) {
+                            used += matchIdx
+                            val ex = extracted[matchIdx]
+                            val isoExpiry = parseToIso(ex.expiryDate)
+                            val sec1 = LineSectionInput(
+                                section = 1,
+                                qty = ex.qtyDelivered,
+                                lot = ex.batchNo,
+                                expiry = isoExpiry
+                            )
+                            line to line.toLineInput(initial = sec1)
+                        } else null
+                    }
+
+                    _state.value = _state.value.copy(
+                        allToLines = items,
+                        toLines = matchedPairs.map { it.first },
+                        toLineInputs = matchedPairs.map { it.second },
+                        linesLoaded = true,
+                        step = GrnStep.SHOW_PO
+                    )
+                } else {
+                    // Manual/default: all lines with empty section-1
+                    val inputs = items.map { it.toLineInput() }
+                    _state.value = _state.value.copy(
+                        allToLines = items,
+                        toLines = items,
+                        toLineInputs = inputs,
+                        linesLoaded = true,
+                        step = GrnStep.SHOW_PO
+                    )
+                }
+            }
+            .onFailure { e ->
+                Log.e("GRN", "fetchPoLines failed: ${e.message}")
+                _state.value = _state.value.copy(
+                    error = e.message ?: "Failed to load PO lines",
+                    linesLoaded = true
+                )
             }
     }
 
@@ -216,7 +327,12 @@ class GrnViewModel @Inject constructor(
     }
 
     // Back-compat: old call edits section-1
-    fun updateLine(lineNumber: Int, qty: Double? = null, lot: String? = null, expiry: String? = null) {
+    fun updateLine(
+        lineNumber: Int,
+        qty: Double? = null,
+        lot: String? = null,
+        expiry: String? = null
+    ) {
         updateLineSection(lineNumber, sectionIndex = 1, qty = qty, lot = lot, expiry = expiry)
     }
 
@@ -255,7 +371,8 @@ class GrnViewModel @Inject constructor(
 
         for (secIdx in 1..maxSection) {
             val linesForThisSection = s.lines.mapNotNull { line ->
-                val li = s.lineInputs.firstOrNull { it.lineNumber == line.LineNumber } ?: return@mapNotNull null
+                val li = s.lineInputs.firstOrNull { it.lineNumber == line.LineNumber }
+                    ?: return@mapNotNull null
                 val sec = li.sections.firstOrNull { it.section == secIdx } ?: return@mapNotNull null
                 if (!sec.isValidFor(line)) return@mapNotNull null
 
@@ -300,7 +417,9 @@ class GrnViewModel @Inject constructor(
         _state.value = s.copy(staged = staged, progress = progress, step = GrnStep.REVIEW)
     }
 
-    fun backToReceive() { _state.value = _state.value.copy(step = GrnStep.SHOW_PO) }
+    fun backToReceive() {
+        _state.value = _state.value.copy(step = GrnStep.SHOW_PO)
+    }
 
     fun submitReceipt() = viewModelScope.launch {
         val s = _state.value
@@ -320,8 +439,12 @@ class GrnViewModel @Inject constructor(
             _state.value = _state.value.copy(progress = progress)
 
             // Inject the header id for stages > 1
-            val body = if (idx == 0) stage.request else stage.request.copy(ReceiptHeaderId = receiptHeaderId)
-            Log.d("GRN", "Submitting stage ${stage.sectionIndex} with ${body.lines.size} lines; header=$receiptHeaderId")
+            val body =
+                if (idx == 0) stage.request else stage.request.copy(ReceiptHeaderId = receiptHeaderId)
+            Log.d(
+                "GRN",
+                "Submitting stage ${stage.sectionIndex} with ${body.lines.size} lines; header=$receiptHeaderId"
+            )
 
             val result = repo.createReceipt(body)
             result.onSuccess { resp ->
@@ -337,7 +460,8 @@ class GrnViewModel @Inject constructor(
                 val iface = resp.lines?.firstOrNull()?.InterfaceTransactionId
                 if (!h.isNullOrBlank() && !iface.isNullOrBlank()) {
                     repo.fetchProcessingErrors(h, iface).onSuccess { fetched ->
-                        inlineErrors += fetched.mapNotNull { it.ErrorMessage?.trim() }.filter { it.isNotBlank() }
+                        inlineErrors += fetched.mapNotNull { it.ErrorMessage?.trim() }
+                            .filter { it.isNotBlank() }
                     }.onFailure { pe ->
                         inlineErrors += "ProcessingErrors fetch failed: ${pe.message}"
                     }
@@ -364,7 +488,11 @@ class GrnViewModel @Inject constructor(
                 if (e is HttpException) {
                     httpCode = e.code()
                     url = e.response()?.raw()?.request?.url?.toString()
-                    bodyText = try { e.response()?.errorBody()?.string() } catch (_: Exception) { null }
+                    bodyText = try {
+                        e.response()?.errorBody()?.string()
+                    } catch (_: Exception) {
+                        null
+                    }
                 } else {
                     httpCode = null
                     url = null
@@ -388,7 +516,8 @@ class GrnViewModel @Inject constructor(
                             httpCode = httpCode,
                             url = url,
                             errorBody = bodyText,
-                            exception = e::class.java.simpleName + (e.message?.let { ": $it" } ?: "")
+                            exception = e::class.java.simpleName + (e.message?.let { ": $it" }
+                                ?: "")
                         )
                     else it
                 }.toMutableList()
@@ -432,30 +561,36 @@ class GrnViewModel @Inject constructor(
         )
     }
 
-    fun startOver() { _state.value = GrnUiState() }
+    fun startOver() {
+        _state.value = GrnUiState()
+    }
 
     // NOTE: third param now represents CACHE PATHS, not base64
-    fun prefillFromScan(po: String?, scanJson: String?, cachePaths: List<String>) {
-        Log.d("GRN", "prefillFromScan(po=$po, jsonLen=${scanJson?.length ?: 0}, cachePaths=${cachePaths.size})")
-
+    fun prefillFromScan(
+        isFromPickSlip: Boolean,
+        po: String?,
+        scanJson: String?,
+        cachePaths: List<String>
+    ) {
         var next = _state.value
         if (!po.isNullOrBlank()) next = next.copy(poNumber = po)
 
         if (!scanJson.isNullOrBlank()) {
             try {
-                val transfer = com.google.gson.Gson().fromJson(
+                val transfer = Gson().fromJson(
                     scanJson,
-                    com.lazymohan.zebraprinter.scan.ScanExtractTransfer::class.java
+                    ScanExtractTransfer::class.java
                 )
                 val normalized = transfer.items.map {
-                    com.lazymohan.zebraprinter.grn.util.ExtractedItem(
+                    ExtractedItem(
                         description = it.description,
                         qtyDelivered = it.qty,
                         expiryDate = it.expiry,
                         batchNo = it.batchNo
                     )
                 }
-                val poNum = if (!po.isNullOrBlank()) po else transfer.poNumber
+                val poNum =
+                    if (!po.isNullOrBlank()) po else transfer.poNumber // if it is from isFromPickUpSlip, this is the orderNumber
                 next = next.copy(
                     poNumber = poNum,
                     extractedFromScan = normalized,
@@ -463,7 +598,10 @@ class GrnViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Log.e("GRN", "Failed to read scan payload: ${e.message}")
-                next = next.copy(error = "Failed to read scan payload: ${e.message}", scanImageCachePaths = cachePaths)
+                next = next.copy(
+                    error = "Failed to read scan payload: ${e.message}",
+                    scanImageCachePaths = cachePaths
+                )
             }
         } else {
             if (cachePaths.isNotEmpty()) next = next.copy(scanImageCachePaths = cachePaths)
@@ -471,7 +609,10 @@ class GrnViewModel @Inject constructor(
 
         _state.value = next
         if (_state.value.poNumber.isNotBlank() && _state.value.step == GrnStep.ENTER_PO) {
-            fetchPo()
+            if (isFromPickSlip)
+                fetchTo()
+            else
+                fetchPo()
         }
     }
 }

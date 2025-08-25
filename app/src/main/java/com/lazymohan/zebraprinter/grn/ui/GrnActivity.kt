@@ -19,17 +19,24 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class GrnActivity : ComponentActivity() {
 
-    @Inject lateinit var dateTimeConverter: DateTimeConverter
+    @Inject
+    lateinit var dateTimeConverter: DateTimeConverter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val initialPo = intent.getStringExtra("po_number")
+        val initialPo =
+            intent.getStringExtra("po_number") // if it is from isFromPickUpSlip, this is the orderNumber
         val scanJson = intent.getStringExtra("scan_extract_json")
-        val scanImageCachePaths: ArrayList<String>? = intent.getStringArrayListExtra("scan_image_cache_paths")
+        val scanImageCachePaths: ArrayList<String>? =
+            intent.getStringArrayListExtra("scan_image_cache_paths")
+        val isFromPickSlip = intent.getBooleanExtra("isFromPickSlip", false)
 
-        Log.d("GrnActivity", "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}")
+        Log.d(
+            "GrnActivity",
+            "onCreate: po=$initialPo, json=${scanJson?.length ?: 0} chars, cachePaths=${scanImageCachePaths?.size ?: 0}"
+        )
 
         setContent {
             TUITheme {
@@ -43,6 +50,7 @@ class GrnActivity : ComponentActivity() {
                         "prefillFromScan(po=$initialPo, jsonLen=${scanJson?.length ?: 0}, paths=${scanImageCachePaths?.size ?: 0})"
                     )
                     vm.prefillFromScan(
+                        isFromPickSlip = isFromPickSlip,
                         po = initialPo,
                         scanJson = scanJson,
                         cachePaths = scanImageCachePaths ?: arrayListOf()
@@ -60,7 +68,15 @@ class GrnActivity : ComponentActivity() {
                     onAddLine = { vm.addLineFromPo(it) },
                     onAddSection = { vm.addSection(it) },
                     onRemoveSection = { ln, sec -> vm.removeSection(ln, sec) },
-                    onUpdateSection = { ln, sec, q, l, e -> vm.updateLineSection(ln, sec, q, l, e) },
+                    onUpdateSection = { ln, sec, q, l, e ->
+                        vm.updateLineSection(
+                            ln,
+                            sec,
+                            q,
+                            l,
+                            e
+                        )
+                    },
                     onEditReceive = { vm.backToReceive() },
                     onReview = { vm.buildPayloadsAndReview() },
                     onSubmit = { vm.submitReceipt() },

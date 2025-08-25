@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/ui/ScanResultViewModel.kt
 package com.lazymohan.zebraprinter.scan.ui
 
 import android.content.Context
@@ -19,7 +18,8 @@ sealed class ScanUiState {
     object Idle : ScanUiState()
     object Uploading : ScanUiState() // covers upload + poll
     data class Completed(val data: OcrContentResponse) : ScanUiState()
-    data class Error(val message: String, val raw: String? = null, val code: Int? = null) : ScanUiState()
+    data class Error(val message: String, val raw: String? = null, val code: Int? = null) :
+        ScanUiState()
 }
 
 @HiltViewModel
@@ -31,7 +31,10 @@ class ScanResultViewModel @Inject constructor(
     private val _state = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     val state: StateFlow<ScanUiState> = _state
 
-    fun start(uris: List<Uri>) {
+    fun start(
+        uris: List<Uri>,
+        isFromPickSlip: Boolean = false
+    ) {
         if (uris.isEmpty()) {
             _state.value = ScanUiState.Error("No image to upload")
             return
@@ -39,10 +42,17 @@ class ScanResultViewModel @Inject constructor(
         val target = uris.first()
         viewModelScope.launch {
             _state.value = ScanUiState.Uploading
-            when (val res = repo.uploadAndPoll(app, target)) {
+            when (val res = repo.uploadAndPoll(
+                context = app,
+                imageUri = target,
+                label = if (isFromPickSlip) "pickslip" else "delivery"
+            )) {
                 is OcrResult.Success -> _state.value = ScanUiState.Completed(res.content)
-                is OcrResult.HttpError -> _state.value = ScanUiState.Error(res.message ?: "HTTP Error", res.raw, res.code)
-                is OcrResult.ExceptionError -> _state.value = ScanUiState.Error(res.message ?: "Unexpected Error")
+                is OcrResult.HttpError -> _state.value =
+                    ScanUiState.Error(res.message ?: "HTTP Error", res.raw, res.code)
+
+                is OcrResult.ExceptionError -> _state.value =
+                    ScanUiState.Error(res.message ?: "Unexpected Error")
             }
         }
     }

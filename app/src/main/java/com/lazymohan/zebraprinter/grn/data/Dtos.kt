@@ -2,6 +2,7 @@ package com.lazymohan.zebraprinter.grn.data
 
 // --- PO lookup ---
 data class PoResponse(val items: List<PoItem> = emptyList())
+data class ToResponse(val items: List<TOItem> = emptyList())
 data class PoItem(
     val OrderNumber: String,
     val Supplier: String,
@@ -11,8 +12,15 @@ data class PoItem(
     val POHeaderId: String
 )
 
+data class TOItem(
+    val HeaderNumber: String,
+    val HeaderId: Long,
+)
+
 // --- PO lines ---
 data class PoLinesResponse(val items: List<PoLineItem> = emptyList())
+data class ToLinesResponse(val items: List<ToLineItem> = emptyList())
+
 data class PoLineItem(
     val LineNumber: Int,
     val Item: String,
@@ -20,6 +28,16 @@ data class PoLineItem(
     val UOM: String = "EA",
     val Description: String? = null,
     val GTIN: String? = null
+)
+
+data class ToLineItem(
+    val LineNumber: Int,
+    val TransferOrderLineId: Long,
+    val TransferOrderHeaderId: Long,
+    val ItemNumber: String,
+    val ItemDescription: String,
+    val Subinventory: String? = null,
+    val UnitOfMeasure: String = "EA",
 )
 
 // --- GTIN lookup ---

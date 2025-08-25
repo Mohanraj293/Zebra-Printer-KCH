@@ -1,6 +1,10 @@
 package com.lazymohan.zebraprinter.grn.data
 
-import retrofit2.http.*
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface FusionApi {
     // Step 1: Purchase Orders by OrderNumber
@@ -10,11 +14,22 @@ interface FusionApi {
         @Query("q") q: String
     ): PoResponse
 
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
+    suspend fun getTransferOrders(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String
+    ): ToResponse
+
     // Step 2: Lines for a specific PO header
     @GET("fscmRestApi/resources/11.13.18.05/purchaseOrders/{poHeaderId}/child/lines")
     suspend fun getPoLines(
         @Path("poHeaderId") poHeaderId: String
     ): PoLinesResponse
+
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders/{toHeaderId}/child/transferOrderLines")
+    suspend fun getToLines(
+        @Path("toHeaderId") toHeaderId: Long
+    ): ToLinesResponse
 
     // GTIN lookup for an Item
     @GET("fscmRestApi/resources/11.13.18.05/GTINRelationships")

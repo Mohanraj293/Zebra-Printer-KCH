@@ -84,7 +84,7 @@ class OcrRepository @Inject constructor(
     suspend fun uploadAndPoll(
         context: Context,
         imageUri: Uri,
-        label: String = "delivery",
+        label: String,
         maxAttempts: Int = 60,
         intervalMs: Long = 1500
     ): OcrResult = withContext(Dispatchers.IO) {

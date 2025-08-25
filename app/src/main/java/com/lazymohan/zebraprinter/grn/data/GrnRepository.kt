@@ -9,12 +9,17 @@ class GrnRepository(private val api: FusionApi) {
         resp.items.firstOrNull() ?: error("PO not found")
     }
 
+    suspend fun fetchTo(orderNumber: String): Result<TOItem> = runCatching {
+        val resp = api.getTransferOrders(q = "HeaderNumber=\"$orderNumber\"")
+        resp.items.firstOrNull() ?: error("PO not found")
+    }
+
     suspend fun fetchPoLines(poHeaderId: String): Result<List<PoLineItem>> = runCatching {
         val raw = api.getPoLines(poHeaderId).items
 
         // each PO line with GTIN using GTINRelationships API
         raw.map { line ->
-            val itemNum = line.Item.trim().orEmpty()
+            val itemNum = line.Item.trim()
             val gtin = fetchGtin(itemNum)
             if (gtin != null) {
                 Log.d("GRN", "GTIN for $itemNum -> $gtin")
@@ -23,6 +28,10 @@ class GrnRepository(private val api: FusionApi) {
             }
             line.copy(GTIN = gtin)
         }
+    }
+
+    suspend fun fetchToLines(poHeaderId: Long): Result<List<ToLineItem>> = runCatching {
+        api.getToLines(poHeaderId).items.map { it }
     }
 
     private suspend fun fetchGtin(itemNumber: String): String? {

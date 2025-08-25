@@ -49,7 +49,7 @@ fun LandingScreenContent(
     onScanDelivery: () -> Unit,
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
-    onInProgress: (String) -> Unit,
+    onPickSlipClicked: () -> Unit,
     userName: String = "Ahmed Al-Rashid",
     userRole: String = "Warehouse Worker - Shift A"
 ) {
@@ -150,7 +150,11 @@ fun LandingScreenContent(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 userRole,
-                                style = MaterialTheme.typography.bodyMedium.copy(color = Color(0xFF687089)),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = Color(
+                                        0xFF687089
+                                    )
+                                ),
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -198,7 +202,7 @@ fun LandingScreenContent(
                     icon = Icons.Outlined.ReceiptLong,
                     title = "Scan Pick Up Slip",
                     subtitle = "Receive transfers from pharmacy",
-                    onClick = { onInProgress("Scan Pick Up Slip") }
+                    onClick = onPickSlipClicked
                 )
             }
 
