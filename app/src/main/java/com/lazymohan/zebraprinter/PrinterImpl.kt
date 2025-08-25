@@ -122,7 +122,7 @@ class PrinterImpl(
         val expiry = contentModel.expiryDate.replace("-", "")
 
         // Build GS1 string (without GS for now)
-        val gs1Data = ")>501$gtin14" + "17$expiry" + "10${contentModel.batchNo}"
+        val gs1Data = "((01)$gtin14" + "(17)$expiry" + "(10)${contentModel.batchNo}"
 
         val zpl = """
         ^XA

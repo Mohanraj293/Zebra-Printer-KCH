@@ -38,6 +38,10 @@ class GrnActivity : ComponentActivity() {
                 val snack = remember { SnackbarHostState() }
 
                 LaunchedEffect(initialPo, scanJson, scanImageCachePaths) {
+                    Log.d(
+                        "GrnActivity",
+                        "prefillFromScan(po=$initialPo, jsonLen=${scanJson?.length ?: 0}, paths=${scanImageCachePaths?.size ?: 0})"
+                    )
                     vm.prefillFromScan(
                         po = initialPo,
                         scanJson = scanJson,
