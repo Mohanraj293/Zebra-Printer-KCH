@@ -46,7 +46,7 @@ fun SlipMatchBar(
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
-        val base = "Delivery slip items: $slipCount • Matched to PO: $matchedCount"
+        val base = "Total Purchase order items: $slipCount • Matched items: $matchedCount"
         val tail = if (hasUnmatched) " • Tap to see what didn’t match" else " • All mapped ✓"
         Text(
             text = base + if (compact) "" else tail,

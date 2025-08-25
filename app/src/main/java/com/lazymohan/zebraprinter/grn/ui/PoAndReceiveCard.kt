@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.outlined.Delete
@@ -55,6 +56,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.format.ResolverStyle
+import java.util.Locale
 
 /**
  * Assumes LineInput has:
@@ -63,7 +67,7 @@ import java.time.format.DateTimeFormatter
  *
  * New behavior:
  * - Tapping the link icon on any section opens a picker listing ui.extractedFromScan.
- * - Selecting an item fills that section's qty, lot, expiry.
+ * - Selecting an item fills that section's qty, lot, expiry (expiry normalized to YYYY-MM-DD).
  */
 
 @Composable
@@ -135,7 +139,7 @@ fun PoAndReceiveCard(
     // Section #1 must be valid & line verified to allow review
     fun section1Valid(li: LineInput, ln: PoLineItem): Boolean {
         val s1 = li.sections.firstOrNull { it.section == 1 } ?: return false
-        return s1.qty > 0.0 && s1.qty <= ln.Quantity && s1.lot.isNotBlank() && s1.expiry.isNotBlank()
+        return s1.qty > 0.0 && s1.lot.isNotBlank() && s1.expiry.isNotBlank()
     }
 
     val allowReview by remember(ui.lineInputs, ui.lines, verifiedLines) {
@@ -318,7 +322,7 @@ fun PoAndReceiveCard(
 
                         Button(
                             onClick = onReview,
-                            enabled = allowReview,
+//                            enabled = allowReview,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(52.dp)
@@ -428,7 +432,7 @@ private fun SectionedLineCard(
     ) {
         Column(Modifier.padding(14.dp)) {
 
-            // --- Title (Full width) ---
+            // --- Title ---
             val itemCode = ln.Item.takeIf { it.isNotBlank() } ?: "NA"
             val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
 
@@ -520,7 +524,6 @@ private fun SectionedLineCard(
             // ======= end combined row =======
 
             if (expanded) {
-                // --- restored "item details" block (like old code) ---
                 Spacer(Modifier.height(10.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(10.dp))
@@ -552,7 +555,7 @@ private fun SectionedLineCard(
                     Spacer(Modifier.height(8.dp))
                     ExpiryDateField(
                         value = s1Exp,
-                        onDatePicked = { iso -> onUpdateLine(ln.LineNumber, null, null, iso) }
+                        onDatePicked = { iso -> onUpdateLine(ln.LineNumber, null, null, iso) } // already ISO
                     )
                 }
 
@@ -581,7 +584,7 @@ private fun SectionedLineCard(
                             Spacer(Modifier.height(8.dp))
                             ExpiryDateField(
                                 value = sec.expiry,
-                                onDatePicked = { iso -> onUpdateSection(ln.LineNumber, sec.section, null, null, iso) }
+                                onDatePicked = { iso -> onUpdateSection(ln.LineNumber, sec.section, null, null, iso) } // already ISO
                             )
                         }
                     }
@@ -623,11 +626,11 @@ private fun SectionedLineCard(
             onPick = { ex ->
                 val qty = ex.qtyDelivered
                 val lot = ex.batchNo
-                val exp = ex.expiryDate
+                val expIso = normalizeExpiryToIso(ex.expiryDate) // ✅ normalize to YYYY-MM-DD
                 if (linking == 1) {
-                    onUpdateLine(ln.LineNumber, qty, lot, exp)
+                    onUpdateLine(ln.LineNumber, qty, lot, expIso)
                 } else {
-                    onUpdateSection(ln.LineNumber, linking, qty, lot, exp)
+                    onUpdateSection(ln.LineNumber, linking, qty, lot, expIso)
                 }
             },
             onDismiss = { linkingSection = null }
@@ -799,15 +802,18 @@ private fun SectionBox(
     }
 }
 
+// after: no upper cap; keep non-negative
 @Composable
 private fun QtyField(
     value: String,
     onChange: (String) -> Unit,
-    max: Double
+    max: Double  // kept for call-sites; not used
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = { new -> if (new.isEmpty() || new.matches(Regex("""\d*\.?\d*"""))) onChange(new) },
+        onValueChange = { new ->
+            if (new.isEmpty() || new.matches(Regex("""\d*\.?\d*"""))) onChange(new)
+        },
         placeholder = { Text("Quantity") },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
@@ -822,7 +828,7 @@ private fun QtyField(
                 IconButton(
                     onClick = {
                         val cur = value.toDoubleOrNull() ?: 0.0
-                        val next = (cur + 1.0).coerceAtMost(max)
+                        val next = cur + 1.0
                         onChange(trimZero(next))
                     },
                     modifier = Modifier.size(20.dp)
@@ -839,6 +845,7 @@ private fun QtyField(
         }
     )
 }
+
 
 @Composable
 private fun LinedTextField(
@@ -862,20 +869,31 @@ private fun ExpiryDateField(
 ) {
     var showPicker by rememberSaveable { mutableStateOf(false) }
 
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        placeholder = { Text("Expiry (YYYY-MM-DD)") },
-        singleLine = true,
-        readOnly = true,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { showPicker = true }
-    )
+    Box {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},          // read-only
+            readOnly = true,
+            singleLine = true,
+            placeholder = { Text("Expiry (YYYY-MM-DD)") },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                IconButton(onClick = { showPicker = true }) {
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = "Pick date")
+                }
+            }
+        )
+        // Make the whole field clickable
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable { showPicker = true }
+        )
+    }
 
     if (showPicker) {
-        val today = LocalDate.now()
-        val initialMillis = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val initialMillis = guessInitialMillis(value)
+            ?: LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         val state = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
 
         DatePickerDialog(
@@ -883,8 +901,7 @@ private fun ExpiryDateField(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val millis = state.selectedDateMillis
-                        if (millis != null) onDatePicked(millisToIso(millis))
+                        state.selectedDateMillis?.let { onDatePicked(millisToIso(it)) } // YYYY-MM-DD
                         showPicker = false
                     }
                 ) { Text("OK") }
@@ -896,11 +913,55 @@ private fun ExpiryDateField(
     }
 }
 
+private fun guessInitialMillis(input: String): Long? {
+    val iso = normalizeExpiryToIso(input).takeIf { it.isNotBlank() } ?: return null
+    return runCatching {
+        LocalDate.parse(iso, DateTimeFormatter.ISO_LOCAL_DATE)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }.getOrNull()
+}
+
+
 /* ===================== small utils ===================== */
 
 private fun fmt(d: Double): String = if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
 private fun trimZero(d: Double): String = if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
+
 private fun millisToIso(millis: Long): String {
     val dt = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
     return dt.format(DateTimeFormatter.ISO_LOCAL_DATE)
+}
+
+// Todo: Already have this utils need to merge with that
+private fun normalizeExpiryToIso(input: String): String {
+    val s = input.trim()
+    if (s.isEmpty()) return ""
+    val iso = DateTimeFormatter.ISO_LOCAL_DATE
+
+    // Fast-path: already ISO
+    runCatching { LocalDate.parse(s, iso) }.onSuccess { return it.format(iso) }
+
+    val patterns = listOf(
+        "dd/MM/uuuu", "d/M/uuuu",
+        "dd-MM-uuuu", "d-M-uuuu",
+        "uuuu/MM/dd", "uuuu/M/d",
+        "MM/dd/uuuu", "M/d/uuuu",
+        "dd.MM.uuuu", "d.M.uuuu",
+        "uuuu.MM.dd"
+    )
+
+    for (p in patterns) {
+        val fmt = DateTimeFormatterBuilder()
+            .parseLenient()
+            .appendPattern(p)
+            .toFormatter(Locale.getDefault())
+            .withResolverStyle(ResolverStyle.SMART)
+        val parsed = runCatching { LocalDate.parse(s, fmt) }.getOrNull()
+        if (parsed != null) return parsed.format(iso)
+    }
+
+    // If nothing matched, keep original so user can see & fix
+    return s
 }

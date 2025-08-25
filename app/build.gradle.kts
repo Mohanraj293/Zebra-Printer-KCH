@@ -72,6 +72,7 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.ui.graphics)
     implementation(libs.androidx.foundation)
+    implementation(libs.androidx.foundation.layout)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

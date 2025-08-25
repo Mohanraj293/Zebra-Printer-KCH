@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/data/Dtos.kt
 package com.lazymohan.zebraprinter.grn.data
 
 // --- PO lookup ---
@@ -18,7 +17,7 @@ data class PoLineItem(
     val LineNumber: Int,
     val Item: String,
     val Quantity: Double,
-    val UOM: String,
+    val UOM: String = "EA",
     val Description: String? = null,
     val GTIN: String? = null
 )
@@ -52,7 +51,7 @@ data class ReceiptLine(
     val DocumentLineNumber: Int,
     val ItemNumber: String,
     val Quantity: Double,
-    val UnitOfMeasure: String,
+    val UnitOfMeasure: String = "EA",
     val SoldtoLegalEntity: String,
     val Subinventory: String,
     val Locator: String,

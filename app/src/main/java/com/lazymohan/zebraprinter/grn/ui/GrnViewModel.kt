@@ -11,8 +11,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import javax.inject.Inject
-import kotlin.math.min
 
 enum class GrnStep { ENTER_PO, SHOW_PO, REVIEW, SUMMARY }
 
@@ -43,9 +43,12 @@ data class PartProgress(
     val message: String? = null,
     val receiptHeaderId: Long? = null,
     val returnStatus: String? = null,
-    val errors: List<String> = emptyList()
+    val errors: List<String> = emptyList(),
+    val httpCode: Int? = null,
+    val url: String? = null,
+    val errorBody: String? = null,
+    val exception: String? = null
 )
-
 
 data class GrnUiState(
     val step: GrnStep = GrnStep.ENTER_PO,
@@ -133,9 +136,8 @@ class GrnViewModel @Inject constructor(
                             used += matchIdx
                             val ex = extracted[matchIdx]
                             val isoExpiry = parseToIso(ex.expiryDate)
-                            val clampedQty = min(ex.qtyDelivered, line.Quantity)
                             val sec1 = LineSectionInput(
-                                section = 1, qty = clampedQty, lot = ex.batchNo, expiry = isoExpiry
+                                section = 1, qty = ex.qtyDelivered, lot = ex.batchNo, expiry = isoExpiry
                             )
                             line to line.toLineInput(initial = sec1)
                         } else null
@@ -237,7 +239,8 @@ class GrnViewModel @Inject constructor(
     }
 
     private fun LineSectionInput.isValidFor(line: PoLineItem): Boolean =
-        qty > 0.0 && qty <= line.Quantity && lot.isNotBlank() && expiry.isNotBlank()
+        qty > 0.0 && lot.isNotBlank() && expiry.isNotBlank()
+
 
     // Build staged requests: section 1 -> create, sections 2..n -> add
     fun buildPayloadsAndReview() {
@@ -262,7 +265,7 @@ class GrnViewModel @Inject constructor(
                     DocumentLineNumber = li.lineNumber,
                     ItemNumber = li.itemNumber,
                     Quantity = sec.qty,
-                    UnitOfMeasure = li.uom,
+                    UnitOfMeasure = "EA",
                     SoldtoLegalEntity = po.SoldToLegalEntity,
                     Subinventory = BuildConfig.DEFAULT_SUBINVENTORY,
                     Locator = BuildConfig.DEFAULT_LOCATOR,
@@ -307,7 +310,6 @@ class GrnViewModel @Inject constructor(
         _state.value = s.copy(loading = true, error = null)
         var receiptHeaderId: Long? = null
         var lastResp: ReceiptResponse? = null
-        val allErrors = mutableListOf<ProcessingError>()
         var progress = _state.value.progress.toMutableList()
 
         staged.forEachIndexed { idx, stage ->
@@ -317,7 +319,7 @@ class GrnViewModel @Inject constructor(
             }.toMutableList()
             _state.value = _state.value.copy(progress = progress)
 
-            // Inject the header id for stages > 0
+            // Inject the header id for stages > 1
             val body = if (idx == 0) stage.request else stage.request.copy(ReceiptHeaderId = receiptHeaderId)
             Log.d("GRN", "Submitting stage ${stage.sectionIndex} with ${body.lines.size} lines; header=$receiptHeaderId")
 
@@ -327,18 +329,17 @@ class GrnViewModel @Inject constructor(
                 receiptHeaderId = receiptHeaderId ?: resp.ReceiptHeaderId
 
                 val isSuccess = resp.ReturnStatus.equals("SUCCESS", true)
-
-                val errs = mutableListOf<String>()
-                if (!isSuccess) {
-                    errs += "ReturnStatus: ${resp.ReturnStatus}"
-                }
+                val inlineErrors = mutableListOf<String>()
+                if (!isSuccess) inlineErrors += "ReturnStatus: ${resp.ReturnStatus}"
 
                 // Add processing errors if any
                 val h = resp.HeaderInterfaceId
                 val iface = resp.lines?.firstOrNull()?.InterfaceTransactionId
                 if (!h.isNullOrBlank() && !iface.isNullOrBlank()) {
                     repo.fetchProcessingErrors(h, iface).onSuccess { fetched ->
-                        errs += fetched.map { it.ErrorMessage ?: "" }
+                        inlineErrors += fetched.mapNotNull { it.ErrorMessage?.trim() }.filter { it.isNotBlank() }
+                    }.onFailure { pe ->
+                        inlineErrors += "ProcessingErrors fetch failed: ${pe.message}"
                     }
                 }
 
@@ -349,25 +350,49 @@ class GrnViewModel @Inject constructor(
                             message = if (isSuccess) "Part ${stage.sectionIndex} completed" else "Part ${stage.sectionIndex} failed",
                             receiptHeaderId = receiptHeaderId,
                             returnStatus = resp.ReturnStatus,
-                            errors = errs
+                            errors = inlineErrors
                         )
                     else it
                 }.toMutableList()
                 _state.value = _state.value.copy(progress = progress)
 
-                if (!isSuccess) return@forEachIndexed
-            }  .onFailure { e ->
-                val msg = when (e) {
-                    is retrofit2.HttpException -> {
-                        val code = e.code()
-                        val raw = e.response()?.raw()
-                        val url = raw?.request?.url?.toString() ?: "(unknown url)"
-                        val body = e.response()?.errorBody()?.string().orEmpty()
-                        "Create Receipt API failed ($code)\nURL: $url\n$body"
-                    }
-                    else -> "Create Receipt API failed: ${e.message}"
+            }.onFailure { e ->
+                val httpCode: Int?
+                val url: String?
+                val bodyText: String?
+
+                if (e is HttpException) {
+                    httpCode = e.code()
+                    url = e.response()?.raw()?.request?.url?.toString()
+                    bodyText = try { e.response()?.errorBody()?.string() } catch (_: Exception) { null }
+                } else {
+                    httpCode = null
+                    url = null
+                    bodyText = null
                 }
-                _state.value = _state.value.copy(loading = false, error = msg)
+
+                val failMsg = buildString {
+                    appendLine("Create Receipt / Add to Receipt API failed${httpCode?.let { " ($it)" } ?: ""}")
+                    if (!url.isNullOrBlank()) appendLine("URL: $url")
+                    if (!bodyText.isNullOrBlank()) appendLine(bodyText)
+                    e.message?.let { appendLine("Exception: $it") }
+                }.trim()
+
+                progress = progress.map {
+                    if (it.sectionIndex == stage.sectionIndex)
+                        it.copy(
+                            status = PartStatus.FAILED,
+                            message = "Part ${stage.sectionIndex} failed",
+                            returnStatus = "ERROR",
+                            errors = listOf(failMsg),
+                            httpCode = httpCode,
+                            url = url,
+                            errorBody = bodyText,
+                            exception = e::class.java.simpleName + (e.message?.let { ": $it" } ?: "")
+                        )
+                    else it
+                }.toMutableList()
+                _state.value = _state.value.copy(progress = progress)
             }
         }
 
@@ -402,7 +427,6 @@ class GrnViewModel @Inject constructor(
         _state.value = _state.value.copy(
             loading = false,
             receipt = lastResp,
-            lineErrors = allErrors,
             attachmentsUploaded = uploadedCount,
             step = GrnStep.SUMMARY
         )

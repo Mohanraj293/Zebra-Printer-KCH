@@ -38,35 +38,35 @@ class OcrRepository @Inject constructor(
     "invoice_date": "30/06/2025",
     "order_number": "DXB-06",
     "sales_order_no": "5285622",
-    "customer_ref_purchase_order_no": "KHQ/PO/99368",
+    "customer_ref_purchase_order_no": "KHQ/PO/99387",
     "items": [
       {
-        "description": "NEXIUM 40MG TABS OF 14'S",
+        "description": "Aciclovir 400 mg (Zovirax) tablets — 25 blister pack",
         "details": [
           {
-            "qty_delivered": "300",
+            "qty_delivered": "50",
             "expiry_date": "2027-03-31",
             "batch_no": "SR328"
           },
           {
-            "qty_delivered": "24",
+            "qty_delivered": "2",
             "expiry_date": "2027-03-31",
             "batch_no": "SR328"
           }
         ]
       },
       {
-        "description": "PULMICORT NEB.SOL OF 0.5MG OF 20'S",
+        "description": "XIGDUO XR 10/500 OF 30'S",
         "details": [
           {
-            "qty_delivered": "100",
-            "expiry_date": "2026-08-31",
-            "batch_no": "WM0085"
+            "qty_delivered": "25",
+            "expiry_date": "2027-03-31",
+            "batch_no": "WH0319"
           },
           {
-            "qty_delivered": "4",
-            "expiry_date": "2026-08-31",
-            "batch_no": "WM0085"
+            "qty_delivered": "1",
+            "expiry_date": "2027-03-31",
+            "batch_no": "WH0319"
           }
         ]
       }
