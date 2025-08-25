@@ -69,36 +69,6 @@ class OcrRepository @Inject constructor(
             "batch_no": "WH0319"
           }
         ]
-      },
-      {
-        "description": "XIGDUO XR 5/1000 OF 60'S",
-        "details": [
-          {
-            "qty_delivered": "100",
-            "expiry_date": "2026-08-31",
-            "batch_no": "WM0085"
-          },
-          {
-            "qty_delivered": "4",
-            "expiry_date": "2026-08-31",
-            "batch_no": "WM0085"
-          }
-        ]
-      },
-      {
-        "description": "PULMICORT NEB.SOL 0.25MG/ML 20'S 2ML",
-        "details": [
-          {
-            "qty_delivered": "100",
-            "expiry_date": "2026-04-30",
-            "batch_no": "SEVG"
-          },
-          {
-            "qty_delivered": "4",
-            "expiry_date": "2026-04-30",
-            "batch_no": "SEVG"
-          }
-        ]
       }
     ]
   },

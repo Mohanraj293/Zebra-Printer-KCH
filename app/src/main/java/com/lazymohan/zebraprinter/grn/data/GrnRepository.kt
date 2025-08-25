@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/data/GrnRepository.kt
 package com.lazymohan.zebraprinter.grn.data
 
 import android.util.Log
@@ -48,22 +47,9 @@ class GrnRepository(private val api: FusionApi) {
     }
 
     suspend fun uploadAttachment(
-        receiptId: String,
+        receiptId: Long,
         body: AttachmentRequest
     ): Result<AttachmentResponse> = runCatching {
-        api.uploadReceiptAttachment(receiptId, body)
-    }
-
-    suspend fun uploadAttachments(
-        receiptId: String,
-        files: List<AttachmentRequest>
-    ): Result<List<AttachmentResponse>> = runCatching {
-        val out = mutableListOf<AttachmentResponse>()
-        for (f in files) {
-            runCatching { api.uploadReceiptAttachment(receiptId, f) }
-                .onSuccess { out += it }
-                .onFailure { }
-        }
-        out
+        api.uploadReceiptAttachment(receiptId.toString(), body)
     }
 }

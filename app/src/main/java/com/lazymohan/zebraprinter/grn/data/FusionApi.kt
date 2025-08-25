@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/data/FusionApi.kt
 package com.lazymohan.zebraprinter.grn.data
 
 import retrofit2.http.*
@@ -8,7 +7,7 @@ interface FusionApi {
     @GET("fscmRestApi/resources/11.13.18.05/purchaseOrders")
     suspend fun getPurchaseOrders(
         @Query("onlyData") onlyData: String = "true",
-        @Query("q") q: String // q='OrderNumber="PO-2024-3456"'
+        @Query("q") q: String
     ): PoResponse
 
     // Step 2: Lines for a specific PO header
@@ -21,10 +20,10 @@ interface FusionApi {
     @GET("fscmRestApi/resources/11.13.18.05/GTINRelationships")
     suspend fun getGtinForItem(
         @Query("onlyData") onlyData: String = "true",
-        @Query("q") q: String // q='Item=MC10134'
+        @Query("q") q: String
     ): GtinResponse
 
-    // Step 4: Create receipt (GRN)
+    // Step 4: Create receipt (GRN) OR Add to the same GRN (when ReceiptHeaderId present)
     @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
     suspend fun createReceipt(
         @Body body: ReceiptRequest
@@ -37,7 +36,7 @@ interface FusionApi {
         @Path("interfaceTransactionId") interfaceTransactionId: String
     ): ProcessingErrorsResponse
 
-    // Step 6: Upload attachments against the receipt request
+    // Step 6: Upload attachments against the receipt request (use ReceiptHeaderId as {receiptid})
     @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests/{receiptid}/child/attachments")
     suspend fun uploadReceiptAttachment(
         @Path("receiptid") receiptId: String,
