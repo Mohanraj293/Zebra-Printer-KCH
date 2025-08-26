@@ -56,9 +56,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeFormatterBuilder
-import java.time.format.ResolverStyle
-import java.util.Locale
 
 /**
  * Assumes LineInput has:
@@ -626,7 +623,7 @@ private fun SectionedLineCard(
             onPick = { ex ->
                 val qty = ex.qtyDelivered
                 val lot = ex.batchNo
-                val expIso = normalizeExpiryToIso(ex.expiryDate) // ✅ normalize to YYYY-MM-DD
+                val expIso = ex.expiryDate
                 if (linking == 1) {
                     onUpdateLine(ln.LineNumber, qty, lot, expIso)
                 } else {
@@ -901,7 +898,13 @@ private fun ExpiryDateField(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        state.selectedDateMillis?.let { onDatePicked(millisToIso(it)) } // YYYY-MM-DD
+                        state.selectedDateMillis?.let {
+                            val iso = Instant.ofEpochMilli(it)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                                .format(DateTimeFormatter.ISO_LOCAL_DATE)
+                            onDatePicked(iso)
+                        }
                         showPicker = false
                     }
                 ) { Text("OK") }
@@ -922,52 +925,13 @@ private fun fmt(d: Double): String =
 private fun trimZero(d: Double): String =
     if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
 
-// Todo: Already have this utils need to merge with that
-private fun normalizeExpiryToIso(input: String): String {
-    val s = input.trim()
-    if (s.isEmpty()) return ""
-    val iso = DateTimeFormatter.ISO_LOCAL_DATE
-
-    // Already ISO
-    runCatching { LocalDate.parse(s, iso) }.onSuccess { return it.format(iso) }
-
-    // Supported patterns
-    val patterns = listOf(
-        "dd/MM/uuuu", "d/M/uuuu",
-        "dd-MM-uuuu", "d-M-uuuu",
-        "uuuu/MM/dd", "uuuu/M/d",
-        "MM/dd/uuuu", "M/d/uuuu",
-        "dd.MM.uuuu", "d.M.uuuu",
-        "uuuu.MM.dd"
-    )
-
-    for (p in patterns) {
-        val fmt = DateTimeFormatterBuilder()
-            .parseLenient()
-            .appendPattern(p)
-            .toFormatter(Locale.getDefault())
-            .withResolverStyle(ResolverStyle.SMART)
-        val parsed = runCatching { LocalDate.parse(s, fmt) }.getOrNull()
-        if (parsed != null) return parsed.format(iso)
-    }
-
-    // If nothing matched, return original (user must fix manually)
-    return s
-}
 
 private fun guessInitialMillis(input: String): Long? {
-    val iso = normalizeExpiryToIso(input).takeIf { it.isNotBlank() } ?: return null
+    if (input.isBlank()) return null
     return runCatching {
-        LocalDate.parse(iso, DateTimeFormatter.ISO_LOCAL_DATE)
+        LocalDate.parse(input, DateTimeFormatter.ISO_LOCAL_DATE)
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
     }.getOrNull()
-}
-
-private fun millisToIso(millis: Long): String {
-    val dt = Instant.ofEpochMilli(millis)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-    return dt.format(DateTimeFormatter.ISO_LOCAL_DATE)
 }
