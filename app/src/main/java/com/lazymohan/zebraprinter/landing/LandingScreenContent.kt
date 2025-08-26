@@ -50,8 +50,8 @@ fun LandingScreenContent(
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
     onInProgress: (String) -> Unit,
-    userName: String = "Ahmed Al-Rashid",
-    userRole: String = "Warehouse Worker - Shift A"
+    userName: String = "RCA Automation",
+    userRole: String = "Warehouse Staff"
 ) {
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val overlap = 28.dp

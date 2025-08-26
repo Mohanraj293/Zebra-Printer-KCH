@@ -913,26 +913,14 @@ private fun ExpiryDateField(
     }
 }
 
-private fun guessInitialMillis(input: String): Long? {
-    val iso = normalizeExpiryToIso(input).takeIf { it.isNotBlank() } ?: return null
-    return runCatching {
-        LocalDate.parse(iso, DateTimeFormatter.ISO_LOCAL_DATE)
-            .atStartOfDay(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-    }.getOrNull()
-}
-
-
 /* ===================== small utils ===================== */
 
-private fun fmt(d: Double): String = if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
-private fun trimZero(d: Double): String = if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
 
-private fun millisToIso(millis: Long): String {
-    val dt = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
-    return dt.format(DateTimeFormatter.ISO_LOCAL_DATE)
-}
+private fun fmt(d: Double): String =
+    if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
+
+private fun trimZero(d: Double): String =
+    if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
 
 // Todo: Already have this utils need to merge with that
 private fun normalizeExpiryToIso(input: String): String {
@@ -940,9 +928,10 @@ private fun normalizeExpiryToIso(input: String): String {
     if (s.isEmpty()) return ""
     val iso = DateTimeFormatter.ISO_LOCAL_DATE
 
-    // Fast-path: already ISO
+    // Already ISO
     runCatching { LocalDate.parse(s, iso) }.onSuccess { return it.format(iso) }
 
+    // Supported patterns
     val patterns = listOf(
         "dd/MM/uuuu", "d/M/uuuu",
         "dd-MM-uuuu", "d-M-uuuu",
@@ -962,6 +951,23 @@ private fun normalizeExpiryToIso(input: String): String {
         if (parsed != null) return parsed.format(iso)
     }
 
-    // If nothing matched, keep original so user can see & fix
+    // If nothing matched, return original (user must fix manually)
     return s
+}
+
+private fun guessInitialMillis(input: String): Long? {
+    val iso = normalizeExpiryToIso(input).takeIf { it.isNotBlank() } ?: return null
+    return runCatching {
+        LocalDate.parse(iso, DateTimeFormatter.ISO_LOCAL_DATE)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }.getOrNull()
+}
+
+private fun millisToIso(millis: Long): String {
+    val dt = Instant.ofEpochMilli(millis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+    return dt.format(DateTimeFormatter.ISO_LOCAL_DATE)
 }
