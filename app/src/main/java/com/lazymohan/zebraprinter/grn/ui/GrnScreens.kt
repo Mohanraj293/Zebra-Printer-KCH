@@ -15,6 +15,7 @@ import com.lazymohan.zebraprinter.utils.DateTimeConverter
 @Composable
 fun GrnScreens(
     ui: GrnUiState,
+    isFromPickSlip: Boolean,
     snackbarHostState: SnackbarHostState,
     dateTimeConverter: DateTimeConverter,
     onEnterPo: (String) -> Unit,
@@ -69,7 +70,13 @@ fun GrnScreens(
             )
 
             when (ui.step) {
-                GrnStep.ENTER_PO -> EnterPoCard(ui, onEnterPo, onFetchPo, onBack)
+                GrnStep.ENTER_PO -> EnterPoCard(
+                    isFromPickSlip = isFromPickSlip,
+                    ui = ui,
+                    onEnterPo = onEnterPo,
+                    onFetchPo = onFetchPo,
+                    onBack = onBack
+                )
                 GrnStep.SHOW_PO  -> PoAndReceiveCard(
                     ui = ui,
                     onBack = onBack,
@@ -81,7 +88,8 @@ fun GrnScreens(
                     onUpdateSection = onUpdateSection,
                     onReview = onReview,
                     snackbarHostState = snackbarHostState,
-                    dateTimeConverter = dateTimeConverter
+                    dateTimeConverter = dateTimeConverter,
+                    isFromPickSlip = isFromPickSlip
                 )
                 GrnStep.REVIEW   -> ReviewCard(ui, onSubmit, onEditReceive)
                 GrnStep.SUMMARY  -> SummaryCard(ui, onStartOver)

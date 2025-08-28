@@ -7,7 +7,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -22,11 +21,6 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.*
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -45,6 +39,7 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.grn.data.PoLineItem
+import com.lazymohan.zebraprinter.grn.data.ToLineItem
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem
 import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
 import com.lazymohan.zebraprinter.grn.util.extractGtinFromRaw
@@ -71,7 +66,7 @@ import java.time.format.DateTimeFormatter
 fun PoAndReceiveCard(
     ui: GrnUiState,
     onBack: () -> Unit,
-
+    isFromPickSlip: Boolean,
     // legacy quick edit for Section #1 (kept)
     onUpdateLine: (Int, Double?, String?, String?) -> Unit,
     onRemoveLine: (Int) -> Unit,
@@ -134,7 +129,7 @@ fun PoAndReceiveCard(
     fun isLineVerified(lnNumber: Int) = lnNumber in verifiedLines
 
     // Section #1 must be valid & line verified to allow review
-    fun section1Valid(li: LineInput, ln: PoLineItem): Boolean {
+    fun section1Valid(li: LineInput): Boolean {
         val s1 = li.sections.firstOrNull { it.section == 1 } ?: return false
         return s1.qty > 0.0 && s1.lot.isNotBlank() && s1.expiry.isNotBlank()
     }
@@ -144,7 +139,7 @@ fun PoAndReceiveCard(
             if (ui.lineInputs.isEmpty()) return@derivedStateOf false
             ui.lineInputs.all { li ->
                 val ln = ui.lines.firstOrNull { it.LineNumber == li.lineNumber } ?: return@all false
-                section1Valid(li, ln) && isLineVerified(li.lineNumber)
+                section1Valid(li) && isLineVerified(li.lineNumber)
             }
         }
     }
@@ -165,7 +160,10 @@ fun PoAndReceiveCard(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            "Purchase Order Details",
+                            if (isFromPickSlip)
+                                "Pick Slip Details"
+                            else
+                                "Purchase Order Details",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontSize = 19.sp,
                                 color = Color(0xFF143A7B)
@@ -182,7 +180,8 @@ fun PoAndReceiveCard(
                     Spacer(Modifier.height(10.dp))
 
                     val po = ui.po
-                    if (po == null) {
+                    val to = ui.to
+                    if (po == null || to == null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
@@ -195,15 +194,46 @@ fun PoAndReceiveCard(
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row {
-                                ReadFieldCompact("PO Number", po.OrderNumber, Modifier.weight(1f))
-                                ReadFieldCompact("Vendor", po.Supplier, Modifier.weight(1f))
+                                if (isFromPickSlip) {
+                                    ReadFieldCompact(
+                                        label = "TO Number",
+                                        value = to.HeaderNumber,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else {
+                                    ReadFieldCompact(
+                                        label = "PO Number",
+                                        value = po.OrderNumber,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ReadFieldCompact(
+                                        label = "Vendor",
+                                        value = po.Supplier,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                             Row {
-                                ReadFieldCompact("Site", po.SupplierSite, Modifier.weight(1f))
-                                ReadFieldCompact("Business Unit", po.ProcurementBU, Modifier.weight(1f))
+                                if (!isFromPickSlip) {
+                                    ReadFieldCompact(
+                                        label = "Site",
+                                        value = po.SupplierSite,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ReadFieldCompact(
+                                        label = "Business Unit",
+                                        value = po.ProcurementBU,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                             Row {
-                                ReadFieldCompact("Sold To", po.SoldToLegalEntity, Modifier.weight(1f))
+                                if (isFromPickSlip)
+                                    ReadFieldCompact(
+                                        label = "Sold To",
+                                        value = po.SoldToLegalEntity,
+                                        modifier = Modifier.weight(1f)
+                                    )
                             }
                         }
                     }
@@ -270,35 +300,73 @@ fun PoAndReceiveCard(
                                 Text("Loading lines…", color = Color.Gray, fontSize = 13.sp)
                             }
                         }
-                        ui.lines.isEmpty() -> {
-                            val msg = if (isScanMode)
-                                "No matches found between scanned items and PO lines. Use “Add Item” to include items manually."
-                            else "No PO lines found."
+
+                        ui.lines.isEmpty() || ui.toLines.isEmpty() -> {
+                            val msg = if (isFromPickSlip) {
+                                if (isScanMode)
+                                    "No matches found between scanned items and TO lines. Use “Add Item” to include items manually."
+                                else "No TO lines found."
+                            } else {
+                                if (isScanMode)
+                                    "No matches found between scanned items and PO lines. Use “Add Item” to include items manually."
+                                else "No PO lines found. Try a different PO number."
+                            }
                             Text(msg, color = Color(0xFF8B5CF6))
                         }
+
                         else -> {
-                            ui.lines.forEach { ln ->
-                                val li = ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber } ?: return@forEach
-                                val detailsRequired = !section1Valid(li, ln)
-                                val verifiedOk = isLineVerified(ln.LineNumber)
+                            if (isFromPickSlip) {
+                                ui.toLines.forEach { ln ->
+                                    val li =
+                                        ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
+                                            ?: return@forEach
+                                    val detailsRequired = !section1Valid(li)
+                                    val verifiedOk = isLineVerified(ln.LineNumber)
 
-                                SectionedLineCard(
-                                    context = context,
-                                    ln = ln,
-                                    li = li,
-                                    availableItems = ui.extractedFromScan,
-                                    isVerified = verifiedOk,
-                                    detailsRequired = detailsRequired,
-                                    onUpdateLine = onUpdateLine,
-                                    onUpdateSection = onUpdateSection,
-                                    onAddSection = onAddSection,
-                                    onRemoveSection = onRemoveSection,
-                                    onRemoveLine = onRemoveLine,
-                                    dateTimeConverter = dateTimeConverter,
-                                    snackbarHostState = snackbarHostState
-                                )
+                                    SectionedLineCard(
+                                        context = context,
+                                        toLineItem = ln,
+                                        ln = null,
+                                        li = li,
+                                        availableItems = ui.extractedFromScan,
+                                        isVerified = verifiedOk,
+                                        detailsRequired = detailsRequired,
+                                        onUpdateLine = onUpdateLine,
+                                        onUpdateSection = onUpdateSection,
+                                        onAddSection = onAddSection,
+                                        onRemoveSection = onRemoveSection,
+                                        onRemoveLine = onRemoveLine,
+                                        dateTimeConverter = dateTimeConverter,
+                                        isFromPickSlip = true
+                                    )
+                                    Spacer(Modifier.height(10.dp))
+                                }
+                            } else {
+                                ui.lines.forEach { ln ->
+                                    val li =
+                                        ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
+                                            ?: return@forEach
+                                    val detailsRequired = !section1Valid(li)
+                                    val verifiedOk = isLineVerified(ln.LineNumber)
 
-                                Spacer(Modifier.height(10.dp))
+                                    SectionedLineCard(
+                                        context = context,
+                                        ln = ln,
+                                        toLineItem = null,
+                                        li = li,
+                                        availableItems = ui.extractedFromScan,
+                                        isVerified = verifiedOk,
+                                        detailsRequired = detailsRequired,
+                                        onUpdateLine = onUpdateLine,
+                                        onUpdateSection = onUpdateSection,
+                                        onAddSection = onAddSection,
+                                        onRemoveSection = onRemoveSection,
+                                        onRemoveLine = onRemoveLine,
+                                        dateTimeConverter = dateTimeConverter,
+                                        isFromPickSlip = false
+                                    )
+                                    Spacer(Modifier.height(10.dp))
+                                }
                             }
                         }
                     }
@@ -350,7 +418,10 @@ fun PoAndReceiveCard(
                         scannedText = raw
                         lastScannedGtin = gt
 
-                        val matched = ui.allPoLines
+                        val matched = if (isFromPickSlip) ui.allToLines
+                            .map { it.LineNumber }
+                            .toSet()
+                        else ui.allPoLines
                             .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
                             .map { it.LineNumber }
                             .toSet()
@@ -361,7 +432,9 @@ fun PoAndReceiveCard(
                                 if (matched.isEmpty())
                                     "GTIN $gt scanned. No PO line GTIN matched."
                                 else
-                                    "GTIN $gt verified for lines: ${matched.sorted().joinToString(", ")}"
+                                    "GTIN $gt verified for lines: ${
+                                        matched.sorted().joinToString(", ")
+                                    }"
                             )
                         }
                     }
@@ -394,24 +467,31 @@ fun PoAndReceiveCard(
 @Composable
 private fun SectionedLineCard(
     context: Context,
-    ln: PoLineItem,
+    ln: PoLineItem?,
+    toLineItem: ToLineItem?,
+    isFromPickSlip: Boolean,
     li: LineInput,
     availableItems: List<ExtractedItem>,
     isVerified: Boolean,
     detailsRequired: Boolean,
-    onUpdateLine: (Int, Double?, String?, String?) -> Unit, // quick Section #1 edit (kept)
+    onUpdateLine: (Int, Double?, String?, String?) -> Unit,
     onUpdateSection: (Int, Int, Double?, String?, String?) -> Unit,
     onAddSection: (Int) -> Unit,
     onRemoveSection: (Int, Int) -> Unit,
     onRemoveLine: (Int) -> Unit,
-    dateTimeConverter: DateTimeConverter,
-    snackbarHostState: SnackbarHostState
+    dateTimeConverter: DateTimeConverter
 ) {
-    var confirmDelete by rememberSaveable("${ln.LineNumber}-del") { mutableStateOf(false) }
-    var expanded by rememberSaveable("${ln.LineNumber}-expanded") { mutableStateOf(true) }
+    // Choose the data source based on isFromPickSlip
+    val lineNumber = if (isFromPickSlip) toLineItem?.LineNumber else ln?.LineNumber
+    val description = if (isFromPickSlip) toLineItem?.ItemDescription else ln?.Description
+    val item = if (isFromPickSlip) toLineItem?.ItemNumber else ln?.Item
+    val quantity = if (isFromPickSlip) toLineItem?.RequestedQuantity else ln?.Quantity
+    val uom = if (isFromPickSlip) toLineItem?.UnitOfMeasure else ln?.UOM
+    val gtin = ln?.GTIN
 
-    // which section is currently "linking" to a delivery item (null = closed)
-    var linkingSection by rememberSaveable("${ln.LineNumber}-linkSection") { mutableStateOf<Int?>(null) }
+    var confirmDelete by rememberSaveable("${lineNumber}-del") { mutableStateOf(false) }
+    var expanded by rememberSaveable("${lineNumber}-expanded") { mutableStateOf(true) }
+    var linkingSection by rememberSaveable("${lineNumber}-linkSection") { mutableStateOf<Int?>(null) }
 
     val s1 = li.sections.firstOrNull { it.section == 1 }
     val s1Qty = s1?.qty?.takeIf { it > 0 }?.toString().orEmpty()
@@ -428,10 +508,9 @@ private fun SectionedLineCard(
             .clickable { expanded = !expanded }
     ) {
         Column(Modifier.padding(14.dp)) {
-
             // --- Title ---
-            val itemCode = ln.Item.takeIf { it.isNotBlank() } ?: "NA"
-            val title = (ln.Description ?: "").ifBlank { "Item $itemCode" }
+            val itemCode = item.takeIf { !it.isNullOrEmpty() } ?: "NA"
+            val title = (description ?: "").ifBlank { "Item $itemCode" }
 
             Text(
                 text = title,
@@ -444,40 +523,42 @@ private fun SectionedLineCard(
 
             Spacer(Modifier.height(8.dp))
 
-            // ======= Chips + Actions in ONE parent row =======
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: chips group → 70%
                 FlowRow(
                     modifier = Modifier
-                        .weight(0.7f)   // 70% width
+                        .weight(0.7f)
                         .padding(end = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Status chips
                     if (isVerified) {
                         Chip("Verified", bg = Color(0xFFE8F5E9), textColor = Color(0xFF2E7D32))
                     } else {
                         Chip("Not Verified", bg = Color(0xFFFFEBEE), textColor = Color(0xFFD32F2F))
                     }
                     if (detailsRequired) {
-                        Chip("Details Required", bg = Color(0xFFFFF7ED), textColor = Color(0xFF9A3412))
+                        Chip(
+                            "Details Required",
+                            bg = Color(0xFFFFF7ED),
+                            textColor = Color(0xFF9A3412)
+                        )
                     } else {
-                        Chip("Details Filled", bg = Color(0xFFE8F5E9), textColor = Color(0xFF2E7D32))
+                        Chip(
+                            "Details Filled",
+                            bg = Color(0xFFE8F5E9),
+                            textColor = Color(0xFF2E7D32)
+                        )
                     }
 
-                    // Meta chips
                     Chip("Item: $itemCode")
-                    Chip("${fmt(ln.Quantity)} • ${ln.UOM}")
-
+                    Chip("${fmt(quantity)} • $uom")
                 }
 
-                // Right: actions → 30%
                 Row(
-                    modifier = Modifier.weight(0.3f),   // 30% width
+                    modifier = Modifier.weight(0.3f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
@@ -486,11 +567,11 @@ private fun SectionedLineCard(
                             context.startActivity(
                                 ZPLPrinterActivity.getCallingIntent(
                                     context = context,
-                                    gtinNumber = ln.GTIN ?: "",
+                                    gtinNumber = gtin ?: "",
                                     product = Lots(
                                         lotNumber = s1Lot,
-                                        itemDescription = ln.Description ?: "",
-                                        itemNumber = ln.Item,
+                                        itemDescription = description ?: "",
+                                        itemNumber = item,
                                         statusCode = "Active",
                                         originationDate = null,
                                         expirationDate = dateTimeConverter.convertStringToDate(s1Exp),
@@ -518,116 +599,145 @@ private fun SectionedLineCard(
                 }
             }
 
-            // ======= end combined row =======
-
             if (expanded) {
                 Spacer(Modifier.height(10.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(10.dp))
 
-                if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description!!)
-                ReadFieldInline("Line #", ln.LineNumber.toString())
-                ReadFieldInline("UOM", ln.UOM)
-                ReadFieldInline("GTIN", ln.GTIN?.takeIf { it.isNotBlank() } ?: "—")
+                if (!description.isNullOrBlank()) ReadFieldInline("Description", description)
+                ReadFieldInline("Line #", lineNumber.toString())
+                ReadFieldInline("UOM", uom.orEmpty())
+                ReadFieldInline("GTIN", gtin?.takeIf { it.isNotBlank() } ?: "—")
 
                 Spacer(Modifier.height(12.dp))
 
-                // ---------- Section #1 ----------
+                // Section #1
                 SectionBox(
                     title = "Section #1",
                     onLink = { linkingSection = 1 },
-                    onDelete = { onRemoveSection(ln.LineNumber, 1) }
+                    onDelete = { onRemoveSection(lineNumber ?: 0, 1) }
                 ) {
                     QtyField(
                         value = s1Qty,
-                        onChange = { onUpdateLine(ln.LineNumber, it.toDoubleOrNull(), null, null) },
-                        max = ln.Quantity
+                        onChange = {
+                            onUpdateLine(
+                                lineNumber ?: 0,
+                                it.toDoubleOrNull(),
+                                null,
+                                null
+                            )
+                        },
+                        max = quantity ?: 0.0
                     )
                     Spacer(Modifier.height(8.dp))
                     LinedTextField(
                         value = s1Lot,
-                        onChange = { onUpdateLine(ln.LineNumber, null, it, null) },
+                        onChange = { onUpdateLine(lineNumber ?: 0, null, it, null) },
                         placeholder = "Lot Number"
                     )
                     Spacer(Modifier.height(8.dp))
                     ExpiryDateField(
                         value = s1Exp,
-                        onDatePicked = { iso -> onUpdateLine(ln.LineNumber, null, null, iso) } // already ISO
+                        onDatePicked = { iso -> onUpdateLine(lineNumber ?: 0, null, null, iso) }
                     )
                 }
 
-                // ---------- Sections > 1 ----------
-                li.sections
-                    .filter { it.section > 1 }
-                    .sortedBy { it.section }
-                    .forEach { sec ->
-                        Spacer(Modifier.height(10.dp))
-                        SectionBox(
-                            title = "Section #${sec.section}",
-                            onLink = { linkingSection = sec.section },
-                            onDelete = { onRemoveSection(ln.LineNumber, sec.section) }
-                        ) {
-                            QtyField(
-                                value = sec.qty.takeIf { it > 0 }?.toString().orEmpty(),
-                                onChange = { onUpdateSection(ln.LineNumber, sec.section, it.toDoubleOrNull(), null, null) },
-                                max = ln.Quantity
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            LinedTextField(
-                                value = sec.lot,
-                                onChange = { onUpdateSection(ln.LineNumber, sec.section, null, it, null) },
-                                placeholder = "Lot Number"
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            ExpiryDateField(
-                                value = sec.expiry,
-                                onDatePicked = { iso -> onUpdateSection(ln.LineNumber, sec.section, null, null, iso) } // already ISO
-                            )
-                        }
+                // Sections > 1
+                li.sections.filter { it.section > 1 }.sortedBy { it.section }.forEach { sec ->
+                    Spacer(Modifier.height(10.dp))
+                    SectionBox(
+                        title = "Section #${sec.section}",
+                        onLink = { linkingSection = sec.section },
+                        onDelete = { onRemoveSection(lineNumber ?: 0, sec.section) }
+                    ) {
+                        QtyField(
+                            value = sec.qty.takeIf { it > 0 }?.toString().orEmpty(),
+                            onChange = {
+                                onUpdateSection(
+                                    lineNumber ?: 0,
+                                    sec.section,
+                                    it.toDoubleOrNull(),
+                                    null,
+                                    null
+                                )
+                            },
+                            max = quantity ?: 0.0
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        LinedTextField(
+                            value = sec.lot,
+                            onChange = {
+                                onUpdateSection(lineNumber ?: 0, sec.section, null, it, null)
+                            },
+                            placeholder = "Lot Number"
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        ExpiryDateField(
+                            value = sec.expiry,
+                            onDatePicked = { iso ->
+                                onUpdateSection(lineNumber ?: 0, sec.section, null, null, iso)
+                            }
+                        )
                     }
+                }
 
                 Spacer(Modifier.height(10.dp))
                 TextButton(
-                    onClick = { onAddSection(ln.LineNumber) },
+                    onClick = { onAddSection(lineNumber ?: 0) },
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFE8F0FF))
                         .padding(horizontal = 6.dp, vertical = 3.dp)
-                ) { Text("+ Add Section", color = Color(0xFF1D4ED8), fontWeight = FontWeight.SemiBold) }
+                ) {
+                    Text(
+                        "+ Add Section",
+                        color = Color(0xFF1D4ED8),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             if (confirmDelete) {
                 AlertDialog(
                     onDismissRequest = { confirmDelete = false },
                     icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
-                    title = { Text("Remove line ${ln.LineNumber}?") },
+                    title = { Text("Remove line $lineNumber?") },
                     text = { Text("This will remove the line from this receipt. You can add it back using “Add Item”.") },
                     confirmButton = {
-                        TextButton(onClick = { confirmDelete = false; onRemoveLine(ln.LineNumber) }) {
+                        TextButton(onClick = {
+                            confirmDelete = false; onRemoveLine(
+                            lineNumber ?: 0
+                        )
+                        }) {
                             Text("Remove", color = Color(0xFFB00020))
                         }
                     },
-                    dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
+                    dismissButton = {
+                        TextButton(onClick = {
+                            confirmDelete = false
+                        }) { Text("Cancel") }
+                    }
                 )
             }
         }
     }
 
-    /* ---- Link dialog (bottom sheet) ---- */
+    // Link dialog
     val linking = linkingSection
     if (linking != null) {
         LinkDeliveryBottomSheet(
-            line = ln,
+            line = if (isFromPickSlip) null else ln,
+            toLineItem = if (isFromPickSlip) toLineItem else null,
             sectionNumber = linking,
             items = availableItems,
             onPick = { ex ->
                 val qty = ex.qtyDelivered
                 val lot = ex.batchNo
-                val expIso = ex.expiryDate
+                val expIso = normalizeExpiryToIso(ex.expiryDate)
                 if (linking == 1) {
-                    onUpdateLine(ln.LineNumber, qty, lot, expIso)
+                    onUpdateLine(lineNumber ?: 0, qty, lot, expIso)
                 } else {
-                    onUpdateSection(ln.LineNumber, linking, qty, lot, expIso)
+                    onUpdateSection(lineNumber ?: 0, linking, qty, lot, expIso)
                 }
             },
             onDismiss = { linkingSection = null }
@@ -639,7 +749,8 @@ private fun SectionedLineCard(
 
 @Composable
 private fun LinkDeliveryBottomSheet(
-    line: PoLineItem,
+    line: PoLineItem?,
+    toLineItem: ToLineItem?,
     sectionNumber: Int,
     items: List<ExtractedItem>,
     onPick: (ExtractedItem) -> Unit,
@@ -649,7 +760,7 @@ private fun LinkDeliveryBottomSheet(
     var query by rememberSaveable { mutableStateOf("") }
 
     // sort by similarity to PO description if any
-    val poText = (line.Description ?: line.Item).lowercase()
+    val poText = (line?.Description ?: line?.Item)?.lowercase()
     val filtered = remember(items, query) {
         items
             .filter {
@@ -661,7 +772,7 @@ private fun LinkDeliveryBottomSheet(
                             it.expiryDate.lowercase().contains(q)
                 }
             }
-            .sortedByDescending { similarity(it.description, poText) }
+            .sortedByDescending { similarity(it.description, poText.orEmpty()) }
     }
 
     ModalBottomSheet(
@@ -743,7 +854,12 @@ private fun DeliveryItemRow(ex: ExtractedItem, onSelect: () -> Unit) {
 @Composable
 fun Tag(text: String, bg: Color, textColor: Color) {
     Surface(color = bg, shape = RoundedCornerShape(8.dp), tonalElevation = 0.dp) {
-        Text(text, color = textColor, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+        Text(
+            text,
+            color = textColor,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
     }
 }
 
@@ -758,7 +874,12 @@ fun ReadFieldCompact(label: String, value: String?, modifier: Modifier = Modifie
 @Composable
 fun Chip(text: String, bg: Color = Color(0xFFEFF6FF), textColor: Color = Color(0xFF143A7B)) {
     Surface(color = bg, shape = RoundedCornerShape(50), tonalElevation = 0.dp) {
-        Text(text, color = textColor, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+        Text(
+            text,
+            color = textColor,
+            fontSize = 10.sp,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
     }
 }
 
@@ -777,7 +898,10 @@ private fun SectionBox(
         border = BorderStroke(1.dp, DividerDefaults.color.copy(alpha = 0.35f))
     ) {
         Column(Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleSmall.copy(
@@ -790,7 +914,11 @@ private fun SectionBox(
                     Icon(Icons.Outlined.Link, contentDescription = "Link", tint = Color(0xFF64748B))
                 }
                 IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Outlined.Delete, contentDescription = "Delete section", tint = Color(0xFFB00020))
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = "Delete section",
+                        tint = Color(0xFFB00020)
+                    )
                 }
             }
             Spacer(Modifier.height(8.dp))

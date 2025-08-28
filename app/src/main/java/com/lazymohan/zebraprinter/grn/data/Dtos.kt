@@ -1,5 +1,7 @@
 package com.lazymohan.zebraprinter.grn.data
 
+import com.google.gson.annotations.SerializedName
+
 // --- PO lookup ---
 data class PoResponse(val items: List<PoItem> = emptyList())
 data class ToResponse(val items: List<TOItem> = emptyList())
@@ -13,8 +15,8 @@ data class PoItem(
 )
 
 data class TOItem(
-    val HeaderNumber: String,
-    val HeaderId: Long,
+    @SerializedName("HeaderNumber") val HeaderNumber: String,
+    @SerializedName("HeaderId") val HeaderId: Long,
 )
 
 // --- PO lines ---
@@ -31,13 +33,14 @@ data class PoLineItem(
 )
 
 data class ToLineItem(
-    val LineNumber: Int,
-    val TransferOrderLineId: Long,
-    val TransferOrderHeaderId: Long,
-    val ItemNumber: String,
-    val ItemDescription: String,
-    val Subinventory: String? = null,
-    val UnitOfMeasure: String = "EA",
+    @SerializedName("LineNumber") val LineNumber: Int,
+    @SerializedName("LineId") val TransferOrderLineId: Long,
+    @SerializedName("RequestedQuantity") val RequestedQuantity: Double,
+    @SerializedName("HeaderId") val TransferOrderHeaderId: Long,
+    @SerializedName("ItemNumber") val ItemNumber: String,
+    @SerializedName("ItemDescription") val ItemDescription: String,
+    @SerializedName("SourceSubinventoryCode") val Subinventory: String? = null,
+    @SerializedName("QuantityUOMName") val UnitOfMeasure: String = "EA",
 )
 
 // --- GTIN lookup ---
@@ -75,6 +78,33 @@ data class ReceiptLine(
     val Locator: String,
     val DestinationTypeCode: String = "INVENTORY",
     val lotItemLots: List<LotItem>
+)
+
+
+data class ToReceiptLine(
+    val SourceDocumentCode: String,
+    val ReceiptSourceCode: String,
+    val TransactionType: String,
+    val AutoTransactCode: String,
+    val DocumentNumber: Long,
+    val DocumentLineNumber: Int,
+    val ItemNumber: String,
+    val OrganizationCode: String,
+    val Quantity: Int,
+    val UnitOfMeasure: String,
+    val Subinventory: String,
+    val TransferOrderHeaderId: Long,
+    val TransferOrderLineId: Long,
+    val lotItemLots: List<LotItem>
+)
+
+data class ToReceipt(
+    val FromOrganizationCode: String,
+    val OrganizationCode: String,
+    val EmployeeId: Long,
+    val ReceiptSourceCode: String,
+    val ShipmentNumber: Long,
+    val lines: List<ReceiptLine>
 )
 
 data class LotItem(

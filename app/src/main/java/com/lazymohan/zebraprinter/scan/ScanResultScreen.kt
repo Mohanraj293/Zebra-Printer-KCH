@@ -247,7 +247,7 @@ fun ScanResultScreen(
                         GrnActivity::class.java
                     ).apply {
                         putExtra("po_number", transfer.poNumber) // if it is from isFromPickUpSlip, this is the orderNumber
-                        putExtra("is_from_pick_slip", isFromPickUpSlip)
+                        putExtra("isFromPickSlip", isFromPickUpSlip)
                         putExtra("scan_extract_json", payload)
                         putStringArrayListExtra("scan_image_cache_paths", cachePaths)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

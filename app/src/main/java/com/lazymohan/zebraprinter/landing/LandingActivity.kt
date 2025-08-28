@@ -14,13 +14,13 @@ import com.lazymohan.zebraprinter.product.ProductsActivity
 import com.lazymohan.zebraprinter.scan.ScanDeliverySlipActivity
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class LandingActivity : ComponentActivity() {
 
-    @Inject lateinit var appPref: AppPref
+    @Inject
+    lateinit var appPref: AppPref
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,16 +43,13 @@ class LandingActivity : ComponentActivity() {
                     onManualGrn = {
                         startActivity(Intent(this, GrnActivity::class.java))
                     },
-                    onInProgress = { label ->
-                        scope.launch { snack.showSnackbar("$label is in progress") }
-                    },
                     userName = appPref.username.orEmpty(),
                     logoutHandler = {
                         appPref.clearUser()
-                        scope.launch {
-                            startActivity(Intent(this@LandingActivity, LoginActivity::class.java))
-                            finish()
-                        }
+                        startActivity(Intent(this@LandingActivity, LoginActivity::class.java))
+                        finish()
+
+                    },
                     onPickSlipClicked = {
                         startActivity(
                             ScanDeliverySlipActivity.getCallingIntent(

@@ -58,7 +58,6 @@ fun LandingScreenContent(
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
     onPickSlipClicked: () -> Unit,
-    onInProgress: (String) -> Unit,
     logoutHandler: () -> Unit,
     userName: String,
 ) {

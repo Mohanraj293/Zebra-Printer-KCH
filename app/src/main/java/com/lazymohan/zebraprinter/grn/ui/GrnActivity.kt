@@ -51,9 +51,9 @@ class GrnActivity : ComponentActivity() {
                     )
                     vm.prefillFromScan(
                         isFromPickSlip = isFromPickSlip,
-                        po = initialPo,
+                        po = initialPo.orEmpty(),
                         scanJson = scanJson,
-                        cachePaths = scanImageCachePaths ?: arrayListOf()
+                        cachePaths = scanImageCachePaths ?: arrayListOf(),
                     )
                 }
 
@@ -81,7 +81,8 @@ class GrnActivity : ComponentActivity() {
                     onReview = { vm.buildPayloadsAndReview() },
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },
-                    onBack = { finish() }
+                    onBack = { finish() },
+                    isFromPickSlip = isFromPickSlip
                 )
             }
         }
