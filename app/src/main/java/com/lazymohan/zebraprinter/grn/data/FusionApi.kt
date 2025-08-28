@@ -14,22 +14,11 @@ interface FusionApi {
         @Query("q") q: String
     ): PoResponse
 
-    @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
-    suspend fun getTransferOrders(
-        @Query("onlyData") onlyData: String = "true",
-        @Query("q") q: String
-    ): ToResponse
-
     // Step 2: Lines for a specific PO header
     @GET("fscmRestApi/resources/11.13.18.05/purchaseOrders/{poHeaderId}/child/lines")
     suspend fun getPoLines(
         @Path("poHeaderId") poHeaderId: String
     ): PoLinesResponse
-
-    @GET("fscmRestApi/resources/11.13.18.05/transferOrders/{toHeaderId}/child/transferOrderLines")
-    suspend fun getToLines(
-        @Path("toHeaderId") toHeaderId: Long
-    ): ToLinesResponse
 
     // GTIN lookup for an Item
     @GET("fscmRestApi/resources/11.13.18.05/GTINRelationships")
@@ -57,4 +46,33 @@ interface FusionApi {
         @Path("receiptid") receiptId: String,
         @Body body: AttachmentRequest
     ): AttachmentResponse
+
+    // Transfer Order endpoints
+
+
+    // TO: Header by number
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
+    suspend fun getTransferOrders(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String // e.g., HeaderNumber="107054"
+    ): TransferOrderResponse
+
+    // TO: Lines for a given header
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders/{toHeaderId}/child/transferOrderLines")
+    suspend fun getTransferOrderLines(
+        @Path("toHeaderId") toHeaderId: Long
+    ): TransferOrderLinesResponse
+
+    // Shipments by TO number (to get ShipmentNumber & LotNumber)
+    @GET("fscmRestApi/resources/11.13.18.05/shipmentLines")
+    suspend fun getShipmentLinesByOrder(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String // e.g., Order=107054
+    ): ShipmentLinesResponse
+
+    // Create receipt for TO (same path, different body type)
+    @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
+    suspend fun createReceiptTO(
+        @Body body: TransferReceiptRequest
+    ): ReceiptResponse
 }

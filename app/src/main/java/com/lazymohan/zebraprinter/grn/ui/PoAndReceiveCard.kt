@@ -6,7 +6,23 @@ import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -20,9 +36,38 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.BottomEnd
 import androidx.compose.ui.Modifier
@@ -39,7 +84,7 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.grn.data.PoLineItem
-import com.lazymohan.zebraprinter.grn.data.ToLineItem
+import com.lazymohan.zebraprinter.grn.data.TransferOrderLineItem
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem
 import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
 import com.lazymohan.zebraprinter.grn.util.extractGtinFromRaw
@@ -65,6 +110,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun PoAndReceiveCard(
     ui: GrnUiState,
+    toUi: ToUiState,
     onBack: () -> Unit,
     isFromPickSlip: Boolean,
     // legacy quick edit for Section #1 (kept)
@@ -126,7 +172,7 @@ fun PoAndReceiveCard(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    fun isLineVerified(lnNumber: Int) = lnNumber in verifiedLines
+    fun isLineVerified(lnNumber: Int?) = lnNumber in verifiedLines
 
     // Section #1 must be valid & line verified to allow review
     fun section1Valid(li: LineInput): Boolean {
@@ -180,7 +226,7 @@ fun PoAndReceiveCard(
                     Spacer(Modifier.height(10.dp))
 
                     val po = ui.po
-                    val to = ui.to
+                    val to = toUi.header
                     if (po == null || to == null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
@@ -289,7 +335,7 @@ fun PoAndReceiveCard(
                     Spacer(Modifier.height(6.dp))
 
                     when {
-                        !ui.linesLoaded -> {
+                        !ui.linesLoaded || !toUi.linesLoaded -> {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
@@ -301,7 +347,7 @@ fun PoAndReceiveCard(
                             }
                         }
 
-                        ui.lines.isEmpty() || ui.toLines.isEmpty() -> {
+                        ui.lines.isEmpty() || toUi.lines.isEmpty() -> {
                             val msg = if (isFromPickSlip) {
                                 if (isScanMode)
                                     "No matches found between scanned items and TO lines. Use “Add Item” to include items manually."
@@ -316,9 +362,9 @@ fun PoAndReceiveCard(
 
                         else -> {
                             if (isFromPickSlip) {
-                                ui.toLines.forEach { ln ->
+                                toUi.lines.forEach { ln ->
                                     val li =
-                                        ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
+                                        toUi.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
                                             ?: return@forEach
                                     val detailsRequired = !section1Valid(li)
                                     val verifiedOk = isLineVerified(ln.LineNumber)
@@ -418,14 +464,14 @@ fun PoAndReceiveCard(
                         scannedText = raw
                         lastScannedGtin = gt
 
-                        val matched = if (isFromPickSlip) ui.allToLines
+                        val matched = if (isFromPickSlip) toUi.lines
                             .map { it.LineNumber }
                             .toSet()
                         else ui.allPoLines
                             .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
                             .map { it.LineNumber }
                             .toSet()
-                        verifiedLines = verifiedLines + matched
+                        verifiedLines = (verifiedLines + matched) as Set<Int>
 
                         scope.launch {
                             snackbarHostState.showSnackbar(
@@ -433,7 +479,11 @@ fun PoAndReceiveCard(
                                     "GTIN $gt scanned. No PO line GTIN matched."
                                 else
                                     "GTIN $gt verified for lines: ${
-                                        matched.sorted().joinToString(", ")
+                                        matched.sortedBy {
+                                            it
+                                        }.joinToString(", ") {
+                                            it.toString()
+                                        }
                                     }"
                             )
                         }
@@ -468,7 +518,7 @@ fun PoAndReceiveCard(
 private fun SectionedLineCard(
     context: Context,
     ln: PoLineItem?,
-    toLineItem: ToLineItem?,
+    toLineItem: TransferOrderLineItem?,
     isFromPickSlip: Boolean,
     li: LineInput,
     availableItems: List<ExtractedItem>,
@@ -554,7 +604,7 @@ private fun SectionedLineCard(
                     }
 
                     Chip("Item: $itemCode")
-                    Chip("${fmt(quantity)} • $uom")
+                    Chip("${fmt(quantity?.toDouble())} • $uom")
                 }
 
                 Row(
@@ -627,7 +677,7 @@ private fun SectionedLineCard(
                                 null
                             )
                         },
-                        max = quantity ?: 0.0
+                        max = quantity ?: 0
                     )
                     Spacer(Modifier.height(8.dp))
                     LinedTextField(
@@ -661,7 +711,7 @@ private fun SectionedLineCard(
                                     null
                                 )
                             },
-                            max = quantity ?: 0.0
+                            max = quantity ?: 0
                         )
                         Spacer(Modifier.height(8.dp))
                         LinedTextField(
@@ -733,7 +783,7 @@ private fun SectionedLineCard(
             onPick = { ex ->
                 val qty = ex.qtyDelivered
                 val lot = ex.batchNo
-                val expIso = normalizeExpiryToIso(ex.expiryDate)
+                val expIso = ex.expiryDate //normalizeExpiryToIso(ex.expiryDate)
                 if (linking == 1) {
                     onUpdateLine(lineNumber ?: 0, qty, lot, expIso)
                 } else {
@@ -750,7 +800,7 @@ private fun SectionedLineCard(
 @Composable
 private fun LinkDeliveryBottomSheet(
     line: PoLineItem?,
-    toLineItem: ToLineItem?,
+    toLineItem: TransferOrderLineItem?,
     sectionNumber: Int,
     items: List<ExtractedItem>,
     onPick: (ExtractedItem) -> Unit,
@@ -932,7 +982,7 @@ private fun SectionBox(
 private fun QtyField(
     value: String,
     onChange: (String) -> Unit,
-    max: Double  // kept for call-sites; not used
+    max: Int  // kept for call-sites; not used
 ) {
     OutlinedTextField(
         value = value,

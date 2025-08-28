@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 fun EnterPoCard(
     isFromPickSlip: Boolean,
     ui: GrnUiState,
+    toUiState: ToUiState,
     onEnterPo: (String) -> Unit,
     onFetchPo: () -> Unit,
     onBack: () -> Unit
@@ -54,9 +55,9 @@ fun EnterPoCard(
         Column(Modifier.padding(20.dp)) {
 
             OutlinedTextField(
-                value = ui.poNumber,
+                value = if (isFromPickSlip) toUiState.toNumber else ui.poNumber,
                 onValueChange = { onEnterPo(it.trim()) },
-                label = { Text("PO Number") },
+                label = { if (isFromPickSlip) Text("TO Number") else Text("Enter PO Number") },
                 placeholder = { Text("e.g., KHQ/PO/99387") },
                 singleLine = true,
                 isError = hasError,
@@ -70,13 +71,16 @@ fun EnterPoCard(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = ui.error,
+                                text = (if (isFromPickSlip) toUiState.error else ui.error).toString(),
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
                     } else {
                         Text(
-                            "Enter the exact Oracle PO number.",
+                            if (isFromPickSlip)
+                                "Enter the exact Oracle TO number.  Contact support if you don't have it."
+                            else
+                                "Enter the exact Oracle PO number. Contact support if you don't have it.",
                             color = Color(0xFF64748B)
                         )
                     }
@@ -133,7 +137,10 @@ fun EnterPoCard(
 
                 Button(
                     onClick = onFetchPo,
-                    enabled = ui.poNumber.isNotBlank() && !ui.loading,
+                    enabled = if (isFromPickSlip)
+                        toUiState.toNumber.isNotBlank() && !toUiState.loading
+                    else
+                        ui.poNumber.isNotBlank() && !ui.loading,
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -149,6 +156,10 @@ fun EnterPoCard(
             if (ui.error != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(ui.error, color = Color(0xFFB00020), fontSize = 13.sp)
+            }
+            if (toUiState.error != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(toUiState.error, color = Color(0xFFB00020), fontSize = 13.sp)
             }
         }
     }

@@ -41,6 +41,7 @@ class GrnActivity : ComponentActivity() {
         setContent {
             TUITheme {
                 val vm: GrnViewModel = hiltViewModel()
+                val toVm: TransferGrnViewModel = hiltViewModel()
                 val ui by vm.state.collectAsState()
                 val snack = remember { SnackbarHostState() }
 
@@ -49,40 +50,98 @@ class GrnActivity : ComponentActivity() {
                         "GrnActivity",
                         "prefillFromScan(po=$initialPo, jsonLen=${scanJson?.length ?: 0}, paths=${scanImageCachePaths?.size ?: 0})"
                     )
-                    vm.prefillFromScan(
-                        isFromPickSlip = isFromPickSlip,
-                        po = initialPo.orEmpty(),
-                        scanJson = scanJson,
-                        cachePaths = scanImageCachePaths ?: arrayListOf(),
-                    )
+                    if (isFromPickSlip) {
+                        toVm.prefillFromScan(
+                            toNumber = initialPo.orEmpty(),
+                            scanJson = scanJson,
+                            cachePaths = scanImageCachePaths ?: arrayListOf(),
+                        )
+                    } else {
+                        vm.prefillFromScan(
+                            po = initialPo.orEmpty(),
+                            scanJson = scanJson,
+                            cachePaths = scanImageCachePaths ?: arrayListOf(),
+                        )
+                    }
                 }
 
                 GrnScreens(
                     ui = ui,
                     snackbarHostState = snack,
                     dateTimeConverter = dateTimeConverter,
-                    onEnterPo = { vm.setPoNumber(it) },
-                    onFetchPo = { vm.fetchPo() },
-                    onUpdateLine = { ln, q, l, e -> vm.updateLine(ln, q, l, e) },
-                    onRemoveLine = { ln -> vm.removeLine(ln) },
-                    onAddLine = { vm.addLineFromPo(it) },
-                    onAddSection = { vm.addSection(it) },
-                    onRemoveSection = { ln, sec -> vm.removeSection(ln, sec) },
-                    onUpdateSection = { ln, sec, q, l, e ->
-                        vm.updateLineSection(
-                            ln,
-                            sec,
-                            q,
-                            l,
-                            e
-                        )
+
+                    // choose which VM to call
+                    onEnterPo = {
+                        if (isFromPickSlip) toVm.setToNumber(it)
+                        else vm.setPoNumber(it)
                     },
-                    onEditReceive = { vm.backToReceive() },
-                    onReview = { vm.buildPayloadsAndReview() },
-                    onSubmit = { vm.submitReceipt() },
-                    onStartOver = { vm.startOver() },
+                    onFetchPo = {
+                        if (isFromPickSlip) toVm.fetchTransferOrder()
+                        else vm.fetchPo()
+                    },
+                    onUpdateLine = { ln, q, l, e ->
+                        if (isFromPickSlip) toVm.updateLineSection(
+                            lineNumber = ln,
+                            expiry = e,
+                            qty = q,
+                            lot = l
+                        )
+                        else vm.updateLine(ln, q, l, e)
+                    },
+                    onRemoveLine = { ln ->
+                        if (isFromPickSlip) toVm.removeLine(ln)
+                        else vm.removeLine(ln)
+                    },
+                    onAddLine = {
+                        if (isFromPickSlip) toVm.addLineFromTo(it)
+                        else vm.addLineFromPo(it)
+                    },
+                    onAddSection = {
+                        if (isFromPickSlip) toVm.addSection(it)
+                        else vm.addSection(it)
+                    },
+                    onRemoveSection = { ln, sec ->
+                        if (isFromPickSlip) toVm.removeSection(ln, sec)
+                        else vm.removeSection(ln, sec)
+                    },
+                    onUpdateSection = { ln, sec, q, l, e ->
+                        if (isFromPickSlip) {
+                            toVm.updateLineSection(
+                                lineNumber = ln,
+                                sectionIndex = sec,
+                                qty = q,
+                                lot = l,
+                                expiry = e
+                            )
+                        } else {
+                            vm.updateLineSection(
+                                lineNumber = ln,
+                                sectionIndex = sec,
+                                qty = q,
+                                lot = l,
+                                expiry = e
+                            )
+                        }
+                    },
+                    onEditReceive = {
+                        if (isFromPickSlip) toVm.backToReceive()
+                        else vm.backToReceive()
+                    },
+                    onReview = {
+                        if (isFromPickSlip) toVm.buildTOPayloadsAndReview()
+                        else vm.buildPayloadsAndReview()
+                    },
+                    onSubmit = {
+                        if (isFromPickSlip) toVm.submitTransferReceipt()
+                        else vm.submitReceipt()
+                    },
+                    onStartOver = {
+                        if (isFromPickSlip) toVm.startOver()
+                        else vm.startOver()
+                    },
                     onBack = { finish() },
-                    isFromPickSlip = isFromPickSlip
+                    isFromPickSlip = isFromPickSlip,
+                    toUiState = toVm.state.collectAsState().value
                 )
             }
         }
