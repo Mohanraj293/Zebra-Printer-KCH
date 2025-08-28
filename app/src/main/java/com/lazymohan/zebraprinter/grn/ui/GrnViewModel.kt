@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.lazymohan.zebraprinter.BuildConfig
+import com.lazymohan.zebraprinter.app.AppPref
 import com.lazymohan.zebraprinter.grn.data.AttachmentRequest
 import com.lazymohan.zebraprinter.grn.data.GrnRepository
 import com.lazymohan.zebraprinter.grn.data.LotItem
@@ -110,7 +111,8 @@ data class GrnUiState(
 
 @HiltViewModel
 class GrnViewModel @Inject constructor(
-    private val repo: GrnRepository
+    private val repo: GrnRepository,
+    private val appPref: AppPref
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(GrnUiState())
@@ -406,7 +408,7 @@ class GrnViewModel @Inject constructor(
                         VendorName = po.Supplier,
                         VendorSiteCode = po.SupplierSite,
                         BusinessUnit = po.ProcurementBU,
-                        EmployeeId = BuildConfig.EMPLOYEE_ID,
+                        EmployeeId = appPref.personId.toString(),
                         lines = linesForThisSection
                     )
                 )

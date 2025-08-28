@@ -2,6 +2,7 @@ package com.lazymohan.zebraprinter.grn.util
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.ResolverStyle
 
 data class ExtractedItem(
     val description: String,
@@ -11,21 +12,38 @@ data class ExtractedItem(
 )
 
 fun parseToIso(date: String): String {
-    // Accepts: dd-MM-yyyy, dd/MM/yyyy, dd.MM.yyyy, yyyy-MM-dd, MM/dd/yyyy
+    val s = date.trim()
+    if (s.isEmpty()) return ""
+
+    val iso = DateTimeFormatter.ISO_LOCAL_DATE
+
+    // Supported patterns
     val patterns = listOf(
-        "dd-MM-yyyy",
-        "dd/MM/yyyy",
-        "dd.MM.yyyy",
-        "yyyy-MM-dd",
-        "MM/dd/yyyy"
+        "dd-MM-uuuu",
+        "d-M-uuuu",
+        "dd/MM/uuuu",
+        "d/M/uuuu",
+        "dd.MM.uuuu",
+        "d.M.uuuu",
+        "uuuu-MM-dd",
+        "MM/dd/uuuu",
+        "M/d/uuuu",
+        "dd-MM-uu",
+        "dd/MM/uu",
+        "dd.MM.uu"
     )
+
     for (p in patterns) {
+        val fmt = DateTimeFormatter.ofPattern(p)
+            .withResolverStyle(ResolverStyle.STRICT)
+
         runCatching {
-            val fmt = DateTimeFormatter.ofPattern(p)
-            return LocalDate.parse(date.trim(), fmt).toString()
+            val parsed = LocalDate.parse(s, fmt)
+            return parsed.format(iso)
         }
     }
-    return date.trim()
+
+    return ""
 }
 
 //
