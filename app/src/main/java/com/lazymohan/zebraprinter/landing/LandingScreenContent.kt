@@ -19,21 +19,29 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Smartphone
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,11 +58,13 @@ fun LandingScreenContent(
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
     onInProgress: (String) -> Unit,
-    userName: String = "RCA Automation",
-    userRole: String = "Warehouse Staff"
+    logoutHandler: () -> Unit,
+    userName: String,
 ) {
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val overlap = 28.dp
+    var showDialog by remember { mutableStateOf(false) }
+
 
     Scaffold(
         containerColor = Color(0xFFF6F8FF),
@@ -79,6 +89,17 @@ fun LandingScreenContent(
                             bottom = 24.dp + overlap
                         )
                 ) {
+                    IconButton(
+                        onClick = { showDialog = true },
+                        modifier = Modifier.align(Alignment.TopEnd)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = "Logout",
+                            tint = Color.White
+                        )
+                    }
+
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -147,12 +168,6 @@ fun LandingScreenContent(
                                 ),
                                 textAlign = TextAlign.Center
                             )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                userRole,
-                                style = MaterialTheme.typography.bodyMedium.copy(color = Color(0xFF687089)),
-                                textAlign = TextAlign.Center
-                            )
                         }
                     }
                 }
@@ -177,10 +192,6 @@ fun LandingScreenContent(
                     onClick = onPrintQr
                 )
             }
-
-            // GRN Operations
-            item { Spacer(Modifier.height(8.dp)) }
-            item { SectionHeader(title = "GRN Operations", emojiBg = Color(0xFF2E6BFF)) }
             item {
                 FeatureCard(
                     icon = Icons.Outlined.Description,
@@ -204,6 +215,26 @@ fun LandingScreenContent(
 
             // bottom spacer so last card isn't hidden behind bottom bar
             item { Spacer(Modifier.height(96.dp)) }
+        }
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Logout") },
+                text = { Text("Are you sure you want to logout?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDialog = false
+                        logoutHandler()
+                    }) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDialog = false }) {
+                        Text("No")
+                    }
+                }
+            )
         }
     }
 }
