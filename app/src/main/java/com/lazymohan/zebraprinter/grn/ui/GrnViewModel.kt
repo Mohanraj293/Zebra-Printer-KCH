@@ -90,7 +90,9 @@ class GrnViewModel @Inject constructor(
     private val _state = MutableStateFlow(GrnUiState())
     val state: StateFlow<GrnUiState> = _state
 
-    fun setPoNumber(po: String) { _state.value = _state.value.copy(poNumber = po) }
+    fun setPoNumber(po: String) {
+        _state.value = _state.value.copy(poNumber = po)
+    }
 
     fun fetchPo() = viewModelScope.launch {
         val s = _state.value
@@ -104,7 +106,8 @@ class GrnViewModel @Inject constructor(
             }
             .onFailure { e ->
                 Log.e("GRN", "fetchPo failed: ${e.message}")
-                _state.value = _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
+                _state.value =
+                    _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
             }
     }
 
@@ -137,7 +140,10 @@ class GrnViewModel @Inject constructor(
                             val ex = extracted[matchIdx]
                             val isoExpiry = parseToIso(ex.expiryDate)
                             val sec1 = LineSectionInput(
-                                section = 1, qty = ex.qtyDelivered, lot = ex.batchNo, expiry = isoExpiry
+                                section = 1,
+                                qty = ex.qtyDelivered,
+                                lot = ex.batchNo,
+                                expiry = isoExpiry
                             )
                             line to line.toLineInput(initial = sec1)
                         } else null
@@ -164,7 +170,10 @@ class GrnViewModel @Inject constructor(
             }
             .onFailure { e ->
                 Log.e("GRN", "fetchPoLines failed: ${e.message}")
-                _state.value = _state.value.copy(error = e.message ?: "Failed to load PO lines", linesLoaded = true)
+                _state.value = _state.value.copy(
+                    error = e.message ?: "Failed to load PO lines",
+                    linesLoaded = true
+                )
             }
     }
 
@@ -216,7 +225,12 @@ class GrnViewModel @Inject constructor(
     }
 
     // Back-compat: old call edits section-1
-    fun updateLine(lineNumber: Int, qty: Double? = null, lot: String? = null, expiry: String? = null) {
+    fun updateLine(
+        lineNumber: Int,
+        qty: Double? = null,
+        lot: String? = null,
+        expiry: String? = null
+    ) {
         updateLineSection(lineNumber, sectionIndex = 1, qty = qty, lot = lot, expiry = expiry)
     }
 
@@ -255,7 +269,8 @@ class GrnViewModel @Inject constructor(
 
         for (secIdx in 1..maxSection) {
             val linesForThisSection = s.lines.mapNotNull { line ->
-                val li = s.lineInputs.firstOrNull { it.lineNumber == line.LineNumber } ?: return@mapNotNull null
+                val li = s.lineInputs.firstOrNull { it.lineNumber == line.LineNumber }
+                    ?: return@mapNotNull null
                 val sec = li.sections.firstOrNull { it.section == secIdx } ?: return@mapNotNull null
                 if (!sec.isValidFor(line)) return@mapNotNull null
 
@@ -311,6 +326,7 @@ class GrnViewModel @Inject constructor(
         var receiptHeaderId: Long? = null
         var lastResp: ReceiptResponse? = null
         var progress = _state.value.progress.toMutableList()
+        var headerInterfaceId: String? = null
 
         staged.forEachIndexed { idx, stage ->
             // mark SUBMITTING
@@ -320,8 +336,12 @@ class GrnViewModel @Inject constructor(
             _state.value = _state.value.copy(progress = progress)
 
             // Inject the header id for stages > 1
-            val body = if (idx == 0) stage.request else stage.request.copy(ReceiptHeaderId = receiptHeaderId)
-            Log.d("GRN", "Submitting stage ${stage.sectionIndex} with ${body.lines.size} lines; header=$receiptHeaderId")
+            val body =
+                if (idx == 0) stage.request else stage.request.copy(ReceiptHeaderId = receiptHeaderId)
+            Log.d(
+                "GRN",
+                "Submitting stage ${stage.sectionIndex} with ${body.lines.size} lines; header=$receiptHeaderId"
+            )
 
             val result = repo.createReceipt(body)
             result.onSuccess { resp ->
@@ -334,10 +354,14 @@ class GrnViewModel @Inject constructor(
 
                 // Add processing errors if any
                 val h = resp.HeaderInterfaceId
+                if (!h.isNullOrBlank() && headerInterfaceId.isNullOrBlank()) {
+                    headerInterfaceId = h
+                }
                 val iface = resp.lines?.firstOrNull()?.InterfaceTransactionId
                 if (!h.isNullOrBlank() && !iface.isNullOrBlank()) {
                     repo.fetchProcessingErrors(h, iface).onSuccess { fetched ->
-                        inlineErrors += fetched.mapNotNull { it.ErrorMessage?.trim() }.filter { it.isNotBlank() }
+                        inlineErrors += fetched.mapNotNull { it.ErrorMessage?.trim() }
+                            .filter { it.isNotBlank() }
                     }.onFailure { pe ->
                         inlineErrors += "ProcessingErrors fetch failed: ${pe.message}"
                     }
@@ -364,7 +388,11 @@ class GrnViewModel @Inject constructor(
                 if (e is HttpException) {
                     httpCode = e.code()
                     url = e.response()?.raw()?.request?.url?.toString()
-                    bodyText = try { e.response()?.errorBody()?.string() } catch (_: Exception) { null }
+                    bodyText = try {
+                        e.response()?.errorBody()?.string()
+                    } catch (_: Exception) {
+                        null
+                    }
                 } else {
                     httpCode = null
                     url = null
@@ -388,7 +416,8 @@ class GrnViewModel @Inject constructor(
                             httpCode = httpCode,
                             url = url,
                             errorBody = bodyText,
-                            exception = e::class.java.simpleName + (e.message?.let { ": $it" } ?: "")
+                            exception = e::class.java.simpleName + (e.message?.let { ": $it" }
+                                ?: "")
                         )
                     else it
                 }.toMutableList()
@@ -396,11 +425,11 @@ class GrnViewModel @Inject constructor(
             }
         }
 
-        // Upload scanned images as attachments once against the real ReceiptHeaderId
+        // Upload scanned images as attachments once against the HeaderInterfaceId
         val paths = _state.value.scanImageCachePaths
         var uploadedCount = 0
-        val finalHeaderId = receiptHeaderId
-        if (finalHeaderId != null && paths.isNotEmpty()) {
+        val finalHeaderInterfaceId = headerInterfaceId
+        if (finalHeaderInterfaceId != null && paths.isNotEmpty()) {
             for ((i, p) in paths.withIndex()) {
                 try {
                     val file = java.io.File(p)
@@ -414,7 +443,8 @@ class GrnViewModel @Inject constructor(
                         FileContents = b64,
                         Title = fileName
                     )
-                    repo.uploadAttachment(finalHeaderId, req).onSuccess {
+                    // <-- changed to use HeaderInterfaceId
+                    repo.uploadAttachment(finalHeaderInterfaceId, req).onSuccess {
                         uploadedCount++
                         file.delete()
                     }
@@ -432,11 +462,17 @@ class GrnViewModel @Inject constructor(
         )
     }
 
-    fun startOver() { _state.value = GrnUiState() }
+
+    fun startOver() {
+        _state.value = GrnUiState()
+    }
 
     // NOTE: third param now represents CACHE PATHS, not base64
     fun prefillFromScan(po: String?, scanJson: String?, cachePaths: List<String>) {
-        Log.d("GRN", "prefillFromScan(po=$po, jsonLen=${scanJson?.length ?: 0}, cachePaths=${cachePaths.size})")
+        Log.d(
+            "GRN",
+            "prefillFromScan(po=$po, jsonLen=${scanJson?.length ?: 0}, cachePaths=${cachePaths.size})"
+        )
 
         var next = _state.value
         if (!po.isNullOrBlank()) next = next.copy(poNumber = po)
@@ -463,7 +499,10 @@ class GrnViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 Log.e("GRN", "Failed to read scan payload: ${e.message}")
-                next = next.copy(error = "Failed to read scan payload: ${e.message}", scanImageCachePaths = cachePaths)
+                next = next.copy(
+                    error = "Failed to read scan payload: ${e.message}",
+                    scanImageCachePaths = cachePaths
+                )
             }
         } else {
             if (cachePaths.isNotEmpty()) next = next.copy(scanImageCachePaths = cachePaths)

@@ -47,7 +47,7 @@ class GrnRepository(private val api: FusionApi) {
     }
 
     suspend fun uploadAttachment(
-        receiptId: Long,
+        receiptId: String,
         body: AttachmentRequest
     ): Result<AttachmentResponse> = runCatching {
         api.uploadReceiptAttachment(receiptId.toString(), body)
