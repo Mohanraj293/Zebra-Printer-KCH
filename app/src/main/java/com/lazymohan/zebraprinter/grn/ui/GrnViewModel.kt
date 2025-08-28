@@ -557,6 +557,7 @@ class GrnViewModel @Inject constructor(
         var receiptHeaderId: Long? = null
         var lastResp: ReceiptResponse? = null
         var progress = _state.value.progress.toMutableList()
+        var headerInterfaceId: String? = null
 
         staged.forEachIndexed { idx, stage ->
             // mark SUBMITTING
@@ -584,6 +585,9 @@ class GrnViewModel @Inject constructor(
 
                 // Add processing errors if any
                 val h = resp.HeaderInterfaceId
+                if (!h.isNullOrBlank() && headerInterfaceId.isNullOrBlank()) {
+                    headerInterfaceId = h
+                }
                 val iface = resp.lines?.firstOrNull()?.InterfaceTransactionId
                 if (!h.isNullOrBlank() && !iface.isNullOrBlank()) {
                     repo.fetchProcessingErrors(h, iface).onSuccess { fetched ->
@@ -652,11 +656,11 @@ class GrnViewModel @Inject constructor(
             }
         }
 
-        // Upload scanned images as attachments once against the real ReceiptHeaderId
+        // Upload scanned images as attachments once against the HeaderInterfaceId
         val paths = _state.value.scanImageCachePaths
         var uploadedCount = 0
-        val finalHeaderId = receiptHeaderId
-        if (finalHeaderId != null && paths.isNotEmpty()) {
+        val finalHeaderInterfaceId = headerInterfaceId
+        if (finalHeaderInterfaceId != null && paths.isNotEmpty()) {
             for ((i, p) in paths.withIndex()) {
                 try {
                     val file = File(p)
@@ -670,7 +674,8 @@ class GrnViewModel @Inject constructor(
                         FileContents = b64,
                         Title = fileName
                     )
-                    repo.uploadAttachment(finalHeaderId, req).onSuccess {
+                    // <-- changed to use HeaderInterfaceId
+                    repo.uploadAttachment(finalHeaderInterfaceId, req).onSuccess {
                         uploadedCount++
                         file.delete()
                     }
