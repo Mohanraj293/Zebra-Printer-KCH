@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 
 @Composable
@@ -42,16 +41,7 @@ fun EnterPoCard(
                 supportingText = {
                     if (hasError) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.ErrorOutline,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
                             Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = ui.error,
-                                color = MaterialTheme.colorScheme.error
-                            )
                         }
                     } else {
                         Text(
@@ -78,7 +68,7 @@ fun EnterPoCard(
                             Icon(Icons.Outlined.ErrorOutline, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = "We couldn’t find that PO",
+                                text = "PO not found in Oracle Fusion.",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
                                 )
@@ -90,12 +80,14 @@ fun EnterPoCard(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             SmallTipChip("Check typos")
+                            SmallTipChip("Use exact slashes (/)")
                             SmallTipChip("Remove spaces")
-                            SmallTipChip("Use exact slashes")
+                            SmallTipChip("Example: KHQ/PO/98840")
                         }
                     }
                 }
             }
+
 
             Spacer(Modifier.height(16.dp))
 
@@ -124,10 +116,6 @@ fun EnterPoCard(
                         Text("Next", color = Color.White)
                     }
                 }
-            }
-            if (ui.error != null) {
-                Spacer(Modifier.height(8.dp))
-                Text(ui.error, color = Color(0xFFB00020), fontSize = 13.sp)
             }
         }
     }

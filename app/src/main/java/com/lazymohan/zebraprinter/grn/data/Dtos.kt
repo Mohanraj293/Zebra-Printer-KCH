@@ -37,7 +37,7 @@ data class ReceiptRequest(
     val VendorName: String,
     val VendorSiteCode: String,
     val BusinessUnit: String,
-    val EmployeeId: String,
+    val EmployeeId: Long,
     val lines: List<ReceiptLine>
 )
 

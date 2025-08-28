@@ -335,7 +335,7 @@ fun PoAndReceiveCard(
         FloatingActionButton(
             onClick = {
                 val options = GmsBarcodeScannerOptions.Builder()
-                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                    .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
                     .enableAutoZoom()
                     .build()
                 val scanner = GmsBarcodeScanning.getClient(context, options)
@@ -525,7 +525,7 @@ private fun SectionedLineCard(
                 HorizontalDivider()
                 Spacer(Modifier.height(10.dp))
 
-                if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description!!)
+                if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description)
                 ReadFieldInline("Line #", ln.LineNumber.toString())
                 ReadFieldInline("UOM", ln.UOM)
                 ReadFieldInline("GTIN", ln.GTIN?.takeIf { it.isNotBlank() } ?: "—")

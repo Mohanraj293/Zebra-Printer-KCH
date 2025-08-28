@@ -61,7 +61,7 @@ data class UserAccount(
     @SerializedName("UserId") val userId: String?,
     @SerializedName("Username") val username: String?,
     @SerializedName("SuspendedFlag") val suspendedFlag: String?,
-    @SerializedName("PersonId") val personId: String?,
+    @SerializedName("PersonId") val personId: Long,
     @SerializedName("PersonNumber") val personNumber: String?,
     @SerializedName("CredentialsEmailSentFlag") val credentialsEmailSentFlag: String?,
     @SerializedName("GUID") val guid: String?,

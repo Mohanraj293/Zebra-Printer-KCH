@@ -314,7 +314,7 @@ class GrnViewModel @Inject constructor(
                         VendorName = po.Supplier,
                         VendorSiteCode = po.SupplierSite,
                         BusinessUnit = po.ProcurementBU,
-                        EmployeeId = appPref.personId.toString(),
+                        EmployeeId = appPref.personId,
                         lines = linesForThisSection
                     )
                 )
