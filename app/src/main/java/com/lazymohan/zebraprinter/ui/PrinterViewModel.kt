@@ -22,13 +22,24 @@ import kotlinx.coroutines.launch
 
 class PrinterViewModel @AssistedInject constructor(
     private val printerService: PrinterService,
+    private val appPref: AppPref,
     @Assisted("item") private val lots: Lots,
     @Assisted("gtinNumber") private val gtinNum: String,
 ) : ViewModel() {
 
     init {
-        if (AppPref.canDiscover)
-            getZPLPrinterList()
+        viewModelScope.launchWithHandler(
+            dispatcher = Dispatchers.IO,
+            onCoroutineException = ::handleErrors
+        ) {
+            _uiState.update { currentState ->
+                currentState.copy(
+                    canDiscoverPrinter = appPref.canDiscover
+                )
+            }
+            if (appPref.canDiscover)
+                getZPLPrinterList()
+        }
     }
 
     @AssistedFactory
@@ -147,7 +158,7 @@ class PrinterViewModel @AssistedInject constructor(
                 canDiscoverPrinter = canDiscover
             )
         }
-        AppPref.canDiscover = canDiscover
+        appPref.canDiscover = canDiscover
         getZPLPrinterList()
     }
 

@@ -4,7 +4,16 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.BuildConfig
-import com.lazymohan.zebraprinter.grn.data.*
+import com.lazymohan.zebraprinter.app.AppPref
+import com.lazymohan.zebraprinter.grn.data.AttachmentRequest
+import com.lazymohan.zebraprinter.grn.data.GrnRepository
+import com.lazymohan.zebraprinter.grn.data.LotItem
+import com.lazymohan.zebraprinter.grn.data.PoItem
+import com.lazymohan.zebraprinter.grn.data.PoLineItem
+import com.lazymohan.zebraprinter.grn.data.ProcessingError
+import com.lazymohan.zebraprinter.grn.data.ReceiptLine
+import com.lazymohan.zebraprinter.grn.data.ReceiptRequest
+import com.lazymohan.zebraprinter.grn.data.ReceiptResponse
 import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
 import com.lazymohan.zebraprinter.grn.util.parseToIso
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -84,7 +93,8 @@ data class GrnUiState(
 
 @HiltViewModel
 class GrnViewModel @Inject constructor(
-    private val repo: GrnRepository
+    private val repo: GrnRepository,
+    private val appPref: AppPref
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(GrnUiState())
@@ -304,7 +314,7 @@ class GrnViewModel @Inject constructor(
                         VendorName = po.Supplier,
                         VendorSiteCode = po.SupplierSite,
                         BusinessUnit = po.ProcurementBU,
-                        EmployeeId = BuildConfig.EMPLOYEE_ID,
+                        EmployeeId = appPref.personId.toString(),
                         lines = linesForThisSection
                     )
                 )
