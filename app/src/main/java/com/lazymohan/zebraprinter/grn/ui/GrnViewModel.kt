@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/data/GrnRepository.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import android.util.Log
