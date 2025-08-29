@@ -57,6 +57,7 @@ fun LandingScreenContent(
     onScanDelivery: () -> Unit,
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
+    onPhysicalInventory: () -> Unit,
     onInProgress: (String) -> Unit,
     logoutHandler: () -> Unit,
     userName: String,
@@ -198,6 +199,14 @@ fun LandingScreenContent(
                     title = "Manual GRN by PO",
                     subtitle = "Create receipt by entering PO number",
                     onClick = onManualGrn
+                )
+            }
+            item {
+                FeatureCard(
+                    icon = Icons.Outlined.QrCode,
+                    title = "Physical Inventory Count",
+                    subtitle = "Scan item & export count CSV",
+                    onClick = onPhysicalInventory
                 )
             }
 
