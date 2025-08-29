@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/landing/LandingActivity.kt
 package com.lazymohan.zebraprinter.landing
 
 import android.content.Intent
@@ -22,7 +21,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LandingActivity : ComponentActivity() {
 
-    @Inject lateinit var appPref: AppPref
+    @Inject
+    lateinit var appPref: AppPref
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
