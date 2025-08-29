@@ -9,6 +9,7 @@ import com.lazymohan.zebraprinter.model.DiscoveredPrinterInfo
 import com.lazymohan.zebraprinter.model.PrintContentModel
 import com.lazymohan.zebraprinter.product.data.Lots
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
+import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.lazymohan.zebraprinter.utils.launchWithHandler
 import com.tarkalabs.tarkaui.components.TUISnackBarType
 import dagger.assisted.Assisted
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 class PrinterViewModel @AssistedInject constructor(
     private val printerService: PrinterService,
     private val appPref: AppPref,
+    private val dateTimeConverter: DateTimeConverter,
     @Assisted("item") private val lots: Lots,
     @Assisted("gtinNumber") private val gtinNum: String,
 ) : ViewModel() {
@@ -84,7 +86,7 @@ class PrinterViewModel @AssistedInject constructor(
                 description = lots.itemDescription.orEmpty(),
                 gtinNum = gtinNum,
                 batchNo = lots.lotNumber.orEmpty(),
-                expiryDate = lots.expirationDate.toString(),
+                expiryDate = dateTimeConverter.getDisplayDate(lots.expirationDate)
             )
 
             if (gtinNum.isEmpty()) {
