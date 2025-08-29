@@ -36,37 +36,17 @@ class OcrRepository @Inject constructor(
   "extracted_text": {
     "invoice_no": "205997918",
     "invoice_date": "30/06/2025",
-    "order_number": "DXB-06",
+    "order_number": "101002",
     "sales_order_no": "5285622",
     "customer_ref_purchase_order_no": "KHQ/PO/99387",
     "items": [
       {
-        "description": "Aciclovir 400 mg (Zovirax) tablets — 25 blister pack",
+        "description": "Ticagrelor 90 mg (Brilinta) Tablets",
         "details": [
           {
-            "qty_delivered": "50",
-            "expiry_date": "2027-03-31",
-            "batch_no": "SR328"
-          },
-          {
-            "qty_delivered": "2",
-            "expiry_date": "2027-03-31",
-            "batch_no": "SR328"
-          }
-        ]
-      },
-      {
-        "description": "XIGDUO XR 10/500 OF 30'S",
-        "details": [
-          {
-            "qty_delivered": "25",
-            "expiry_date": "2027-03-31",
-            "batch_no": "WH0319"
-          },
-          {
-            "qty_delivered": "1",
-            "expiry_date": "2027-03-31",
-            "batch_no": "WH0319"
+            "qty_delivered": "56",
+            "expiry_date": "",
+            "batch_no": ""
           }
         ]
       }
@@ -84,7 +64,7 @@ class OcrRepository @Inject constructor(
     suspend fun uploadAndPoll(
         context: Context,
         imageUri: Uri,
-        label: String = "delivery",
+        label: String,
         maxAttempts: Int = 60,
         intervalMs: Long = 1500
     ): OcrResult = withContext(Dispatchers.IO) {

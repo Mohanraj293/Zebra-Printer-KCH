@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/ScanDeliverySlipScreen.kt
 package com.lazymohan.zebraprinter.scan
 
 import android.app.Activity
@@ -35,6 +34,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,12 +52,13 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ScanDeliverySlipScreen(
-    snackbarHostState: SnackbarHostState,
+    isFromPickSlip: Boolean = false,
     onBack: () -> Unit
 ) {
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val scannerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -72,6 +73,7 @@ fun ScanDeliverySlipScreen(
                             ScanResultActivity.EXTRA_PAGES,
                             ArrayList(pages.map { it.toString() })
                         )
+                        putExtra("isFromPickSlip", isFromPickSlip)
                     }
                 )
             } else scope.launch { snackbarHostState.showSnackbar("No pages captured") }
@@ -124,7 +126,14 @@ fun ScanDeliverySlipScreen(
                         Text("KCH", style = MaterialTheme.typography.titleLarge.copy(color = Color(0xFF0E63FF), fontWeight = FontWeight.Bold))
                     } }
                     Spacer(Modifier.height(12.dp))
-                    Text("Scan Delivery Slip", color = Color.White, style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold))
+                    Text(
+                        text = if (isFromPickSlip)
+                            "Scan Pick Slip"
+                        else
+                            "Scan Delivery Slip",
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold)
+                    )
                     Spacer(Modifier.height(6.dp))
                     Text(
                         "Tap “Capture & Process” to open the camera or import from Gallery.",

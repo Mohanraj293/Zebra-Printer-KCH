@@ -1,6 +1,10 @@
 package com.lazymohan.zebraprinter.grn.data
 
-import retrofit2.http.*
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface FusionApi {
     // Step 1: Purchase Orders by OrderNumber
@@ -42,4 +46,33 @@ interface FusionApi {
         @Path("receiptid") receiptId: String,
         @Body body: AttachmentRequest
     ): AttachmentResponse
+
+    // Transfer Order endpoints
+
+
+    // TO: Header by number
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
+    suspend fun getTransferOrders(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String // e.g., HeaderNumber="107054"
+    ): TransferOrderResponse
+
+    // TO: Lines for a given header
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders/{toHeaderId}/child/transferOrderLines")
+    suspend fun getTransferOrderLines(
+        @Path("toHeaderId") toHeaderId: Long
+    ): TransferOrderLinesResponse
+
+    // Shipments by TO number (to get ShipmentNumber & LotNumber)
+    @GET("fscmRestApi/resources/11.13.18.05/shipmentLines")
+    suspend fun getShipmentLinesByOrder(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String // e.g., Order=107054
+    ): ShipmentLinesResponse
+
+    // Create receipt for TO (same path, different body type)
+    @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
+    suspend fun createReceiptTO(
+        @Body body: TransferReceiptRequest
+    ): ReceiptResponse
 }

@@ -50,6 +50,28 @@ class GrnRepository(private val api: FusionApi) {
         receiptId: String,
         body: AttachmentRequest
     ): Result<AttachmentResponse> = runCatching {
-        api.uploadReceiptAttachment(receiptId.toString(), body)
+        api.uploadReceiptAttachment(receiptId, body)
     }
+
+    // Transfer Order helpers
+
+    suspend fun fetchTransferOrder(headerNumber: String): Result<TransferOrderItem> = runCatching {
+        val q = """HeaderNumber="$headerNumber""""
+        val resp = api.getTransferOrders(q = q)
+        resp.items.firstOrNull() ?: error("Transfer Order not found")
+    }
+
+    suspend fun fetchTransferOrderLines(headerId: Long): Result<List<TransferOrderLineItem>> =
+        runCatching {
+            api.getTransferOrderLines(headerId).items
+        }
+
+    suspend fun fetchShipmentForOrder(headerNumber: String): Result<List<ShipmentLineItem>> =
+        runCatching {
+            // Order=107054
+            api.getShipmentLinesByOrder(q = "Order=$headerNumber").items
+        }
+
+    suspend fun createTransferReceipt(request: TransferReceiptRequest): Result<ReceiptResponse> =
+        runCatching { api.createReceiptTO(request) }
 }

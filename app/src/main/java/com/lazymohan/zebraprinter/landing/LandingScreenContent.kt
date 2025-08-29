@@ -57,7 +57,7 @@ fun LandingScreenContent(
     onScanDelivery: () -> Unit,
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
-    onInProgress: (String) -> Unit,
+    onPickSlipClicked: () -> Unit,
     logoutHandler: () -> Unit,
     userName: String,
 ) {
@@ -209,7 +209,7 @@ fun LandingScreenContent(
                     icon = Icons.Outlined.ReceiptLong,
                     title = "Scan Pick Up Slip",
                     subtitle = "Receive transfers from pharmacy",
-                    onClick = { onInProgress("Scan Pick Up Slip") }
+                    onClick = onPickSlipClicked
                 )
             }
 

@@ -18,7 +18,7 @@ import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
 import com.lazymohan.zebraprinter.grn.util.parseToIso
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -36,7 +36,7 @@ data class LineInput(
     val lineNumber: Int,
     val itemNumber: String,
     val uom: String,
-    val maxQty: Double,
+    val maxQty: Int,
     val description: String = "",
     val gtin: String? = null,
     val sections: List<LineSectionInput> = listOf(LineSectionInput(section = 1))
@@ -98,7 +98,7 @@ class GrnViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(GrnUiState())
-    val state: StateFlow<GrnUiState> = _state
+    val state = _state.asStateFlow()
 
     fun setPoNumber(po: String) {
         _state.value = _state.value.copy(poNumber = po)
@@ -123,7 +123,7 @@ class GrnViewModel @Inject constructor(
 
     private fun PoLineItem.toLineInput(initial: LineSectionInput? = null) = LineInput(
         lineNumber = LineNumber,
-        itemNumber = Item.trim().orEmpty(),
+        itemNumber = Item.trim(),
         uom = UOM,
         maxQty = Quantity,
         description = Description ?: "",

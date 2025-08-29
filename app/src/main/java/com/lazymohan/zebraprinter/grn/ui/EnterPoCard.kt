@@ -1,21 +1,43 @@
 package com.lazymohan.zebraprinter.grn.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color
 
 @Composable
 fun EnterPoCard(
+    isFromPickSlip: Boolean,
     ui: GrnUiState,
+    toUiState: ToUiState,
     onEnterPo: (String) -> Unit,
     onFetchPo: () -> Unit,
     onBack: () -> Unit
@@ -33,9 +55,9 @@ fun EnterPoCard(
         Column(Modifier.padding(20.dp)) {
 
             OutlinedTextField(
-                value = ui.poNumber,
+                value = if (isFromPickSlip) toUiState.toNumber else ui.poNumber,
                 onValueChange = { onEnterPo(it.trim()) },
-                label = { Text("PO Number") },
+                label = { if (isFromPickSlip) Text("TO Number") else Text("Enter PO Number") },
                 placeholder = { Text("e.g., KHQ/PO/99387") },
                 singleLine = true,
                 isError = hasError,
@@ -49,13 +71,16 @@ fun EnterPoCard(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = ui.error,
+                                text = (if (isFromPickSlip) toUiState.error else ui.error).toString(),
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
                     } else {
                         Text(
-                            "Enter the exact Oracle PO number.",
+                            if (isFromPickSlip)
+                                "Enter the exact Oracle TO number.  Contact support if you don't have it."
+                            else
+                                "Enter the exact Oracle PO number. Contact support if you don't have it.",
                             color = Color(0xFF64748B)
                         )
                     }
@@ -78,9 +103,9 @@ fun EnterPoCard(
                             Icon(Icons.Outlined.ErrorOutline, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = "We couldn’t find that PO",
+                                text = if (isFromPickSlip) "We couldn’t find that TO" else "We couldn’t find that PO",
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             )
                         }
@@ -112,7 +137,10 @@ fun EnterPoCard(
 
                 Button(
                     onClick = onFetchPo,
-                    enabled = ui.poNumber.isNotBlank() && !ui.loading,
+                    enabled = if (isFromPickSlip)
+                        toUiState.toNumber.isNotBlank() && !toUiState.loading
+                    else
+                        ui.poNumber.isNotBlank() && !ui.loading,
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -128,6 +156,10 @@ fun EnterPoCard(
             if (ui.error != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(ui.error, color = Color(0xFFB00020), fontSize = 13.sp)
+            }
+            if (toUiState.error != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(toUiState.error, color = Color(0xFFB00020), fontSize = 13.sp)
             }
         }
     }

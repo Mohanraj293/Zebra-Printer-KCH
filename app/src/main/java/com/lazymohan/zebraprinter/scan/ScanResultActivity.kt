@@ -1,13 +1,14 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/ScanResultActivity.kt
 package com.lazymohan.zebraprinter.scan
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lazymohan.zebraprinter.scan.ui.ScanResultViewModel
@@ -22,12 +23,10 @@ class ScanResultActivity : ComponentActivity() {
         private const val TAG = "ScanResultActivity"
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        Log.d(TAG, "onCreate()")
-
-        // Defensive: re-grant read permission for all Uris passed via ClipData
         intent?.clipData?.let { cd ->
             for (i in 0 until cd.itemCount) {
                 cd.getItemAt(i).uri?.let { u ->
@@ -51,16 +50,15 @@ class ScanResultActivity : ComponentActivity() {
 
         setContent {
             TUITheme {
-                // If @AndroidEntryPoint is missing, this line typically triggers a crash
                 val vm: ScanResultViewModel = hiltViewModel()
                 LaunchedEffect(uris) {
                     Log.d(TAG, "Starting upload/poll with ${uris.size} pages")
-                    vm.start(uris)
+                    vm.start(uris, intent.getBooleanExtra("isFromPickSlip", false))
                 }
                 ScanResultScreen(
+                    isFromPickUpSlip = intent.getBooleanExtra("isFromPickSlip", false),
                     pages = uris,
                     onBack = {
-                        Log.d(TAG, "onBack -> finish()")
                         finish()
                     },
                     onRetake = {
@@ -70,30 +68,5 @@ class ScanResultActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        Log.d(TAG, "onStart()")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "onResume()")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d(TAG, "onPause()")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d(TAG, "onStop()")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d(TAG, "onDestroy()")
     }
 }

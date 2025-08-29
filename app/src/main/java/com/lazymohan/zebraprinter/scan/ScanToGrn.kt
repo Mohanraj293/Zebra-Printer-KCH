@@ -22,11 +22,15 @@ private fun parseQty(src: String?): Double {
     return match.value.toDoubleOrNull() ?: 0.0
 }
 
-fun OcrContentResponse.toTransfer(): ScanExtractTransfer? {
+fun OcrContentResponse.toTransfer(isFromPickSlip: Boolean): ScanExtractTransfer? {
     val xt = extractedText ?: return null
 
-    val po = listOf(xt.poNo)
-        .firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
+    val po = if (isFromPickSlip)
+        listOf(xt.orderNumber)
+            .firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
+    else
+        listOf(xt.poNo)
+            .firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
 
     val items = buildList {
         xt.items.forEach { item ->

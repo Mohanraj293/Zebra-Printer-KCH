@@ -1,6 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/ScanResultScreen.kt
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.lazymohan.zebraprinter.scan
 
 import android.content.ContentValues
@@ -11,6 +8,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,17 +16,49 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -40,6 +70,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import com.lazymohan.zebraprinter.grn.ui.GrnActivity
 import com.lazymohan.zebraprinter.scan.data.ExtractedItem
 import com.lazymohan.zebraprinter.scan.ui.ScanResultViewModel
 import com.lazymohan.zebraprinter.scan.ui.ScanUiState
@@ -50,9 +81,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-
-
-// ---------- helpers ----------
+@RequiresApi(Build.VERSION_CODES.Q)
 private suspend fun saveUriToGallery(
     context: Context,
     source: Uri,
@@ -66,23 +95,19 @@ private suspend fun saveUriToGallery(
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            if (Build.VERSION.SDK_INT >= 29) {
-                put(
-                    MediaStore.Images.Media.RELATIVE_PATH,
-                    Environment.DIRECTORY_PICTURES + "/KCH"
-                )
-                put(MediaStore.Images.Media.IS_PENDING, 1)
-            }
+            put(
+                MediaStore.Images.Media.RELATIVE_PATH,
+                Environment.DIRECTORY_PICTURES + "/KCH"
+            )
+            put(MediaStore.Images.Media.IS_PENDING, 1)
         }
         val itemUri = resolver.insert(collection, values) ?: return@withContext false
         resolver.openOutputStream(itemUri)?.use { out ->
             resolver.openInputStream(source)?.use { `in` -> `in`.copyTo(out) }
                 ?: return@withContext false
         }
-        if (Build.VERSION.SDK_INT >= 29) {
-            values.clear(); values.put(MediaStore.Images.Media.IS_PENDING, 0)
-            resolver.update(itemUri, values, null, null)
-        }
+        values.clear(); values.put(MediaStore.Images.Media.IS_PENDING, 0)
+        resolver.update(itemUri, values, null, null)
         true
     } catch (_: Exception) {
         false
@@ -181,9 +206,10 @@ private fun SavedBanner(visible: Boolean, modifier: Modifier = Modifier) {
     }
 }
 
-// ---------- UI ----------
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun ScanResultScreen(
+    isFromPickUpSlip: Boolean = false,
     pages: List<Uri>,
     onBack: () -> Unit,
     onRetake: () -> Unit,
@@ -201,12 +227,10 @@ fun ScanResultScreen(
     val gradient =
         Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val scrollState = rememberScrollState()
-
-    // Shared action for "Create GRN" button (bottom)
     val launchCreateGrn: () -> Unit = {
         val s = state
         if (s is ScanUiState.Completed) {
-            val transfer = s.data.toTransfer()
+            val transfer = s.data.toTransfer(isFromPickUpSlip)
             if (transfer == null) {
                 scope.launch { snack.showSnackbar("No usable OCR data") }
             } else {
@@ -220,9 +244,10 @@ fun ScanResultScreen(
 
                     val intent = Intent(
                         ctx,
-                        com.lazymohan.zebraprinter.grn.ui.GrnActivity::class.java
+                        GrnActivity::class.java
                     ).apply {
-                        putExtra("po_number", transfer.poNumber)
+                        putExtra("po_number", transfer.poNumber) // if it is from isFromPickUpSlip, this is the orderNumber
+                        putExtra("isFromPickSlip", isFromPickUpSlip)
                         putExtra("scan_extract_json", payload)
                         putStringArrayListExtra("scan_image_cache_paths", cachePaths)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -243,9 +268,12 @@ fun ScanResultScreen(
         containerColor = Color(0xFFF6F8FF),
         snackbarHost = { SnackbarHost(hostState = snack) }
     ) { inner ->
-        Box(Modifier.fillMaxSize().padding(inner)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(inner)
+        ) {
             Column(Modifier.fillMaxSize()) {
-                // Header
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -296,16 +324,16 @@ fun ScanResultScreen(
                     }
                 }
 
-                // Content
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(scrollState)
                 ) {
 
-                    // Preview card
                     Surface(
-                        modifier = Modifier.padding(horizontal = 20.dp).offset(y = (-18).dp),
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .offset(y = (-18).dp),
                         shape = RoundedCornerShape(24.dp),
                         color = Color.White,
                         tonalElevation = 1.dp,
@@ -355,7 +383,6 @@ fun ScanResultScreen(
                                 }
                             }
 
-                            // Under image: simple Retake + Download row
                             Row(
                                 Modifier
                                     .fillMaxWidth()
@@ -414,7 +441,6 @@ fun ScanResultScreen(
                         }
                     }
 
-                    // Status / Result area
                     when (val s = state) {
                         is ScanUiState.Uploading -> {
                             Column(
@@ -543,21 +569,37 @@ fun ScanResultScreen(
                                             vertical = 14.dp
                                         )
                                     ) {
-                                        InvoiceMetaGrid(
-                                            left = listOf(
-                                                "Invoice No." to (xt?.invoiceNo?.ifBlank { "—" }
-                                                    ?: "—"),
-                                                "Invoice Date" to (xt?.invoiceDate?.ifBlank { "—" }
-                                                    ?: "—")
-                                            ),
-                                            right = listOf(
-                                                "PO Number" to (xt?.poNo?.ifBlank { "—" } ?: "—"),
-                                                "Extracted On" to SimpleDateFormat(
-                                                    "dd MMM yyyy, hh:mm a",
-                                                    Locale.getDefault()
-                                                ).format(System.currentTimeMillis())
+                                        if (isFromPickUpSlip) {
+                                            InvoiceMetaGrid(
+                                                left = listOf(
+                                                    "TO Number" to (xt?.orderNumber?.ifBlank { "—" }
+                                                        ?: "—"),
+                                                    "Extracted On" to SimpleDateFormat(
+                                                        "dd MMM yyyy, hh:mm a",
+                                                        Locale.getDefault()
+                                                    ).format(System.currentTimeMillis())
+                                                ),
+                                                right = emptyList()
                                             )
-                                        )
+                                        } else {
+                                            InvoiceMetaGrid(
+                                                left = listOf(
+                                                    "Invoice No." to (xt?.invoiceNo?.ifBlank { "—" }
+                                                        ?: "—"),
+                                                    "Invoice Date" to (xt?.invoiceDate?.ifBlank { "—" }
+                                                        ?: "—")
+                                                ),
+                                                right = listOf(
+                                                    "PO Number" to (xt?.poNo?.ifBlank { "—" }
+                                                        ?: "—"),
+                                                    "Extracted On" to SimpleDateFormat(
+                                                        "dd MMM yyyy, hh:mm a",
+                                                        Locale.getDefault()
+                                                    ).format(System.currentTimeMillis())
+                                                )
+                                            )
+                                        }
+
                                     }
 
                                     Divider(color = Color(0xFFE8ECF5))
@@ -644,13 +686,17 @@ fun ScanResultScreen(
                 ) {
                     OutlinedButton(
                         onClick = onBack,
-                        modifier = Modifier.weight(1f).height(56.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
                     ) { Text("Back") }
 
                     Button(
                         onClick = launchCreateGrn,
                         enabled = canCreateGrn,
-                        modifier = Modifier.weight(1f).height(56.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
                     ) { Text("Next", color = Color.White, fontWeight = FontWeight.Bold) }
                 }
