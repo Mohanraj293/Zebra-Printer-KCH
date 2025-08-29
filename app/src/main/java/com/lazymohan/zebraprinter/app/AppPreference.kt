@@ -34,9 +34,9 @@ class AppPref @Inject constructor(context: Context) {
         get() = preferences.getString(KEY_USERNAME, null)
         set(value) = preferences.edit { putString(KEY_USERNAME, value) }
 
-    fun saveUser(personId: String, username: String) {
+    fun saveUser(personId: Long, username: String) {
         preferences.edit {
-            putString(KEY_PERSON_ID, personId)
+            putLong(KEY_PERSON_ID, personId)
             putString(KEY_USERNAME, username)
             putBoolean(KEY_LOGGED_IN, true)
         }

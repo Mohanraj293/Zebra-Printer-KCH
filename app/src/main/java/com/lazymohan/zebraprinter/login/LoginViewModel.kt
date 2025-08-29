@@ -35,7 +35,7 @@ class LoginViewModel @Inject constructor(
                     updateLoginStatus(isLoggedIn = true, user = user)
                     _loginEvents.emit(LoginEvent.Success)
                     appPref.saveUser(
-                        personId = user.personId.orEmpty(),
+                        personId = user.personId,
                         username = user.username.orEmpty()
                     )
                     updateLoader(false)

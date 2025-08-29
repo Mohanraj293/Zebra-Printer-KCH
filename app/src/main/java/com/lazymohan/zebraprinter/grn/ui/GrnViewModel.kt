@@ -290,7 +290,7 @@ class GrnViewModel @Inject constructor(
                     DocumentLineNumber = li.lineNumber,
                     ItemNumber = li.itemNumber,
                     Quantity = sec.qty,
-                    UnitOfMeasure = "EA",
+                    UnitOfMeasure = li.uom,
                     SoldtoLegalEntity = po.SoldToLegalEntity,
                     Subinventory = BuildConfig.DEFAULT_SUBINVENTORY,
                     Locator = BuildConfig.DEFAULT_LOCATOR,
@@ -314,7 +314,7 @@ class GrnViewModel @Inject constructor(
                         VendorName = po.Supplier,
                         VendorSiteCode = po.SupplierSite,
                         BusinessUnit = po.ProcurementBU,
-                        EmployeeId = appPref.personId.toString(),
+                        EmployeeId = appPref.personId,
                         lines = linesForThisSection
                     )
                 )
