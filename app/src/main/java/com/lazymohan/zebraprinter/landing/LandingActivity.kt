@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/landing/LandingActivity.kt
 package com.lazymohan.zebraprinter.landing
 
 import android.content.Intent
@@ -11,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.lazymohan.zebraprinter.app.AppPref
 import com.lazymohan.zebraprinter.grn.ui.GrnActivity
+import com.lazymohan.zebraprinter.login.LoginActivity
 import com.lazymohan.zebraprinter.product.ProductsActivity
 import com.lazymohan.zebraprinter.scan.ScanDeliverySlipActivity
 import com.tarkalabs.tarkaui.theme.TUITheme
@@ -49,13 +49,11 @@ class LandingActivity : ComponentActivity() {
                     },
                     userName = appPref.username.orEmpty(),
                     logoutHandler = {
-//                        appPref.clearUser()
-//                        scope.launch {
-//                            startActivity(Intent(this@LandingActivity, LoginActivity::class.java))
-//                            finish()
-//                        }
-
-                        throw RuntimeException("Test Crash")
+                        appPref.clearUser()
+                        scope.launch {
+                            startActivity(Intent(this@LandingActivity, LoginActivity::class.java))
+                            finish()
+                        }
                     }
                 )
             }
