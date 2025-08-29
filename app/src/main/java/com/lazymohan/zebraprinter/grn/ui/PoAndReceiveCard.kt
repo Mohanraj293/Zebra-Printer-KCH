@@ -528,6 +528,7 @@ private fun SectionedLineCard(
                 if (!ln.Description.isNullOrBlank()) ReadFieldInline("Description", ln.Description)
                 ReadFieldInline("Line #", ln.LineNumber.toString())
                 ReadFieldInline("UOM", ln.UOM)
+                ReadFieldInline("Rate", ln.Price.toString())
                 ReadFieldInline("GTIN", ln.GTIN?.takeIf { it.isNotBlank() } ?: "—")
 
                 Spacer(Modifier.height(12.dp))

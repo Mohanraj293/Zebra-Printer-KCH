@@ -19,7 +19,8 @@ data class PoLineItem(
     val Quantity: Double,
     val UOM: String = "EA",
     val Description: String? = null,
-    val GTIN: String? = null
+    val GTIN: String? = null,
+    val Price: Double? = null
 )
 
 // --- GTIN lookup ---

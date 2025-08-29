@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
@@ -31,6 +33,12 @@ fun ReviewCard(
 ) {
     val staged = ui.staged
 
+    // quick lookup of unit price by PO line number
+    val linePriceMap = remember(ui.allPoLines) {
+        ui.allPoLines.associate { it.LineNumber to it.Price }
+    }
+
+
     Column(Modifier.verticalScroll(rememberScrollState())) {
         Card(
             modifier = Modifier
@@ -42,7 +50,6 @@ fun ReviewCard(
         ) {
             Column(Modifier.padding(16.dp)) {
 
-                // Header (unchanged copy, slightly tighter spacing)
                 Text(
                     "Receipt Preview",
                     style = MaterialTheme.typography.titleLarge.copy(
@@ -61,6 +68,16 @@ fun ReviewCard(
                 KeyValueRow("Business Unit", po?.ProcurementBU ?: "-")
 
                 Spacer(Modifier.height(10.dp))
+
+//                OutlinedButton(
+//                    onClick = { }, // allow any file type
+//                    modifier = Modifier.fillMaxWidth()
+//                ) {
+//                    Icon(Icons.Default.AttachFile, contentDescription = null)
+//                    Spacer(Modifier.width(6.dp))
+//                    Text("Add Attachment")
+//                }
+
                 HorizontalDivider(thickness = 1.dp, color = Color(0xFFE7EAF3))
                 Spacer(Modifier.height(10.dp))
 
@@ -75,15 +92,34 @@ fun ReviewCard(
                     Spacer(Modifier.height(6.dp))
                     Text("No lines selected.", color = Color(0xFF6B7280))
                 } else {
-                    // Totals (condensed)
+                    // Totals
                     val totalLines = remember(staged) { staged.sumOf { it.request.lines.size } }
                     val totalQty = remember(staged) { staged.sumOf { it.request.lines.sumOf { ln -> ln.Quantity } } }
+
+                    // Amount totals & weighted final rate
+                    val (totalAmount, pricedQty) = remember(staged, linePriceMap) {
+                        var amt = 0.0
+                        var qtyWithPrice = 0.0
+                        staged.forEach { part ->
+                            part.request.lines.forEach { ln ->
+                                val price = linePriceMap[ln.DocumentLineNumber]
+                                if (price != null) {
+                                    amt += price * ln.Quantity
+                                    qtyWithPrice += ln.Quantity
+                                }
+                            }
+                        }
+                        amt to qtyWithPrice
+                    }
+                    val finalRate = remember(totalAmount, pricedQty) {
+                        if (pricedQty > 0.0) totalAmount / pricedQty else null
+                    }
 
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider(thickness = 1.dp, color = Color(0xFFE7EAF3))
                     Spacer(Modifier.height(8.dp))
 
-                    // Compact parts + lines
+                    // Parts + lines
                     staged.forEachIndexed { idx, part ->
                         val isFirst = idx == 0
                         val title = if (isFirst) "Part 1 • Create GRN" else "Part ${part.sectionIndex} • Add Items"
@@ -100,13 +136,18 @@ fun ReviewCard(
                             val lot = ln.lotItemLots.firstOrNull()?.LotNumber ?: "-"
                             val exp = ln.lotItemLots.firstOrNull()?.LotExpirationDate ?: "-"
 
+                            val unitRate = linePriceMap[ln.DocumentLineNumber]
+                            val lineAmount = unitRate?.let { it * ln.Quantity }
+
                             CompactLineRow(
                                 lineNumber = ln.DocumentLineNumber,
                                 itemNumber = ln.ItemNumber,
                                 qty = ln.Quantity,
                                 uom = ln.UnitOfMeasure,
                                 lot = lot,
-                                expiry = exp
+                                expiry = exp,
+                                unitRate = unitRate,
+                                lineAmount = lineAmount
                             )
                         }
 
@@ -124,6 +165,10 @@ fun ReviewCard(
                     KeyValueRow("Total Parts", staged.size.toString())
                     KeyValueRow("Total Lines", totalLines.toString())
                     KeyValueRow("Total Quantity", fmt(totalQty))
+
+                    // money totals
+                    KeyValueRow("Total Amount", fmtMoney(totalAmount))
+                    KeyValueRow("Final Rate", fmtMoney(finalRate))
                 }
 
                 Spacer(Modifier.height(12.dp))
@@ -131,16 +176,19 @@ fun ReviewCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Keep same labels & sizing as your original
                     OutlinedButton(
                         onClick = onEditReceive,
-                        modifier = Modifier.weight(1f).height(52.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
                     ) { Text("Back to Receive") }
 
                     Button(
                         onClick = onSubmit,
                         enabled = !ui.loading && staged.isNotEmpty(),
-                        modifier = Modifier.weight(1f).height(52.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
                     ) {
                         if (ui.loading) CircularProgressIndicator(strokeWidth = 2.dp, color = Color.White)
@@ -165,51 +213,65 @@ private fun CompactLineRow(
     qty: Double,
     uom: String,
     lot: String,
-    expiry: String
+    expiry: String,
+    unitRate: Double?,
+    lineAmount: Double?
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Qty block
-        Column(
+        // LEFT COLUMN: fixed width for Qty/UOM card
+        Box(
             modifier = Modifier
-                .widthIn(min = 60.dp)
-                .background(Color(0xFFEFF4FF), RoundedCornerShape(8.dp))
-                .padding(vertical = 6.dp, horizontal = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .width(70.dp)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = fmtQtyBadge(qty),
-                style = MaterialTheme.typography.titleSmall, // slightly bigger again
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF143A7B),
-                maxLines = 1
-            )
-            Text(
-                text = uom,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF475569)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFEFF4FF), RoundedCornerShape(8.dp))
+                    .padding(vertical = 6.dp, horizontal = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // UOM on top
+                Text(
+                    text = uom,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF475569)
+                )
+                Spacer(Modifier.height(2.dp))
+                // Quantity bold below
+                Text(
+                    text = fmtQtyBadge(qty),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF143A7B),
+                    maxLines = 1
+                )
+            }
         }
 
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
 
+        // RIGHT COLUMN: details
         Column(Modifier.weight(1f)) {
             Text(
                 text = "Line $lineNumber • $itemNumber",
-                style = MaterialTheme.typography.bodyMedium, // back to medium for readability
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF0F172A),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
 
+            // Row 1: LOT + EXP
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -226,11 +288,7 @@ private fun CompactLineRow(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            "LOT",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF64748B)
-                        )
+                        Text("LOT", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
                         Spacer(Modifier.height(2.dp))
                         Text(
                             lot,
@@ -241,8 +299,7 @@ private fun CompactLineRow(
                     }
                 }
 
-
-                // EXP chip — strong colors depending on date
+                // EXP chip
                 val (bg, fg) = remember(expiry) {
                     val d = daysUntil(expiry)
                     when {
@@ -253,7 +310,6 @@ private fun CompactLineRow(
                         else -> Pair(Color(0xFFE6FBE6), Color(0xFF166534))
                     }
                 }
-
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = bg,
@@ -264,11 +320,7 @@ private fun CompactLineRow(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            "EXP",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF64748B)
-                        )
+                        Text("EXP", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
                         Spacer(Modifier.height(2.dp))
                         Text(
                             expiry,
@@ -278,11 +330,57 @@ private fun CompactLineRow(
                         )
                     }
                 }
-
             }
 
+            Spacer(Modifier.height(6.dp))
 
-
+            // Row 2: Rate & Amount
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("RATE", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            fmtMoney(unitRate),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF0F172A)
+                        )
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFEEF2FF),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("AMOUNT", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            fmtMoney(lineAmount),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -290,7 +388,8 @@ private fun CompactLineRow(
 }
 
 
-/* --- helpers (unchanged behavior) --- */
+
+/* --- helpers --- */
 
 @Composable
 private fun KeyValueRow(label: String, value: String) {
@@ -303,6 +402,9 @@ private fun KeyValueRow(label: String, value: String) {
 
 private fun fmt(d: Double): String =
     if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
+
+private fun fmtMoney(value: Double?): String =
+    value?.let { "%,.2f".format(it) } ?: "-"
 
 private fun fmtQtyBadge(q: Double): String {
     val rounded = if (q % 1.0 == 0.0) q.toInt().toString() else (q * 100.0).roundToInt() / 100.0

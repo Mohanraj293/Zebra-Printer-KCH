@@ -1,3 +1,4 @@
+// app/src/main/java/com/lazymohan/zebraprinter/grn/data/GrnRepository.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import android.util.Log
@@ -290,7 +291,7 @@ class GrnViewModel @Inject constructor(
                     DocumentLineNumber = li.lineNumber,
                     ItemNumber = li.itemNumber,
                     Quantity = sec.qty,
-                    UnitOfMeasure = "EA",
+                    UnitOfMeasure = li.uom,
                     SoldtoLegalEntity = po.SoldToLegalEntity,
                     Subinventory = BuildConfig.DEFAULT_SUBINVENTORY,
                     Locator = BuildConfig.DEFAULT_LOCATOR,
