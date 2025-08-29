@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.tarkalabs.tarkaui.theme.TUITheme
@@ -36,6 +37,7 @@ class GrnActivity : ComponentActivity() {
                 val vm: GrnViewModel = hiltViewModel()
                 val ui by vm.state.collectAsState()
                 val snack = remember { SnackbarHostState() }
+                val context = LocalContext.current
 
                 LaunchedEffect(initialPo, scanJson, scanImageCachePaths) {
                     Log.d(
@@ -65,7 +67,8 @@ class GrnActivity : ComponentActivity() {
                     onReview = { vm.buildPayloadsAndReview() },
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },
-                    onBack = { finish() }
+                    onBack = { finish() },
+                    onAddAttachments = { uris -> vm.addManualAttachmentsFromUris(context, uris) }
                 )
             }
         }

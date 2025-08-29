@@ -1,6 +1,8 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/ReviewCard.kt
 package com.lazymohan.zebraprinter.grn.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -29,7 +31,8 @@ import kotlin.math.roundToInt
 fun ReviewCard(
     ui: GrnUiState,
     onSubmit: () -> Unit,
-    onEditReceive: () -> Unit
+    onEditReceive: () -> Unit,
+    onAddAttachments: (List<Uri>) -> Unit
 ) {
     val staged = ui.staged
 
@@ -38,6 +41,12 @@ fun ReviewCard(
         ui.allPoLines.associate { it.LineNumber to it.Price }
     }
 
+    // Multi-file picker for any document type
+    val docPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) onAddAttachments(uris)
+    }
 
     Column(Modifier.verticalScroll(rememberScrollState())) {
         Card(
@@ -69,17 +78,44 @@ fun ReviewCard(
 
                 Spacer(Modifier.height(10.dp))
 
-//                OutlinedButton(
-//                    onClick = { }, // allow any file type
-//                    modifier = Modifier.fillMaxWidth()
-//                ) {
-//                    Icon(Icons.Default.AttachFile, contentDescription = null)
-//                    Spacer(Modifier.width(6.dp))
-//                    Text("Add Attachment")
-//                }
+                // Allow attaching ANY file type(s)
+                OutlinedButton(
+                    onClick = { docPicker.launch(arrayOf("*/*")) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.AttachFile, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add Attachment")
+                }
 
-                HorizontalDivider(thickness = 1.dp, color = Color(0xFFE7EAF3))
-                Spacer(Modifier.height(10.dp))
+                if (ui.extraAttachments.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Attached (${ui.extraAttachments.size})",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color(0xFF475569)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        ui.extraAttachments.take(5).forEach {
+                            Text(
+                                "• ${it.displayName}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF0F172A),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (ui.extraAttachments.size > 5) {
+                            Text(
+                                "+${ui.extraAttachments.size - 5} more…",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                    }
+                }
+
 
                 if (staged.isEmpty()) {
                     Text(
@@ -386,8 +422,6 @@ private fun CompactLineRow(
 
     Spacer(Modifier.height(4.dp))
 }
-
-
 
 /* --- helpers --- */
 

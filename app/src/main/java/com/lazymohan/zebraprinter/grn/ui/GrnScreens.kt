@@ -1,5 +1,6 @@
 package com.lazymohan.zebraprinter.grn.ui
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -29,7 +30,8 @@ fun GrnScreens(
     onReview: () -> Unit,
     onSubmit: () -> Unit,
     onStartOver: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onAddAttachments: (List<Uri>) -> Unit
 ) {
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
 
@@ -83,7 +85,12 @@ fun GrnScreens(
                     snackbarHostState = snackbarHostState,
                     dateTimeConverter = dateTimeConverter
                 )
-                GrnStep.REVIEW   -> ReviewCard(ui, onSubmit, onEditReceive)
+                GrnStep.REVIEW   -> ReviewCard(
+                    ui = ui,
+                    onSubmit = onSubmit,
+                    onEditReceive = onEditReceive,
+                    onAddAttachments = onAddAttachments
+                )
                 GrnStep.SUMMARY  -> SummaryCard(ui, onStartOver)
             }
         }
