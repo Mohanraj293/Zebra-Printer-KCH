@@ -86,7 +86,7 @@ class PrinterViewModel @AssistedInject constructor(
                 description = lots.itemDescription.orEmpty(),
                 gtinNum = gtinNum,
                 batchNo = lots.lotNumber.orEmpty(),
-                expiryDate = dateTimeConverter.getDisplayDate(lots.expirationDate)
+                expiryDate = dateTimeConverter.getGS1DisplayDate(lots.expirationDate)
             )
 
             if (gtinNum.isEmpty()) {
