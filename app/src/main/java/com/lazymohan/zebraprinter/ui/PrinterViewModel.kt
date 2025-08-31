@@ -69,9 +69,13 @@ class PrinterViewModel @AssistedInject constructor(
     private val _uiState = MutableStateFlow(PrinterUiState())
     val uiState = _uiState.asStateFlow()
 
-    fun updateNoOfCopies(noOfCopies: String) {
+    fun updateNoOfCopies(noOfCopies: Int) {
         _uiState.update { currentState ->
-            currentState.copy(noOfCopies = noOfCopies)
+            if (noOfCopies > 0) {
+                currentState.copy(noOfCopies = noOfCopies.toString())
+            } else {
+                currentState.copy(noOfCopies = "")
+            }
         }
     }
 

@@ -173,8 +173,14 @@ fun PrinterScreenContent(
                         VerticalSpacer(space = 4)
                         TUIInputField(
                             label = "Enter no of Labels",
-                            onValueChange = { noOfCopies ->
-                                handleEvents(PrinterEvents.UpdateNoOfCopies(noOfCopies = noOfCopies))
+                            onValueChange = { newValue ->
+                                if (newValue.all { it.isDigit() }) {
+                                    handleEvents(
+                                        PrinterEvents.UpdateNoOfCopies(
+                                            noOfCopies = newValue.toIntOrNull() ?: 0
+                                        )
+                                    )
+                                }
                             },
                             value = uiState.noOfCopies,
                             status = TUIInputFieldStatus.Normal,

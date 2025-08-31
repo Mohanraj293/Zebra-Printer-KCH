@@ -31,7 +31,7 @@ enum class GrnStep { ENTER_PO, SHOW_PO, REVIEW, SUMMARY }
 
 data class LineSectionInput(
     val section: Int,
-    val qty: Double = 0.0,
+    val qty: Int = 0,
     val lot: String = "",
     val expiry: String = ""
 )
@@ -154,7 +154,7 @@ class GrnViewModel @Inject constructor(
                     // Scan-driven; build section-1 from OCR values
                     val used = mutableSetOf<Int>()
                     val matchedPairs = items.mapNotNull { line ->
-                        val safeItem = line.Item.trim().orEmpty()
+                        val safeItem = line.Item.trim()
                         val poDesc = (line.Description ?: safeItem).trim()
                         val matchIdx = bestMatchIndex(extracted, poDesc, used, 0.01)
                         if (matchIdx != null) {
@@ -163,7 +163,7 @@ class GrnViewModel @Inject constructor(
                             val isoExpiry = parseToIso(ex.expiryDate)
                             val sec1 = LineSectionInput(
                                 section = 1,
-                                qty = ex.qtyDelivered,
+                                qty = ex.qtyDelivered.toInt(),
                                 lot = ex.batchNo,
                                 expiry = isoExpiry
                             )
@@ -227,7 +227,7 @@ class GrnViewModel @Inject constructor(
     fun updateLineSection(
         lineNumber: Int,
         sectionIndex: Int,
-        qty: Double? = null,
+        qty: Int,
         lot: String? = null,
         expiry: String? = null
     ) {
@@ -236,7 +236,7 @@ class GrnViewModel @Inject constructor(
             if (li.lineNumber != lineNumber) return@map li
             val secs = li.sections.map { sec ->
                 if (sec.section != sectionIndex) sec else sec.copy(
-                    qty = qty ?: sec.qty,
+                    qty = qty,
                     lot = lot ?: sec.lot,
                     expiry = expiry ?: sec.expiry
                 )
@@ -249,7 +249,7 @@ class GrnViewModel @Inject constructor(
     // Back-compat: old call edits section-1
     fun updateLine(
         lineNumber: Int,
-        qty: Double? = null,
+        qty: Int,
         lot: String? = null,
         expiry: String? = null
     ) {

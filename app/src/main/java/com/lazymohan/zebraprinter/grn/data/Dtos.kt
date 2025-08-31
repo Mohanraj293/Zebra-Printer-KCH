@@ -51,7 +51,7 @@ data class ReceiptLine(
     val DocumentNumber: String,
     val DocumentLineNumber: Int,
     val ItemNumber: String,
-    val Quantity: Double,
+    val Quantity: Int,
     val UnitOfMeasure: String = "EA",
     val SoldtoLegalEntity: String,
     val Subinventory: String,
@@ -62,7 +62,7 @@ data class ReceiptLine(
 
 data class LotItem(
     val LotNumber: String,
-    val TransactionQuantity: Double,
+    val TransactionQuantity: Int,
     val LotExpirationDate: String
 )
 
