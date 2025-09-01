@@ -102,7 +102,7 @@ class TransferGrnViewModel @Inject constructor(
                     val matchedInputs = items.mapNotNull { line ->
                         val matchIdx = bestMatchIndex(
                             extracted = extracted,
-                            targetDesc = line.ItemNumber.trim(),
+                            targetDesc = line.ItemDescription.trim(),
                             used = used,
                             threshold = 0.01
                         )
