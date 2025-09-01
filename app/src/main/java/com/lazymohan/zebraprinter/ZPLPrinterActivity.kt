@@ -67,7 +67,7 @@ class ZPLPrinterActivity : ComponentActivity() {
             val gtinNumber: String? = intent.getStringExtra("gtinNumber")
             val qty: String? = intent.getStringExtra("qty")
             if (!qty.isNullOrEmpty()) {
-                viewModel.updateNoOfCopies(qty)
+                viewModel.updateNoOfCopies(qty.toInt())
             }
             TUITheme {
                 PrinterScreenContent(

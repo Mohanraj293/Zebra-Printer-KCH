@@ -5,14 +5,33 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -130,7 +149,8 @@ fun ReviewCard(
                 } else {
                     // Totals
                     val totalLines = remember(staged) { staged.sumOf { it.request.lines.size } }
-                    val totalQty = remember(staged) { staged.sumOf { it.request.lines.sumOf { ln -> ln.Quantity } } }
+                    val totalQty =
+                        remember(staged) { staged.sumOf { it.request.lines.sumOf { ln -> ln.Quantity } } }
 
                     // Amount totals & weighted final rate
                     val (totalAmount, pricedQty) = remember(staged, linePriceMap) {
@@ -158,7 +178,8 @@ fun ReviewCard(
                     // Parts + lines
                     staged.forEachIndexed { idx, part ->
                         val isFirst = idx == 0
-                        val title = if (isFirst) "Part 1 • Create GRN" else "Part ${part.sectionIndex} • Add Items"
+                        val title =
+                            if (isFirst) "Part 1 • Create GRN" else "Part ${part.sectionIndex} • Add Items"
                         Text(
                             title,
                             style = MaterialTheme.typography.titleSmall.copy(
@@ -200,7 +221,7 @@ fun ReviewCard(
 
                     KeyValueRow("Total Parts", staged.size.toString())
                     KeyValueRow("Total Lines", totalLines.toString())
-                    KeyValueRow("Total Quantity", fmt(totalQty))
+                    KeyValueRow("Total Quantity", totalQty.toString())
 
                     // money totals
                     KeyValueRow("Total Amount", fmtMoney(totalAmount))
@@ -227,7 +248,10 @@ fun ReviewCard(
                             .height(52.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
                     ) {
-                        if (ui.loading) CircularProgressIndicator(strokeWidth = 2.dp, color = Color.White)
+                        if (ui.loading) CircularProgressIndicator(
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
                         else Text("Submit Parts", color = Color.White)
                     }
                 }
@@ -246,7 +270,7 @@ fun ReviewCard(
 private fun CompactLineRow(
     lineNumber: Int,
     itemNumber: String,
-    qty: Double,
+    qty: Int,
     uom: String,
     lot: String,
     expiry: String,
@@ -283,7 +307,7 @@ private fun CompactLineRow(
                 Spacer(Modifier.height(2.dp))
                 // Quantity bold below
                 Text(
-                    text = fmtQtyBadge(qty),
+                    text = qty.toString(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF143A7B),
@@ -324,7 +348,11 @@ private fun CompactLineRow(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("LOT", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text(
+                            "LOT",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF64748B)
+                        )
                         Spacer(Modifier.height(2.dp))
                         Text(
                             lot,
@@ -339,7 +367,11 @@ private fun CompactLineRow(
                 val (bg, fg) = remember(expiry) {
                     val d = daysUntil(expiry)
                     when {
-                        expiry.isBlank() || expiry == "-" || d == null -> Pair(Color(0xFFF1F5F9), Color(0xFF0F172A))
+                        expiry.isBlank() || expiry == "-" || d == null -> Pair(
+                            Color(0xFFF1F5F9),
+                            Color(0xFF0F172A)
+                        )
+
                         d < 0 -> Pair(Color(0xFFFFE4E6), Color(0xFFB00020))
                         d <= 30 -> Pair(Color(0xFFFFF1E6), Color(0xFF9A3412))
                         d <= 90 -> Pair(Color(0xFFFFFBEB), Color(0xFF92400E))
@@ -356,7 +388,11 @@ private fun CompactLineRow(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("EXP", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text(
+                            "EXP",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF64748B)
+                        )
                         Spacer(Modifier.height(2.dp))
                         Text(
                             expiry,
@@ -386,7 +422,11 @@ private fun CompactLineRow(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("RATE", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text(
+                            "RATE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF64748B)
+                        )
                         Spacer(Modifier.height(2.dp))
                         Text(
                             fmtMoney(unitRate),
@@ -406,7 +446,11 @@ private fun CompactLineRow(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("AMOUNT", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text(
+                            "AMOUNT",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF64748B)
+                        )
                         Spacer(Modifier.height(2.dp))
                         Text(
                             fmtMoney(lineAmount),
@@ -430,7 +474,12 @@ private fun KeyValueRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, color = Color(0xFF6B7280), style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.width(12.dp))
-        Text(value, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A), style = MaterialTheme.typography.bodySmall)
+        Text(
+            value,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF0F172A),
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 

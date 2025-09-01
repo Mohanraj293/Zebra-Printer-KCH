@@ -3,7 +3,7 @@ package com.lazymohan.zebraprinter.ui
 import com.lazymohan.zebraprinter.model.DiscoveredPrinterInfo
 
 sealed class PrinterEvents {
-    data class UpdateNoOfCopies(val noOfCopies: String) : PrinterEvents()
+    data class UpdateNoOfCopies(val noOfCopies: Int) : PrinterEvents()
     data object Print : PrinterEvents()
     data object RemoveError : PrinterEvents()
     data class UpdateError(val errorMessage: String) : PrinterEvents()

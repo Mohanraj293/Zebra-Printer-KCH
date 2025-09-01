@@ -6,8 +6,23 @@ import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -21,14 +36,38 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.BottomEnd
 import androidx.compose.ui.Modifier
@@ -73,14 +112,14 @@ fun PoAndReceiveCard(
     onBack: () -> Unit,
 
     // legacy quick edit for Section #1 (kept)
-    onUpdateLine: (Int, Double?, String?, String?) -> Unit,
+    onUpdateLine: (Int, Int, String?, String?) -> Unit,
     onRemoveLine: (Int) -> Unit,
     onAddLine: (Int) -> Unit,
 
     // NEW sectioned edit
     onAddSection: (Int) -> Unit,                            // lineNumber
     onRemoveSection: (Int, Int) -> Unit,                    // lineNumber, section#
-    onUpdateSection: (Int, Int, Double?, String?, String?) -> Unit, // lineNumber, section#, qty, lot, expiry
+    onUpdateSection: (Int, Int, Int, String?, String?) -> Unit, // lineNumber, section#, qty, lot, expiry
 
     onReview: () -> Unit,
     dateTimeConverter: DateTimeConverter,
@@ -200,10 +239,18 @@ fun PoAndReceiveCard(
                             }
                             Row {
                                 ReadFieldCompact("Site", po.SupplierSite, Modifier.weight(1f))
-                                ReadFieldCompact("Business Unit", po.ProcurementBU, Modifier.weight(1f))
+                                ReadFieldCompact(
+                                    "Business Unit",
+                                    po.ProcurementBU,
+                                    Modifier.weight(1f)
+                                )
                             }
                             Row {
-                                ReadFieldCompact("Sold To", po.SoldToLegalEntity, Modifier.weight(1f))
+                                ReadFieldCompact(
+                                    "Sold To",
+                                    po.SoldToLegalEntity,
+                                    Modifier.weight(1f)
+                                )
                             }
                         }
                     }
@@ -270,15 +317,19 @@ fun PoAndReceiveCard(
                                 Text("Loading lines…", color = Color.Gray, fontSize = 13.sp)
                             }
                         }
+
                         ui.lines.isEmpty() -> {
                             val msg = if (isScanMode)
                                 "No matches found between scanned items and PO lines. Use “Add Item” to include items manually."
                             else "No PO lines found."
                             Text(msg, color = Color(0xFF8B5CF6))
                         }
+
                         else -> {
                             ui.lines.forEach { ln ->
-                                val li = ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber } ?: return@forEach
+                                val li =
+                                    ui.lineInputs.firstOrNull { it.lineNumber == ln.LineNumber }
+                                        ?: return@forEach
                                 val detailsRequired = !section1Valid(li, ln)
                                 val verifiedOk = isLineVerified(ln.LineNumber)
 
@@ -361,7 +412,9 @@ fun PoAndReceiveCard(
                                 if (matched.isEmpty())
                                     "GTIN $gt scanned. No PO line GTIN matched."
                                 else
-                                    "GTIN $gt verified for lines: ${matched.sorted().joinToString(", ")}"
+                                    "GTIN $gt verified for lines: ${
+                                        matched.sorted().joinToString(", ")
+                                    }"
                             )
                         }
                     }
@@ -399,8 +452,8 @@ private fun SectionedLineCard(
     availableItems: List<ExtractedItem>,
     isVerified: Boolean,
     detailsRequired: Boolean,
-    onUpdateLine: (Int, Double?, String?, String?) -> Unit, // quick Section #1 edit (kept)
-    onUpdateSection: (Int, Int, Double?, String?, String?) -> Unit,
+    onUpdateLine: (Int, Int, String?, String?) -> Unit, // quick Section #1 edit (kept)
+    onUpdateSection: (Int, Int, Int, String?, String?) -> Unit,
     onAddSection: (Int) -> Unit,
     onRemoveSection: (Int, Int) -> Unit,
     onRemoveLine: (Int) -> Unit,
@@ -411,7 +464,11 @@ private fun SectionedLineCard(
     var expanded by rememberSaveable("${ln.LineNumber}-expanded") { mutableStateOf(true) }
 
     // which section is currently "linking" to a delivery item (null = closed)
-    var linkingSection by rememberSaveable("${ln.LineNumber}-linkSection") { mutableStateOf<Int?>(null) }
+    var linkingSection by rememberSaveable("${ln.LineNumber}-linkSection") {
+        mutableStateOf<Int?>(
+            null
+        )
+    }
 
     val s1 = li.sections.firstOrNull { it.section == 1 }
     val s1Qty = s1?.qty?.takeIf { it > 0 }?.toString().orEmpty()
@@ -464,9 +521,17 @@ private fun SectionedLineCard(
                         Chip("Not Verified", bg = Color(0xFFFFEBEE), textColor = Color(0xFFD32F2F))
                     }
                     if (detailsRequired) {
-                        Chip("Details Required", bg = Color(0xFFFFF7ED), textColor = Color(0xFF9A3412))
+                        Chip(
+                            "Details Required",
+                            bg = Color(0xFFFFF7ED),
+                            textColor = Color(0xFF9A3412)
+                        )
                     } else {
-                        Chip("Details Filled", bg = Color(0xFFE8F5E9), textColor = Color(0xFF2E7D32))
+                        Chip(
+                            "Details Filled",
+                            bg = Color(0xFFE8F5E9),
+                            textColor = Color(0xFF2E7D32)
+                        )
                     }
 
                     // Meta chips
@@ -541,19 +606,30 @@ private fun SectionedLineCard(
                 ) {
                     QtyField(
                         value = s1Qty,
-                        onChange = { onUpdateLine(ln.LineNumber, it.toDoubleOrNull(), null, null) },
+                        onChange = { new ->
+                            if (new.all { it.isDigit() }) {
+                                onUpdateLine(ln.LineNumber, new.toIntOrNull() ?: 0, null, null)
+                            }
+                        },
                         max = ln.Quantity
                     )
                     Spacer(Modifier.height(8.dp))
                     LinedTextField(
                         value = s1Lot,
-                        onChange = { onUpdateLine(ln.LineNumber, null, it, null) },
+                        onChange = { onUpdateLine(ln.LineNumber, -1, it, null) },
                         placeholder = "Lot Number"
                     )
                     Spacer(Modifier.height(8.dp))
                     ExpiryDateField(
                         value = s1Exp,
-                        onDatePicked = { iso -> onUpdateLine(ln.LineNumber, null, null, iso) } // already ISO
+                        onDatePicked = { iso ->
+                            onUpdateLine(
+                                ln.LineNumber,
+                                -1,
+                                null,
+                                iso
+                            )
+                        } // already ISO
                     )
                 }
 
@@ -570,19 +646,45 @@ private fun SectionedLineCard(
                         ) {
                             QtyField(
                                 value = sec.qty.takeIf { it > 0 }?.toString().orEmpty(),
-                                onChange = { onUpdateSection(ln.LineNumber, sec.section, it.toDoubleOrNull(), null, null) },
+                                onChange = {
+                                    val quantity =
+                                        if (it.all { ch -> ch.isDigit() }) it.toIntOrNull() ?: 0 else 0
+                                    onUpdateSection(
+                                        ln.LineNumber,
+                                        sec.section,
+                                        quantity,
+                                        null,
+                                        null
+                                    )
+                                },
                                 max = ln.Quantity
                             )
                             Spacer(Modifier.height(8.dp))
                             LinedTextField(
                                 value = sec.lot,
-                                onChange = { onUpdateSection(ln.LineNumber, sec.section, null, it, null) },
+                                onChange = {
+                                    onUpdateSection(
+                                        ln.LineNumber,
+                                        sec.section,
+                                        -1,
+                                        it,
+                                        null
+                                    )
+                                },
                                 placeholder = "Lot Number"
                             )
                             Spacer(Modifier.height(8.dp))
                             ExpiryDateField(
                                 value = sec.expiry,
-                                onDatePicked = { iso -> onUpdateSection(ln.LineNumber, sec.section, null, null, iso) } // already ISO
+                                onDatePicked = { iso ->
+                                    onUpdateSection(
+                                        ln.LineNumber,
+                                        sec.section,
+                                        -1,
+                                        null,
+                                        iso
+                                    )
+                                } // already ISO
                             )
                         }
                     }
@@ -594,7 +696,13 @@ private fun SectionedLineCard(
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFE8F0FF))
                         .padding(horizontal = 6.dp, vertical = 3.dp)
-                ) { Text("+ Add Section", color = Color(0xFF1D4ED8), fontWeight = FontWeight.SemiBold) }
+                ) {
+                    Text(
+                        "+ Add Section",
+                        color = Color(0xFF1D4ED8),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             if (confirmDelete) {
@@ -604,11 +712,17 @@ private fun SectionedLineCard(
                     title = { Text("Remove line ${ln.LineNumber}?") },
                     text = { Text("This will remove the line from this receipt. You can add it back using “Add Item”.") },
                     confirmButton = {
-                        TextButton(onClick = { confirmDelete = false; onRemoveLine(ln.LineNumber) }) {
+                        TextButton(onClick = {
+                            confirmDelete = false; onRemoveLine(ln.LineNumber)
+                        }) {
                             Text("Remove", color = Color(0xFFB00020))
                         }
                     },
-                    dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
+                    dismissButton = {
+                        TextButton(onClick = {
+                            confirmDelete = false
+                        }) { Text("Cancel") }
+                    }
                 )
             }
         }
@@ -622,7 +736,7 @@ private fun SectionedLineCard(
             sectionNumber = linking,
             items = availableItems,
             onPick = { ex ->
-                val qty = ex.qtyDelivered
+                val qty = ex.qtyDelivered.toInt()
                 val lot = ex.batchNo
                 val expIso = ex.expiryDate
                 if (linking == 1) {
@@ -744,7 +858,12 @@ private fun DeliveryItemRow(ex: ExtractedItem, onSelect: () -> Unit) {
 @Composable
 fun Tag(text: String, bg: Color, textColor: Color) {
     Surface(color = bg, shape = RoundedCornerShape(8.dp), tonalElevation = 0.dp) {
-        Text(text, color = textColor, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+        Text(
+            text,
+            color = textColor,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
     }
 }
 
@@ -759,7 +878,12 @@ fun ReadFieldCompact(label: String, value: String?, modifier: Modifier = Modifie
 @Composable
 fun Chip(text: String, bg: Color = Color(0xFFEFF6FF), textColor: Color = Color(0xFF143A7B)) {
     Surface(color = bg, shape = RoundedCornerShape(50), tonalElevation = 0.dp) {
-        Text(text, color = textColor, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+        Text(
+            text,
+            color = textColor,
+            fontSize = 10.sp,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
     }
 }
 
@@ -778,7 +902,10 @@ private fun SectionBox(
         border = BorderStroke(1.dp, DividerDefaults.color.copy(alpha = 0.35f))
     ) {
         Column(Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleSmall.copy(
@@ -791,7 +918,11 @@ private fun SectionBox(
                     Icon(Icons.Outlined.Link, contentDescription = "Link", tint = Color(0xFF64748B))
                 }
                 IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Outlined.Delete, contentDescription = "Delete section", tint = Color(0xFFB00020))
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = "Delete section",
+                        tint = Color(0xFFB00020)
+                    )
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -809,8 +940,8 @@ private fun QtyField(
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = { new ->
-            if (new.isEmpty() || new.matches(Regex("""\d*\.?\d*"""))) onChange(new)
+        onValueChange = { value ->
+            onChange(value)
         },
         placeholder = { Text("Quantity") },
         singleLine = true,
@@ -825,17 +956,17 @@ private fun QtyField(
             ) {
                 IconButton(
                     onClick = {
-                        val cur = value.toDoubleOrNull() ?: 0.0
-                        val next = cur + 1.0
-                        onChange(trimZero(next))
+                        val cur = value.toIntOrNull() ?: 0
+                        val next = cur + 1
+                        onChange(next.toString())
                     },
                     modifier = Modifier.size(20.dp)
                 ) { Icon(Icons.Filled.ArrowDropUp, null) }
                 IconButton(
                     onClick = {
-                        val cur = value.toDoubleOrNull() ?: 0.0
-                        val next = (cur - 1.0).coerceAtLeast(0.0)
-                        onChange(trimZero(next))
+                        val cur = value.toIntOrNull() ?: 0
+                        val next = (cur - 1).coerceAtLeast(0).takeIf { it > 0 }
+                        onChange((next ?: "").toString())
                     },
                     modifier = Modifier.size(20.dp)
                 ) { Icon(Icons.Filled.ArrowDropDown, null) }
