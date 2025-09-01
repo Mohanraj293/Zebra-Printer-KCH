@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     kotlin("kapt")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -103,4 +105,10 @@ dependencies {
 
     // ML Kit Google Code Scanner (QR scanner UI)
     implementation(libs.play.services.code.scanner)
+
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.perf.ktx)
+    implementation(platform(libs.firebase.bom))
+
 }

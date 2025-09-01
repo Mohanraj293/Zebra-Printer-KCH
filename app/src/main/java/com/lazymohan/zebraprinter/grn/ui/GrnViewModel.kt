@@ -1,5 +1,8 @@
 package com.lazymohan.zebraprinter.grn.ui
 
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import java.io.File
 import javax.inject.Inject
 
 enum class GrnStep { ENTER_PO, SHOW_PO, REVIEW, SUMMARY }
@@ -59,6 +63,12 @@ data class PartProgress(
     val exception: String? = null
 )
 
+data class AttachmentCache(
+    val path: String,
+    val displayName: String,
+    val mimeType: String? = null
+)
+
 data class GrnUiState(
     val step: GrnStep = GrnStep.ENTER_PO,
     val loading: Boolean = false,
@@ -86,6 +96,8 @@ data class GrnUiState(
 
     // cache file paths for scanned images (from ScanResultScreen)
     val scanImageCachePaths: List<String> = emptyList(),
+
+    val extraAttachments: List<AttachmentCache> = emptyList(),
 
     // count of successfully uploaded attachments (informational)
     val attachmentsUploaded: Int = 0
@@ -290,7 +302,7 @@ class GrnViewModel @Inject constructor(
                     DocumentLineNumber = li.lineNumber,
                     ItemNumber = li.itemNumber,
                     Quantity = sec.qty,
-                    UnitOfMeasure = "EA",
+                    UnitOfMeasure = li.uom,
                     SoldtoLegalEntity = po.SoldToLegalEntity,
                     Subinventory = BuildConfig.DEFAULT_SUBINVENTORY,
                     Locator = BuildConfig.DEFAULT_LOCATOR,
@@ -435,14 +447,16 @@ class GrnViewModel @Inject constructor(
             }
         }
 
-        // Upload scanned images as attachments once against the HeaderInterfaceId
-        val paths = _state.value.scanImageCachePaths
+        // Upload scanned images + extra attachments against HeaderInterfaceId
+        val imagePaths = _state.value.scanImageCachePaths
+        val extra = _state.value.extraAttachments
         var uploadedCount = 0
         val finalHeaderInterfaceId = headerInterfaceId
-        if (finalHeaderInterfaceId != null && paths.isNotEmpty()) {
-            for ((i, p) in paths.withIndex()) {
+        if (finalHeaderInterfaceId != null && (imagePaths.isNotEmpty() || extra.isNotEmpty())) {
+            // 1) Upload scanned images
+            for ((i, p) in imagePaths.withIndex()) {
                 try {
-                    val file = java.io.File(p)
+                    val file = File(p)
                     if (!file.exists()) continue
                     val bytes = file.readBytes()
                     val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
@@ -453,13 +467,34 @@ class GrnViewModel @Inject constructor(
                         FileContents = b64,
                         Title = fileName
                     )
-                    // <-- changed to use HeaderInterfaceId
                     repo.uploadAttachment(finalHeaderInterfaceId, req).onSuccess {
                         uploadedCount++
                         file.delete()
                     }
                 } catch (e: Exception) {
-                    Log.e("GRN", "Attachment error for ${paths[i]}", e)
+                    Log.e("GRN", "Attachment error for $p", e)
+                }
+            }
+            // 2) Upload user-picked attachments (any format)
+            for (att in extra) {
+                try {
+                    val file = File(att.path)
+                    if (!file.exists()) continue
+                    val bytes = file.readBytes()
+                    val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    val fileName = att.displayName.ifBlank { file.name }
+                    val req = AttachmentRequest(
+                        UploadedFileName = fileName,
+                        CategoryName = "MISC",
+                        FileContents = b64,
+                        Title = fileName
+                    )
+                    repo.uploadAttachment(finalHeaderInterfaceId, req).onSuccess {
+                        uploadedCount++
+                        file.delete()
+                    }
+                } catch (e: Exception) {
+                    Log.e("GRN", "Attachment error for ${att.path}", e)
                 }
             }
         }
@@ -477,7 +512,7 @@ class GrnViewModel @Inject constructor(
         _state.value = GrnUiState()
     }
 
-    // NOTE: third param now represents CACHE PATHS, not base64
+    // NOTE: third param represents CACHE PATHS for scanned images
     fun prefillFromScan(po: String?, scanJson: String?, cachePaths: List<String>) {
         Log.d(
             "GRN",
@@ -521,6 +556,58 @@ class GrnViewModel @Inject constructor(
         _state.value = next
         if (_state.value.poNumber.isNotBlank() && _state.value.step == GrnStep.ENTER_PO) {
             fetchPo()
+        }
+    }
+
+
+    fun addManualAttachmentsFromUris(context: Context, uris: List<Uri>) = viewModelScope.launch {
+        val cr = context.contentResolver
+        val added = mutableListOf<AttachmentCache>()
+        fun sanitize(name: String) = name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        var fallback = 1
+
+        uris.forEach { u ->
+            try {
+                var display = run {
+                    var name: String? = null
+                    cr.query(u, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                        if (c.moveToFirst()) name = c.getString(0)
+                    }
+                    name?.takeIf { it.isNotBlank() }?.let(::sanitize)
+                }
+                val mime = cr.getType(u)
+                if (display.isNullOrBlank()) {
+                    val ext = when {
+                        (mime ?: "").endsWith("pdf") -> "pdf"
+                        (mime ?: "").endsWith("png") -> "png"
+                        (mime ?: "").endsWith("jpeg") || (mime ?: "").endsWith("jpg") -> "jpg"
+                        else -> "bin"
+                    }
+                    display = "attach_${fallback++}.$ext"
+                }
+
+                // ensure unique filename in cache
+                var target = File(context.cacheDir, display)
+                var i = 1
+                while (target.exists()) {
+                    val base = target.nameWithoutExtension
+                    val ext = target.extension.takeIf { it.isNotBlank() }?.let { ".$it" } ?: ""
+                    target = File(context.cacheDir, "${base}_$i$ext")
+                    i++
+                }
+
+                cr.openInputStream(u)?.use { input ->
+                    target.outputStream().use { out -> input.copyTo(out) }
+                } ?: return@forEach
+
+                added += AttachmentCache(path = target.absolutePath, displayName = target.name, mimeType = mime)
+            } catch (e: Exception) {
+                Log.e("GRN", "Failed to cache attachment from $u", e)
+            }
+        }
+
+        if (added.isNotEmpty()) {
+            _state.value = _state.value.copy(extraAttachments = _state.value.extraAttachments + added)
         }
     }
 }

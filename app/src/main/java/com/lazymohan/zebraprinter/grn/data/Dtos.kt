@@ -21,7 +21,8 @@ data class PoLineItem(
     val Quantity: Int,
     val UOM: String = "EA",
     val Description: String? = null,
-    val GTIN: String? = null
+    val GTIN: String? = null,
+    val Price: Double? = null
 )
 
 // --- GTIN lookup ---
@@ -39,7 +40,7 @@ data class ReceiptRequest(
     val VendorName: String,
     val VendorSiteCode: String,
     val BusinessUnit: String,
-    val EmployeeId: String,
+    val EmployeeId: Long,
     val lines: List<ReceiptLine>
 )
 

@@ -8,6 +8,7 @@ import java.util.TimeZone
 
 data class DateTimeFormat(
     val dateFormat: String? = "yyyy-MM-dd",
+    val gs1dateFormat: String? = "yy-MM-dd",
     val timeFormat: String? = "HH:mm:ss"
 )
 
@@ -21,6 +22,20 @@ class DateTimeConverter(
         }
         return try {
             val simpleDateFormat = SimpleDateFormat(dateTimeFormat.dateFormat, Locale.getDefault())
+            simpleDateFormat.timeZone = TimeZone.getDefault()
+            simpleDateFormat.format(input)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ""
+        }
+    }
+
+    fun getGS1DisplayDate(input: Date?): String {
+        if (input == null) {
+            return ""
+        }
+        return try {
+            val simpleDateFormat = SimpleDateFormat(dateTimeFormat.gs1dateFormat, Locale.getDefault())
             simpleDateFormat.timeZone = TimeZone.getDefault()
             simpleDateFormat.format(input)
         } catch (e: Exception) {

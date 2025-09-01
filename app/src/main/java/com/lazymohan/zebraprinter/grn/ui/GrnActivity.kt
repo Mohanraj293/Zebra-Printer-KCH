@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import com.tarkalabs.tarkaui.theme.TUITheme
@@ -19,8 +20,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class GrnActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var dateTimeConverter: DateTimeConverter
+    @Inject lateinit var dateTimeConverter: DateTimeConverter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +44,7 @@ class GrnActivity : ComponentActivity() {
                 val toVm: TransferGrnViewModel = hiltViewModel()
                 val ui by vm.state.collectAsState()
                 val snack = remember { SnackbarHostState() }
+                val context = LocalContext.current
 
                 LaunchedEffect(initialPo, scanJson, scanImageCachePaths) {
                     Log.d(
@@ -141,7 +142,8 @@ class GrnActivity : ComponentActivity() {
                     },
                     onBack = { finish() },
                     isFromPickSlip = isFromPickSlip,
-                    toUiState = toVm.state.collectAsState().value
+                    toUiState = toVm.state.collectAsState().value,
+                    onAddAttachments = { uris -> vm.addManualAttachmentsFromUris(context, uris) }
                 )
             }
         }

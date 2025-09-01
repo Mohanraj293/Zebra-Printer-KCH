@@ -64,11 +64,6 @@ fun EnterPoCard(
                 supportingText = {
                     if (hasError) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.ErrorOutline,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = (if (isFromPickSlip) toUiState.error else ui.error).toString(),
@@ -103,7 +98,7 @@ fun EnterPoCard(
                             Icon(Icons.Outlined.ErrorOutline, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = if (isFromPickSlip) "We couldn’t find that TO" else "We couldn’t find that PO",
+                                text = if (isFromPickSlip) "TO not found in Oracle Fusion." else "PO not found in Oracle Fusion.",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -115,8 +110,9 @@ fun EnterPoCard(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             SmallTipChip("Check typos")
+                            SmallTipChip("Use exact slashes (/)")
                             SmallTipChip("Remove spaces")
-                            SmallTipChip("Use exact slashes")
+                            SmallTipChip("Example: KHQ/PO/98840")
                         }
                     }
                 }

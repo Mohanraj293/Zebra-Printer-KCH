@@ -12,6 +12,7 @@ import com.lazymohan.zebraprinter.grn.ui.GrnActivity
 import com.lazymohan.zebraprinter.login.LoginActivity
 import com.lazymohan.zebraprinter.product.ProductsActivity
 import com.lazymohan.zebraprinter.scan.ScanDeliverySlipActivity
+import com.lazymohan.zebraprinter.inventory.InventoryActivity
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -19,8 +20,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LandingActivity : ComponentActivity() {
 
-    @Inject
-    lateinit var appPref: AppPref
+    @Inject lateinit var appPref: AppPref
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +42,9 @@ class LandingActivity : ComponentActivity() {
                     },
                     onManualGrn = {
                         startActivity(Intent(this, GrnActivity::class.java))
+                    },
+                    onPhysicalInventory = {
+                        startActivity(Intent(this, InventoryActivity::class.java))
                     },
                     userName = appPref.username.orEmpty(),
                     logoutHandler = {
