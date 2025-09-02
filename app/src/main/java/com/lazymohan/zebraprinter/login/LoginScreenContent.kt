@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.lazymohan.zebraprinter.effects.HandleErrorLaunchedEffect
 import com.lazymohan.zebraprinter.utils.EAMLoader
 import com.lazymohan.zebraprinter.utils.EAMLoaderStyle
 import com.tarkalabs.tarkaui.components.TUISnackBarHost
@@ -75,6 +76,13 @@ fun LoginScreenContent(
             )
         )
     }
+
+    HandleErrorLaunchedEffect(
+        snackBarMessage = state.snackBarMessage,
+        snackBarType = TUISnackBarType.Error,
+        snackBarIcon = Filled.Info24,
+        snackState = snackState
+    ) { viewModel.updateSnackBarMessage(null) }
 
     Scaffold(
         containerColor = Color(0xFFF6F8FF),
