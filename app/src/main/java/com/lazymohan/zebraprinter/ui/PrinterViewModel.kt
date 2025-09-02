@@ -28,6 +28,8 @@ class PrinterViewModel @AssistedInject constructor(
     @Assisted("item") private val lots: Lots,
     @Assisted("gtinNumber") private val gtinNum: String,
 ) : ViewModel() {
+    private val _uiState = MutableStateFlow(PrinterUiState())
+    val uiState = _uiState.asStateFlow()
 
     init {
         viewModelScope.launchWithHandler(
@@ -66,9 +68,6 @@ class PrinterViewModel @AssistedInject constructor(
         }
     }
 
-    private val _uiState = MutableStateFlow(PrinterUiState())
-    val uiState = _uiState.asStateFlow()
-
     fun updateNoOfCopies(noOfCopies: Int) {
         _uiState.update { currentState ->
             if (noOfCopies > 0) {
@@ -87,7 +86,6 @@ class PrinterViewModel @AssistedInject constructor(
             showLoading()
             val printModel = PrintContentModel(
                 itemNum = lots.itemNumber.orEmpty(),
-                description = lots.itemDescription.orEmpty(),
                 gtinNum = gtinNum,
                 batchNo = lots.lotNumber.orEmpty(),
                 expiryDate = dateTimeConverter.getGS1DisplayDate(lots.expirationDate)

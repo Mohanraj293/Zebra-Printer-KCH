@@ -129,16 +129,13 @@ class PrinterImpl(
         ^CF0,20
         ^PW400
         ^LL300
-
-        ^FO0,50^FB400,1,0,C^FD#${contentModel.itemNum}^FS
-        ^FO0,90^FB400,5,,,C^FD${contentModel.description}^FS
-        ^FO0,160^FB400,1,0,C^GB420,1,1^FS
-
+        ^FO20,50^FB350,1,0,L^FDItem Number: ${contentModel.itemNum}^FS
+        ^FO20,80^FB350,1,0,L^FDLot/Batch No:${contentModel.batchNo}^FS
+        ^FO20,110^FB350,1,0,L^FDExpiry Date: ${contentModel.expiryDate}^FS
         ^FO120,150
         ^BY2,2
         ^BQN,2,4
         ^FDMA$gs1Data^FS
-
         ^PQ$copies
         ^XZ
         """.trimIndent()
