@@ -1,72 +1,33 @@
+// app/src/main/java/com/lazymohan/zebraprinter/login/AuthRepo.kt
 package com.lazymohan.zebraprinter.login
 
-import android.util.Base64
-import com.google.gson.annotations.SerializedName
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.Query
+import android.util.Log
+import com.lazymohan.zebraprinter.network.FusionApiClient
+import javax.inject.Inject
+import javax.inject.Singleton
 
-object AuthRepo {
-    suspend fun login(username: String, password: String): Result<UserResponse> {
-        return try {
-            val credentials = "$username:$password"
-            val authHeader =
-                "Basic " + Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)
-            val response = LoginApiClient.service.getUserAccount(
-                authHeader = authHeader,
-                query = "Username=\"$username\""
-            )
-            Result.success(response)
-        } catch (e: Exception) {
-            Result.failure(e)
+/**
+ * Uses a Retrofit instance that already attaches "Authorization: Bearer <token>"
+ * via an OkHttp interceptor inside FusionApiClient.
+ *
+ * NOTE: Ensure your FusionApiClient reads the access token from your storage
+ * (e.g., AppPref) and refreshes it when needed, so this repo stays clean.
+ */
+
+@Singleton
+class AuthRepo @Inject constructor(
+    apiClient: FusionApiClient
+) {
+    private val service: LoginApiService = apiClient.retrofit.create(LoginApiService::class.java)
+
+    suspend fun fetchUserByUsername(username: String): Result<UserResponse> {
+        Log.d("AuthRepo", "fetchUserByUsername called with username=$username")
+        return runCatching {
+            val response = service.getUserAccount(query = "Username=\"$username\"")
+            Log.d("AuthRepo", "fetchUserByUsername SUCCESS → items=${response.items.size}")
+            response
+        }.onFailure { e ->
+            Log.e("AuthRepo", "fetchUserByUsername FAILED: ${e.message}", e)
         }
     }
 }
-
-object LoginApiClient {
-    private const val BASE_URL = "https://effb-test.fa.em3.oraclecloud.com/"
-
-    private val client = OkHttpClient.Builder()
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        })
-        .build()
-
-    val retrofit: Retrofit = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .client(client)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-
-    val service: LoginApiService = retrofit.create(LoginApiService::class.java)
-}
-
-interface LoginApiService {
-    @GET("hcmRestApi/resources/11.13.18.05/userAccounts")
-    suspend fun getUserAccount(
-        @Header("Authorization") authHeader: String,
-        @Query("q") query: String
-    ): UserResponse
-}
-
-data class UserResponse(
-    @SerializedName("items") val items: List<UserAccount>
-)
-
-data class UserAccount(
-    @SerializedName("UserId") val userId: String?,
-    @SerializedName("Username") val username: String?,
-    @SerializedName("SuspendedFlag") val suspendedFlag: String?,
-    @SerializedName("PersonId") val personId: Long,
-    @SerializedName("PersonNumber") val personNumber: String?,
-    @SerializedName("CredentialsEmailSentFlag") val credentialsEmailSentFlag: String?,
-    @SerializedName("GUID") val guid: String?,
-    @SerializedName("CreatedBy") val createdBy: String?,
-    @SerializedName("CreationDate") val creationDate: String?,
-    @SerializedName("LastUpdatedBy") val lastUpdatedBy: String?,
-    @SerializedName("LastUpdateDate") val lastUpdateDate: String?
-)
