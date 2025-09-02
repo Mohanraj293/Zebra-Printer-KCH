@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/login/LoginUiState.kt
 package com.lazymohan.zebraprinter.login
 
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage

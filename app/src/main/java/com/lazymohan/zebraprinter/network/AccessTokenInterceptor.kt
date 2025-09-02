@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/network/AccessTokenInterceptor.kt
 package com.lazymohan.zebraprinter.network
 
 import com.lazymohan.zebraprinter.app.AppPref

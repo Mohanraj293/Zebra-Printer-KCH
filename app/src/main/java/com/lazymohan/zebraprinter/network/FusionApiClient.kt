@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/network/FusionApiClient.kt
 package com.lazymohan.zebraprinter.network
 
 import android.content.Context

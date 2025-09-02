@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/login/LoginViewModel.kt
 package com.lazymohan.zebraprinter.login
 
 import android.util.Base64

@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/login/LoginApiService.kt
 package com.lazymohan.zebraprinter.login
 
 import retrofit2.http.GET

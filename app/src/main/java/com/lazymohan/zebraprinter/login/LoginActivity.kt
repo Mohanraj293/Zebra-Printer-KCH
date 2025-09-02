@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/login/LoginActivity.kt
 package com.lazymohan.zebraprinter.login
 
 import android.app.PendingIntent

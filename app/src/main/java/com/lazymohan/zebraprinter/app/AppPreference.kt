@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/app/AppPref.kt
 package com.lazymohan.zebraprinter.app
 
 import android.content.Context
