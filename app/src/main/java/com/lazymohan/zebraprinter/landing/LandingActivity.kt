@@ -49,7 +49,7 @@ class LandingActivity : ComponentActivity() {
                         startActivity(Intent(this, InventoryActivity::class.java))
                     },
                     onInProgress = { label ->
-                        scope.launch { snack.showSnackbar("$label is in progress") }
+                        scope.launch { snack.showSnackbar("$label work in progress") }
                     },
                     userName = appPref.username.orEmpty(),
                     logoutHandler = {

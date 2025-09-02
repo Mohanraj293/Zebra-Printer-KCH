@@ -38,10 +38,10 @@ class OcrRepository @Inject constructor(
     "invoice_date": "30/06/2025",
     "order_number": "DXB-06",
     "sales_order_no": "5285622",
-    "customer_ref_purchase_order_no": "KHQ/PO/99387",
+    "customer_ref_purchase_order_no": "KHQ/PO/99373",
     "items": [
       {
-        "description": "Aciclovir 400 mg (Zovirax) tablets — 25 blister pack",
+        "description": "CAMAZIN K2 TABLETS 30'S",
         "details": [
           {
             "qty_delivered": "50",

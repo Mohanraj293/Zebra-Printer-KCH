@@ -1,3 +1,4 @@
+// app/build.gradle.kts
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -21,9 +22,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // === BuildConfig constants used by Fusion client / GRN flow ===
-        buildConfigField("String", "FUSION_BASE_URL", "\"https://effb-test.fa.em3.oraclecloud.com/\"") // must end with /
-        buildConfigField("String", "FUSION_USERNAME", "\"RCA.Automation\"")
-        buildConfigField("String", "FUSION_PASSWORD", "\"Kch12345\"")
+        buildConfigField("String", "FUSION_BASE_URL", "\"https://effb-test.fa.em3.oraclecloud.com/\"")
 
         buildConfigField("String", "EMPLOYEE_ID", "\"300000195955986\"")
         buildConfigField("String", "ORGANIZATION_CODE", "\"KDH\"")
@@ -32,7 +31,34 @@ android {
 
         buildConfigField("boolean", "OCR_FAKE", "false")
         buildConfigField("String", "OCR_FAKE_ASSET", "\"\"")
-        // =============================================================
+
+        // === OAuth / IDCS config ===
+        buildConfigField(
+            "String",
+            "IDCS_BASE_URL",
+            "\"https://idcs-7925a9f1719b425ca9dfb3c81b384f63.identity.oraclecloud.com\""
+        )
+
+        // OAuth endpoints (appended to IDCS_BASE_URL)
+        buildConfigField("String", "AUTH_ENDPOINT", "\"/oauth2/v1/authorize\"")
+        buildConfigField("String", "TOKEN_ENDPOINT", "\"/oauth2/v1/token\"")
+
+        // Client settings
+        buildConfigField("String", "OAUTH_CLIENT_ID", "\"71a511d8fd9c4982836311524928e982\"")
+        buildConfigField("String", "OAUTH_CLIENT_SECRET", "\"idcscs-8ec1b40a-72d2-4b01-a149-0ce75011a8fd\"")
+        buildConfigField(
+            "String",
+            "OAUTH_SCOPE",
+            "\"urn:opc:resource:fa:instanceid=564123563urn:opc:resource:consumer::all\""
+        )
+
+        // Redirect configuration — scheme is shared with Manifest placeholder
+        buildConfigField("String", "APP_AUTH_REDIRECT_SCHEME", "\"com.lazymohan.zebraprinter\"")
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.lazymohan.zebraprinter"
+        buildConfigField("String","REDIRECT_URI","\"com.lazymohan.zebraprinter:/oauth2redirect\"")
+
+        // Fusion base URL
+        buildConfigField("String", "FUSION_BASE_URL", "\"https://effb-test.fa.em3.oraclecloud.com/\"")
     }
 
     buildTypes {
@@ -111,4 +137,7 @@ dependencies {
     implementation(libs.firebase.perf.ktx)
     implementation(platform(libs.firebase.bom))
 
+    // OAuth/AppAuth bits
+    implementation("net.openid:appauth:0.11.1")
+    implementation("androidx.browser:browser:1.8.0")
 }

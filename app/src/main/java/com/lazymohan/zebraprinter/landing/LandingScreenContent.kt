@@ -196,7 +196,7 @@ fun LandingScreenContent(
             item {
                 FeatureCard(
                     icon = Icons.Outlined.Description,
-                    title = "Manual GRN by PO",
+                    title = "Manual GRN Creation - PO",
                     subtitle = "Create receipt by entering PO number",
                     onClick = onManualGrn
                 )
