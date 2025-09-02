@@ -1,5 +1,7 @@
+// app/src/main/java/com/lazymohan/zebraprinter/login/LoginViewModel.kt
 package com.lazymohan.zebraprinter.login
 
+import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
@@ -38,7 +41,12 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    /** Called by LoginActivity after token exchange succeeds */
+    /**
+     * Called by LoginActivity after token exchange succeeds.
+     * - Saves tokens
+     * - Extracts "sub" from access token and stores as username
+     * - Calls Fusion userAccounts to get PersonId and saves it
+     */
     fun onOAuthTokenReceived(
         accessToken: String,
         refreshToken: String?,
@@ -49,6 +57,7 @@ class LoginViewModel @Inject constructor(
                 TAG,
                 "Saving tokens… access=${accessToken.take(12)}… refresh=${refreshToken?.take(10)}… exp=$expiresAtMillis"
             )
+            // 1) Save tokens (no id_token)
             appPref.saveTokens(
                 accessToken = accessToken,
                 refreshToken = refreshToken ?: "",
@@ -58,7 +67,39 @@ class LoginViewModel @Inject constructor(
                 idToken = null
             )
             appPref.isLoggedIn = true
-            Log.d(TAG, "Tokens saved. Emitting Success and updating state.")
+            Log.d(TAG, "Tokens saved.")
+
+            // 2) Extract username from access token's "sub"
+            val usernameFromToken = extractSubFromAccessToken(accessToken)
+            if (usernameFromToken.isNullOrBlank()) {
+                Log.w(TAG, "Could not extract 'sub' (username) from access token")
+            } else {
+                Log.d(TAG, "Extracted username from token sub=$usernameFromToken")
+
+                appPref.username = usernameFromToken
+
+                // 3) Hit Fusion API to resolve PersonId for this username
+                Log.d(TAG, "Calling AuthRepo.fetchUserByUsername($usernameFromToken)")
+                val result = authRepo.fetchUserByUsername(usernameFromToken)
+                result.onSuccess { resp ->
+                    val match = resp.items.firstOrNull { it.Username.equals(usernameFromToken, ignoreCase = true) }
+                        ?: resp.items.firstOrNull()
+
+                    if (match != null) {
+                        Log.d(TAG, "User lookup success. Username=${match.Username}, PersonId=${match.PersonId}")
+                        appPref.saveUser(
+                            personId = match.PersonId,
+                            username = usernameFromToken
+                        )
+                    } else {
+                        Log.w(TAG, "User lookup returned 0 items for $usernameFromToken")
+                    }
+                }.onFailure { e ->
+                    Log.e(TAG, "User lookup failed for $usernameFromToken: ${e.message}", e)
+                }
+            }
+
+            Log.d(TAG, "Emitting Success and updating state.")
             _state.update { it.copy(loading = false, success = true) }
             _loginEvents.emit(LoginEvent.Success)
         }
@@ -84,6 +125,29 @@ class LoginViewModel @Inject constructor(
                 snackBarType = type,
                 loading = false
             )
+        }
+    }
+
+    /**
+     * Extracts the "sub" claim from a JWT access token (without verification).
+     * Works if the access token is a JWT. If it's opaque, returns null.
+     */
+    private fun extractSubFromAccessToken(jwt: String): String? {
+        return try {
+            val parts = jwt.split('.')
+            if (parts.size < 2) return null
+            val payloadB64 = parts[1]
+            val payloadJson = String(
+                Base64.decode(
+                    payloadB64,
+                    Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
+                )
+            )
+            val obj = JSONObject(payloadJson)
+            obj.optString("sub").takeIf { it.isNotBlank() }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to parse 'sub' from access token: ${t.message}")
+            null
         }
     }
 }

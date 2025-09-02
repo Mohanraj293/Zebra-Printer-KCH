@@ -6,14 +6,6 @@ import com.lazymohan.zebraprinter.network.FusionApiClient
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Uses a Retrofit instance that already attaches "Authorization: Bearer <token>"
- * via an OkHttp interceptor inside FusionApiClient.
- *
- * NOTE: Ensure your FusionApiClient reads the access token from your storage
- * (e.g., AppPref) and refreshes it when needed, so this repo stays clean.
- */
-
 @Singleton
 class AuthRepo @Inject constructor(
     apiClient: FusionApiClient
