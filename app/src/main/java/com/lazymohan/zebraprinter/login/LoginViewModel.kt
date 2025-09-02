@@ -37,6 +37,7 @@ class LoginViewModel @Inject constructor(
     fun startOAuth() {
         viewModelScope.launch {
             Log.d(TAG, "Emitting StartOAuth")
+            _state.update { it.copy(loading = true, loadingMessage = "Redirecting…") }
             _loginEvents.emit(LoginEvent.StartOAuth)
         }
     }
@@ -57,6 +58,9 @@ class LoginViewModel @Inject constructor(
                 TAG,
                 "Saving tokens… access=${accessToken.take(12)}… refresh=${refreshToken?.take(10)}… exp=$expiresAtMillis"
             )
+
+            _state.update { it.copy(loading = true, loadingMessage = "Completing sign-in…") }
+
             // 1) Save tokens (no id_token)
             appPref.saveTokens(
                 accessToken = accessToken,
@@ -79,6 +83,7 @@ class LoginViewModel @Inject constructor(
                 appPref.username = usernameFromToken
 
                 // 3) Hit Fusion API to resolve PersonId for this username
+                _state.update { it.copy(loading = true, loadingMessage = "Fetching user profile…") }
                 Log.d(TAG, "Calling AuthRepo.fetchUserByUsername($usernameFromToken)")
                 val result = authRepo.fetchUserByUsername(usernameFromToken)
                 result.onSuccess { resp ->
@@ -100,7 +105,7 @@ class LoginViewModel @Inject constructor(
             }
 
             Log.d(TAG, "Emitting Success and updating state.")
-            _state.update { it.copy(loading = false, success = true) }
+            _state.update { it.copy(loading = false, loadingMessage = null, success = true) }
             _loginEvents.emit(LoginEvent.Success)
         }
     }
@@ -109,7 +114,7 @@ class LoginViewModel @Inject constructor(
     fun onOAuthFailed(message: String) {
         viewModelScope.launch {
             Log.e(TAG, "OAuth failed: $message")
-            _state.update { it.copy(loading = false) }
+            _state.update { it.copy(loading = false, loadingMessage = null) }
             _loginEvents.emit(LoginEvent.Failure(message))
         }
     }
@@ -123,7 +128,7 @@ class LoginViewModel @Inject constructor(
             it.copy(
                 snackBarMessage = message,
                 snackBarType = type,
-                loading = false
+                loading = it.loading
             )
         }
     }

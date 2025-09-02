@@ -6,8 +6,8 @@ import com.tarkalabs.tarkaui.components.TUISnackBarType
 
 data class LoginUiState(
     val loading: Boolean = false,
+    val loadingMessage: String? = null,
     val success: Boolean = false,
     val snackBarMessage: SnackBarMessage? = null,
-    val snackBarType: TUISnackBarType = TUISnackBarType.Error,
-    val user: UserAccount? = null
+    val snackBarType: TUISnackBarType = TUISnackBarType.Error
 )
