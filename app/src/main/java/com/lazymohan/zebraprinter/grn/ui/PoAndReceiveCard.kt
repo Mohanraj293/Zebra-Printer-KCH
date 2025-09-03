@@ -370,7 +370,7 @@ fun PoAndReceiveCard(
 
                         Button(
                             onClick = onReview,
-//                            enabled = allowReview,
+                            enabled = allowReview,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(52.dp)
