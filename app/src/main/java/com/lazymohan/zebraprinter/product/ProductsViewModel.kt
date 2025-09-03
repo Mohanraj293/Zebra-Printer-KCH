@@ -1,7 +1,6 @@
 package com.lazymohan.zebraprinter.product
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.product.data.Item
 import com.lazymohan.zebraprinter.product.data.Organisations
@@ -9,12 +8,15 @@ import com.lazymohan.zebraprinter.product.data.ProductsRepo
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.lazymohan.zebraprinter.utils.launchWithHandler
 import com.tarkalabs.tarkaui.components.TUISnackBarType
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import javax.inject.Inject
 
-class ProductsViewModel(
+@HiltViewModel
+class ProductsViewModel @Inject constructor(
     private val productsRepo: ProductsRepo
 ) : ViewModel() {
 
@@ -158,16 +160,5 @@ class ProductsViewModel(
         _uiState.update {
             it.copy(selectedOrgId = orgId)
         }
-    }
-}
-
-class ProductsViewModelFactory(
-    private val repository: ProductsRepo
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(ProductsViewModel::class.java)) {
-            return ProductsViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
