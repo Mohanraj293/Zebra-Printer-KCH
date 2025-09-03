@@ -35,6 +35,7 @@ class LoginActivity : ComponentActivity() {
     companion object {
         private const val TAG = "OAuth"
         private const val TAG_VM = "OAuthVM"
+        private const val ACTION_AUTH_RESPONSE = "com.lazymohan.zebraprinter.login.AUTH_RESPONSE"
     }
 
     private val viewModel: LoginViewModel by viewModels()
@@ -50,9 +51,7 @@ class LoginActivity : ComponentActivity() {
         BuildConfig.OAUTH_CLIENT_SECRET.takeIf { it.isNotBlank() }
 
     private val REDIRECT_URI = BuildConfig.REDIRECT_URI
-
     private val SCOPE = BuildConfig.OAUTH_SCOPE
-    private val ACTION_AUTH_RESPONSE = "com.lazymohan.zebraprinter.login.AUTH_RESPONSE"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,13 +128,11 @@ class LoginActivity : ComponentActivity() {
 
         Log.d(TAG, "AuthRequest built: ${authRequest.toUri()}")
 
-        // ***** IMPORTANT *****
-        // AppAuth needs a MUTABLE PendingIntent on API 31+ so it can attach the response/exception extras.
-        val flags = when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            }
-            else -> PendingIntent.FLAG_UPDATE_CURRENT
+        // MUTABLE PendingIntent for API 31+ so AppAuth can attach extras.
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
         }
 
         val completeIntent = PendingIntent.getActivity(

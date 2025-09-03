@@ -35,11 +35,20 @@ fun LoginScreenContent(
     val state by viewModel.state.collectAsState()
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
 
+    var inlineError by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) {
         viewModel.loginEvents.collect { event ->
             when (event) {
-                is LoginEvent.Success -> moveToLandingPage()
-                is LoginEvent.Failure -> updateError(event.message)
+                is LoginEvent.Success -> {
+                    inlineError = null
+                    moveToLandingPage()
+                }
+                is LoginEvent.Failure -> {
+                    val msg = event.message ?: "Authorization failed. Please try again."
+                    inlineError = msg
+                    updateError(msg)
+                }
                 else -> Unit
             }
         }
@@ -131,7 +140,10 @@ fun LoginScreenContent(
                         Spacer(modifier = Modifier.height(32.dp))
 
                         TUIButton(
-                            onClick = { viewModel.startOAuth() },
+                            onClick = {
+                                inlineError = null            // clear inline error on retry
+                                viewModel.startOAuth()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             label = if (state.loading)
                                 (state.loadingMessage ?: "Redirecting…")
@@ -139,6 +151,16 @@ fun LoginScreenContent(
                                 "Login with SSO",
                             enabled = !state.loading
                         )
+
+                        // NEW: inline error message under the button (minimal add)
+                        if (!state.loading && !inlineError.isNullOrBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = inlineError ?: "",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }
