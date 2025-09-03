@@ -19,14 +19,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 class LotsListViewModel @AssistedInject constructor(
-    @Assisted("productsRepo") private val productsRepo: ProductsRepo,
+    private val productsRepo: ProductsRepo,
     @Assisted("item") private val item: Item,
 ) : ViewModel() {
 
     @AssistedFactory
     interface LotsListViewModelFactory {
         fun create(
-            @Assisted("productsRepo") productsRepo: ProductsRepo,
             @Assisted("item") item: Item
         ): LotsListViewModel
     }
@@ -35,12 +34,10 @@ class LotsListViewModel @AssistedInject constructor(
     companion object {
         fun providesFactory(
             assistedFactory: LotsListViewModelFactory,
-            productsRepo: ProductsRepo,
             item: Item
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>) = assistedFactory.create(
                 item = item,
-                productsRepo = productsRepo
             ) as T
         }
     }

@@ -9,12 +9,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.product.data.Item
-import com.lazymohan.zebraprinter.product.data.ProductsRepo
 import com.lazymohan.zebraprinter.product.lots.data.LotsListViewModel
 import com.lazymohan.zebraprinter.product.lots.ui.LotsListScreenContent
 import com.lazymohan.zebraprinter.product.lots.ui.LotsListsEvent
 import com.lazymohan.zebraprinter.utils.DateTimeConverter
-
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -35,10 +33,9 @@ class LotsListActivity : ComponentActivity() {
     @Inject
     lateinit var lotsListViewModelFactory: LotsListViewModel.LotsListViewModelFactory
 
-    private val viewModel: LotsListViewModel by viewModels() {
+    private val viewModel: LotsListViewModel by viewModels {
         LotsListViewModel.providesFactory(
             assistedFactory = lotsListViewModelFactory,
-            productsRepo = ProductsRepo(),
             item = intent.getSerializableExtra("item") as Item
         )
     }
