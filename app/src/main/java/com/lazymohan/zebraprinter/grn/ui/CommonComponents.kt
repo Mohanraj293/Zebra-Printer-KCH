@@ -1,3 +1,4 @@
+// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/CommonComponents.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import androidx.compose.foundation.background

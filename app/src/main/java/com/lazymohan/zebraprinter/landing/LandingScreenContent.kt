@@ -1,3 +1,4 @@
+// app/src/main/java/com/lazymohan/zebraprinter/landing/LandingScreenContent.kt
 package com.lazymohan.zebraprinter.landing
 
 import androidx.compose.foundation.background
@@ -57,7 +58,9 @@ fun LandingScreenContent(
     onScanDelivery: () -> Unit,
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
+    onManualToGrn: () -> Unit,     // <-- NEW
     onPhysicalInventory: () -> Unit,
+    onScanPickUp: () -> Unit,      // <-- NEW
     onInProgress: (String) -> Unit,
     logoutHandler: () -> Unit,
     userName: String,
@@ -65,7 +68,6 @@ fun LandingScreenContent(
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val overlap = 28.dp
     var showDialog by remember { mutableStateOf(false) }
-
 
     Scaffold(
         containerColor = Color(0xFFF6F8FF),
@@ -201,6 +203,15 @@ fun LandingScreenContent(
                     onClick = onManualGrn
                 )
             }
+            // NEW: Manual GRN - TO (mirrors the PO card)
+            item {
+                FeatureCard(
+                    icon = Icons.Outlined.Description,
+                    title = "Manual GRN Creation - TO",
+                    subtitle = "Create receipt by entering TO number",
+                    onClick = onManualToGrn
+                )
+            }
             item {
                 FeatureCard(
                     icon = Icons.Outlined.QrCode,
@@ -218,7 +229,7 @@ fun LandingScreenContent(
                     icon = Icons.Outlined.ReceiptLong,
                     title = "Scan Pick Up Slip",
                     subtitle = "Receive transfers from pharmacy",
-                    onClick = { onInProgress("Scan Pick Up Slip") }
+                    onClick = onScanPickUp // <-- changed from onInProgress
                 )
             }
 

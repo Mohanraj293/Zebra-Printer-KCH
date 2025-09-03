@@ -1,5 +1,4 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/AddLineDialog.kt
-package com.lazymohan.zebraprinter.grn.ui
+package com.lazymohan.zebraprinter.grn.ui.to
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,41 +10,41 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lazymohan.zebraprinter.grn.data.PoLineItem
+import com.lazymohan.zebraprinter.grn.data.TransferOrderLine
 
 @Composable
-fun AddLineDialog(
-    candidates: List<PoLineItem>,
-    onPick: (Int) -> Unit,
+fun AddToLineDialog(
+    candidates: List<TransferOrderLine>,
+    onPick: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Line From PO") },
+        title = { Text("Add Line From TO") },
         text = {
             if (candidates.isEmpty()) {
-                Text("No more PO lines available to add.")
+                Text("No more TO lines available to add.")
             } else {
                 LazyColumn(
-                    modifier = Modifier.heightIn(max = 400.dp),
+                    modifier = Modifier.heightIn(max = 420.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(candidates) { line ->
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onPick(line.LineNumber) },
+                                .clickable { onPick(line.transferOrderLineId) },
                             shape = RoundedCornerShape(12.dp),
                             tonalElevation = 1.dp
                         ) {
                             Column(Modifier.padding(12.dp)) {
                                 Text(
-                                    text = line.Description ?: "Line ${line.LineNumber}",
+                                    text = line.itemNumber,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    text = "Item: ${line.Item} • ${line.Quantity} ${line.UOM}",
+                                    text = "UOM: ${line.unitOfMeasure ?: "-"} • Subinv: ${line.subinventory ?: "-"}",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.primary
@@ -56,8 +55,6 @@ fun AddLineDialog(
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
-        }
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }

@@ -1,3 +1,4 @@
+// app/src/main/java/com/lazymohan/zebraprinter/grn/data/GrnRepository.kt
 package com.lazymohan.zebraprinter.grn.data
 
 import android.util.Log
@@ -8,11 +9,14 @@ import kotlinx.coroutines.coroutineScope
 private const val TAG = "GRN"
 
 /**
- * Repository for GRN flow. Assumes the Retrofit client injects OAuth Bearer automatically.
+ * Repository for GRN flow (PO + TO).
+ * Retrofit client should inject OAuth Bearer automatically.
  */
 class GrnRepository(
     private val api: FusionApi
 ) {
+
+    // ====== PO ======
 
     suspend fun fetchPo(orderNumber: String): Result<PoItem> = runCatching {
         val q = "OrderNumber=\"$orderNumber\""
@@ -51,8 +55,9 @@ class GrnRepository(
         null
     }
 
-    suspend fun createReceipt(request: ReceiptRequest): Result<ReceiptResponse> = runCatching {
-        api.createReceipt(request)
+    // Unified: works for PO ReceiptRequest or TO payload
+    suspend fun createReceipt(body: Any): Result<ReceiptResponse> = runCatching {
+        api.createReceipt(body)
     }
 
     suspend fun fetchProcessingErrors(
@@ -67,5 +72,23 @@ class GrnRepository(
         body: AttachmentRequest
     ): Result<AttachmentResponse> = runCatching {
         api.uploadReceiptAttachment(receiptId, body)
+    }
+
+    // ====== TO ======
+
+    // Step 1
+    suspend fun findToHeaderByNumber(toNumber: String): Result<TransferOrderHeader?> = runCatching {
+        val q = "HeaderNumber=\"$toNumber\""
+        api.getToHeaders(q = q).items.firstOrNull()
+    }
+
+    // Step 2
+    suspend fun getToLines(headerId: Long): Result<List<TransferOrderLine>> = runCatching {
+        api.getToLines(headerId).items
+    }
+
+    // Step 3
+    suspend fun getShipmentForToNumber(toNumber: String): Result<ShipmentLine?> = runCatching {
+        api.getShipmentLinesByOrder(q = "Order=$toNumber").firstOrNull()
     }
 }

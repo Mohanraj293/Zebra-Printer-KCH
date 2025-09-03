@@ -1,3 +1,4 @@
+// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/GrnActivity.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import android.os.Bundle
