@@ -1,12 +1,11 @@
+// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/to/ToGrnActivity.kt
 package com.lazymohan.zebraprinter.grn.ui.to
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,7 +23,6 @@ class ToGrnActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Optional: allow prefilling via Intent extra "to_number"
         intent.getStringExtra("to_number")?.let { preset ->
             vm.onEnterToNumber(preset)
         }
@@ -33,6 +31,7 @@ class ToGrnActivity : ComponentActivity() {
             MaterialTheme {
                 val ui by vm.ui.collectAsState()
                 val snack = remember { SnackbarHostState() }
+                val step = ui.step
 
                 Scaffold(
                     containerColor = Color(0xFFF6F8FF),
@@ -44,35 +43,37 @@ class ToGrnActivity : ComponentActivity() {
                             .padding(inner)
                     ) {
                         ToHeader(
-                            title = when (vm.step) {
-                                ToStep.ENTER  -> "Create Receipt — TO"
+                            title = when (step) {
+                                ToStep.ENTER   -> "Create Receipt — TO"
                                 ToStep.RECEIVE -> "Receive Items — TO"
-                                ToStep.REVIEW -> "Review & Submit"
+                                ToStep.REVIEW  -> "Review & Submit"
                                 ToStep.SUMMARY -> "Receipt Summary"
+                                else           -> ""
                             },
-                            subtitle = when (vm.step) {
-                                ToStep.ENTER  -> "Fetch Transfer Order"
+                            subtitle = when (step) {
+                                ToStep.ENTER   -> "Fetch Transfer Order"
                                 ToStep.RECEIVE -> "Enter quantities & lots"
-                                ToStep.REVIEW -> "Confirm details"
+                                ToStep.REVIEW  -> "Confirm details"
                                 ToStep.SUMMARY -> "Completed"
+                                else           -> ""
                             },
                             onLogoClick = { finish() },
-                            step = when (vm.step) {
-                                ToStep.ENTER  -> 1
+                            step = when (step) {
+                                ToStep.ENTER   -> 1
                                 ToStep.RECEIVE -> 2
-                                ToStep.REVIEW -> 3
+                                ToStep.REVIEW  -> 3
                                 ToStep.SUMMARY -> 4
+                                else           -> 1
                             }
                         )
 
-                        when (vm.step) {
+                        when (step) {
                             ToStep.ENTER -> EnterToCard(
                                 ui = ui,
                                 onEnter = vm::onEnterToNumber,
                                 onFetch = vm::fetchTo,
                                 onBack = { finish() }
                             )
-
                             ToStep.RECEIVE -> ToAndReceiveCard(
                                 header = ui.header,
                                 linesLoaded = ui.linesLoaded,
@@ -88,25 +89,20 @@ class ToGrnActivity : ComponentActivity() {
                                 onUpdateLot = vm::updateSectionLot,
                                 onReview = { if (vm.canReview()) vm.goToReview() }
                             )
-
                             ToStep.REVIEW -> ReviewCardTO(
                                 header = ui.header!!,
                                 allLines = ui.lines,
                                 inputs = ui.lineInputs,
                                 submitting = ui.submitting,
                                 submitError = ui.submitError,
-                                onBack = { vm.step = ToStep.RECEIVE },
+                                onBack = vm::backToReceive,
                                 onSubmit = vm::submitReceipt
                             )
-
                             ToStep.SUMMARY -> SummaryCardTO(
                                 response = ui.receipt,
-                                onStartOver = {
-                                    vm.restart()
-                                    // Optionally finish to go back to landing:
-                                    // finish()
-                                }
+                                onStartOver = { vm.restart() }
                             )
+                            else -> {}
                         }
                     }
                 }
@@ -114,8 +110,6 @@ class ToGrnActivity : ComponentActivity() {
         }
     }
 }
-
-/* ---------- Small header wrapper to reuse your existing style ---------- */
 
 @Composable
 private fun ToHeader(
@@ -136,7 +130,6 @@ private fun ToHeader(
     }
 }
 
-/* Clone of your Stepper but labeled for TO (no change to your existing Stepper) */
 @Composable
 private fun ToStepper(step: Int) {
     Row(
@@ -151,7 +144,7 @@ private fun ToStepper(step: Int) {
             val active = (idx + 1) <= step
             val bg = if (active) Color(0xFFE8F0FF) else Color(0xFFF2F4F7)
             val fg = if (active) Color(0xFF0E63FF) else Color(0xFF64748B)
-            Surface(color = bg, shape = RoundedCornerShape(18.dp)) {
+            Surface(color = bg, shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
                 Text(
                     label,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),

@@ -15,7 +15,8 @@ data class ToConfig(
 data class ToReceiveLineInput(
     val line: TransferOrderLine,
     val quantity: Int,
-    val lotNumber: String? = null
+    val lotNumber: String? = null,
+    val lotExpirationDate: String? = null
 )
 
 data class ToReceiptRequestPayload(
@@ -46,7 +47,8 @@ data class ToReceiptLinePayload(
 
 data class ToLotEntryPayload(
     @SerializedName("LotNumber") val lotNumber: String,
-    @SerializedName("TransactionQuantity") val transactionQuantity: Int
+    @SerializedName("TransactionQuantity") val transactionQuantity: Int,
+    @SerializedName("LotExpirationDate") val lotExpirationDate: String? = null
 )
 
 fun buildToReceiptRequest(
@@ -67,7 +69,13 @@ fun buildToReceiptRequest(
             transferOrderHeaderId = header.headerId,
             transferOrderLineId = inp.line.transferOrderLineId,
             lotItemLots = inp.lotNumber?.let {
-                listOf(ToLotEntryPayload(lotNumber = it, transactionQuantity = inp.quantity))
+                listOf(
+                    ToLotEntryPayload(
+                        lotNumber = it,
+                        transactionQuantity = inp.quantity,
+                        lotExpirationDate = inp.lotExpirationDate
+                    )
+                )
             }
         )
     }

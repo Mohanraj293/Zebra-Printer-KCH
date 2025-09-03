@@ -3,9 +3,7 @@ package com.lazymohan.zebraprinter.grn.ui.to
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lazymohan.zebraprinter.grn.data.*
-import com.lazymohan.zebraprinter.grn.domain.ToConfig
-import com.lazymohan.zebraprinter.grn.domain.ToReceiveLineInput
-import com.lazymohan.zebraprinter.grn.domain.buildToReceiptRequest
+import com.lazymohan.zebraprinter.grn.domain.*
 import com.lazymohan.zebraprinter.grn.domain.usecase.CreateToReceiptUseCase
 import com.lazymohan.zebraprinter.grn.domain.usecase.FetchToBundleUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,16 +37,14 @@ data class ToUiState(
     val lineInputs: List<ToLineInput> = emptyList(),
     val shipment: ShipmentLine? = null,
 
-    // review/submit
     val submitting: Boolean = false,
     val submitError: String? = null,
-    val receipt: ReceiptResponse? = null
+    val receipt: ReceiptResponse? = null,
+
+    val step: ToStep = ToStep.ENTER
 )
 
-/* ---------- steps (for Activity to drive screens) ---------- */
 enum class ToStep { ENTER, RECEIVE, REVIEW, SUMMARY }
-
-/* ---------- ViewModel ---------- */
 
 @HiltViewModel
 class ToViewModel @Inject constructor(
@@ -59,16 +55,11 @@ class ToViewModel @Inject constructor(
     private val _ui = MutableStateFlow(ToUiState())
     val ui: StateFlow<ToUiState> = _ui
 
-    // Keep as public so Activity can read it
-    var step: ToStep = ToStep.ENTER
-
     private val cfg = ToConfig(
         fromOrganizationCode = "KDH",
         organizationCode = "KDJ",
         employeeId = 300000068190418
     )
-
-    /* ----- enter & fetch ----- */
 
     fun onEnterToNumber(value: String) {
         _ui.value = _ui.value.copy(toNumber = value.trim(), error = null)
@@ -85,14 +76,16 @@ class ToViewModel @Inject constructor(
             val res = fetchToBundle(number)
             _ui.value = res.fold(
                 onSuccess = { b ->
-                    step = ToStep.RECEIVE
+                    // seed inputs with STABLE ids (works even if backend ids are 0/duplicate)
+                    val seededInputs = b.lines.map { ToLineInput(lineId = stableLineId(b.header.headerId, it)) }
                     _ui.value.copy(
                         loading = false,
                         header = b.header,
                         lines = b.lines,
                         shipment = b.shipment,
                         linesLoaded = true,
-                        lineInputs = emptyList()
+                        lineInputs = seededInputs,
+                        step = ToStep.RECEIVE
                     )
                 },
                 onFailure = { e ->
@@ -105,13 +98,30 @@ class ToViewModel @Inject constructor(
         }
     }
 
+    /* ----- id helpers ----- */
+
+    // Same logic as UI helper, but here we always have the latest header id
+    private fun stableLineId(headerId: Long?, line: TransferOrderLine): Long {
+        val raw = line.transferOrderLineId
+        if (raw != 0L) return raw
+        val hid = headerId ?: 0L
+        val ln = (line.lineNumber ?: 0)
+        return (hid shl 20) + ln.toLong()
+    }
+
+    private fun findLineById(id: Long): TransferOrderLine? {
+        val hid = _ui.value.header?.headerId
+        return _ui.value.lines.firstOrNull { l ->
+            l.transferOrderLineId == id || stableLineId(hid, l) == id
+        }
+    }
+
     /* ----- line selection ----- */
 
     fun addLine(lineId: Long) {
-        val inputs = _ui.value.lineInputs.toMutableList()
+        val inputs = _ui.value.lineInputs
         if (inputs.any { it.lineId == lineId }) return
-        inputs += ToLineInput(lineId)
-        _ui.value = _ui.value.copy(lineInputs = inputs)
+        _ui.value = _ui.value.copy(lineInputs = inputs + ToLineInput(lineId))
     }
 
     fun removeLine(lineId: Long) {
@@ -165,21 +175,26 @@ class ToViewModel @Inject constructor(
         val header = _ui.value.header ?: return false
         if (_ui.value.lineInputs.isEmpty()) return false
         val hasAnyQty = _ui.value.lineInputs.any { it.sections.any { s -> s.qty > 0 } }
-        return hasAnyQty && header.headerId > 0
+        val hasShipment = _ui.value.shipment?.shipmentNumber != null
+        return hasAnyQty && header.headerId > 0 && hasShipment
     }
 
     fun goToReview() {
         if (!canReview()) return
-        step = ToStep.REVIEW
+        _ui.value = _ui.value.copy(step = ToStep.REVIEW)
+    }
+
+    fun backToReceive() {
+        _ui.value = _ui.value.copy(step = ToStep.RECEIVE)
     }
 
     fun submitReceipt() {
         val header = _ui.value.header ?: return
-        val allLinesMap = _ui.value.lines.associateBy { it.transferOrderLineId }
+        if (!canReview()) return
 
         val toInputs: List<ToReceiveLineInput> =
             _ui.value.lineInputs.flatMap { li ->
-                val line = allLinesMap[li.lineId] ?: return@flatMap emptyList()
+                val line = findLineById(li.lineId) ?: return@flatMap emptyList()
                 li.sections
                     .filter { it.qty > 0 }
                     .map { s ->
@@ -203,8 +218,7 @@ class ToViewModel @Inject constructor(
             val res = createReceipt(request)
             _ui.value = res.fold(
                 onSuccess = { r ->
-                    step = ToStep.SUMMARY
-                    _ui.value.copy(submitting = false, receipt = r)
+                    _ui.value.copy(submitting = false, receipt = r, step = ToStep.SUMMARY)
                 },
                 onFailure = { e ->
                     _ui.value.copy(submitting = false, submitError = e.message ?: "Submit failed")
@@ -214,7 +228,6 @@ class ToViewModel @Inject constructor(
     }
 
     fun restart() {
-        step = ToStep.ENTER
         _ui.value = ToUiState()
     }
 }

@@ -6,19 +6,18 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement.Absolute.spacedBy
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Alignment.Companion.BottomEnd
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,27 +26,41 @@ import com.lazymohan.zebraprinter.grn.data.TransferOrderLine
 import com.lazymohan.zebraprinter.grn.data.ShipmentLine
 import com.lazymohan.zebraprinter.grn.ui.ReadFieldInline
 
+/* ---- local helper: build a stable id even if backend id is 0/duplicate ---- */
+private fun stableLineId(headerId: Long?, line: TransferOrderLine): Long {
+    val raw = line.transferOrderLineId
+    if (raw != 0L) return raw
+    val hid = headerId ?: 0L
+    val ln = (line.lineNumber ?: 0)
+    // Compose a positive, reproducible id: header bucket + line number
+    return (hid shl 20) + ln.toLong()
+}
+
 @Composable
 fun ToAndReceiveCard(
     header: TransferOrderHeader?,
     linesLoaded: Boolean,
     allLines: List<TransferOrderLine>,
     inputs: List<ToLineInput>,
-
     shipment: ShipmentLine?,
     onBack: () -> Unit,
-
     onAddLine: (Long) -> Unit,
     onRemoveLine: (Long) -> Unit,
     onAddSection: (Long) -> Unit,
     onRemoveSection: (Long, Int) -> Unit,
     onUpdateQty: (Long, Int, Int) -> Unit,
     onUpdateLot: (Long, Int, String) -> Unit,
-
     onReview: () -> Unit
 ) {
-    val taken = inputs.map { it.lineId }.toSet()
-    val candidates = allLines.filter { it.transferOrderLineId !in taken }
+    val headerId = header?.headerId
+
+    // Candidates computed against STABLE ids, so "Add" enables correctly
+    val candidates by remember(allLines, inputs, headerId) {
+        derivedStateOf {
+            val chosen = inputs.map { it.lineId }.toSet()
+            allLines.filter { line -> stableLineId(headerId, line) !in chosen }
+        }
+    }
 
     val allowReview by remember(inputs) {
         derivedStateOf {
@@ -55,10 +68,13 @@ fun ToAndReceiveCard(
         }
     }
 
+    var showAddDialog by remember { mutableStateOf(false) }
+
     Box(Modifier.fillMaxSize()) {
+        // single scroll parent to avoid infinite height crashes
         Column(Modifier.verticalScroll(rememberScrollState())) {
 
-            // --- Header card (read-only) ---
+            // --- Transfer Order Header ---
             Card(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(16.dp),
@@ -91,24 +107,24 @@ fun ToAndReceiveCard(
                     }
 
                     Spacer(Modifier.height(8.dp))
-                    val sn = shipment?.shipmentNumber?.toString() ?: "—"
-                    val lot = shipment?.lotNumber ?: "—"
-                    Surface(
-                        color = Color(0xFFF1F5F9),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                    ) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text("Shipment (from Shipping)", fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                            Spacer(Modifier.height(6.dp))
-                            ReadFieldInline("Shipment #", sn)
-                            ReadFieldInline("Lot (default)", lot)
+                    shipment?.let {
+                        Surface(
+                            color = Color(0xFFF1F5F9),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("Shipment Info", fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
+                                Spacer(Modifier.height(6.dp))
+                                ReadFieldInline("Shipment #", it.shipmentNumber.toString())
+                                ReadFieldInline("Lot (default)", it.lotNumber ?: "—")
+                            }
                         }
                     }
                 }
             }
 
-            // --- Lines card ---
+            // --- Lines Card ---
             Card(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = RoundedCornerShape(16.dp),
@@ -116,7 +132,10 @@ fun ToAndReceiveCard(
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(
                             "Lines",
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -126,7 +145,7 @@ fun ToAndReceiveCard(
                         )
                         Spacer(Modifier.weight(1f))
                         Button(
-                            onClick = { /* open dialog */ },
+                            onClick = { showAddDialog = true },
                             enabled = candidates.isNotEmpty(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFEFF4FF),
@@ -137,27 +156,7 @@ fun ToAndReceiveCard(
                         ) { Text("➕ Add Item") }
                     }
 
-                    var showAdd by remember { mutableStateOf(false) }
-                    LaunchedEffect(Unit) {
-                        // ensure dialog shows only when triggered
-                    }
-                    if (showAdd) {
-                        AddToLineDialog(
-                            candidates = candidates,
-                            onPick = { id -> showAdd = false; onAddLine(id) },
-                            onDismiss = { showAdd = false }
-                        )
-                    }
-                    // link button triggers dialog
-                    Row(Modifier.fillMaxWidth()) {
-                        Spacer(Modifier.weight(1f))
-                        TextButton(
-                            enabled = candidates.isNotEmpty(),
-                            onClick = { showAdd = true }
-                        ) { Text("Select From TO") }
-                    }
-
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     when {
                         !linesLoaded -> {
@@ -171,24 +170,33 @@ fun ToAndReceiveCard(
                             Text("No TO lines found.", color = Color(0xFF64748B))
                         }
                         else -> {
-                            inputs.forEach { li ->
-                                val base = allLines.firstOrNull { it.transferOrderLineId == li.lineId } ?: return@forEach
-                                ToLineBox(
-                                    line = base,
-                                    input = li,
-                                    onRemoveLine = { onRemoveLine(base.transferOrderLineId) },
-                                    onAddSection = { onAddSection(base.transferOrderLineId) },
-                                    onRemoveSection = { sec -> onRemoveSection(base.transferOrderLineId, sec) },
-                                    onUpdateQty = { sec, qty -> onUpdateQty(base.transferOrderLineId, sec, qty) },
-                                    onUpdateLot = { sec, lot -> onUpdateLot(base.transferOrderLineId, sec, lot) }
-                                )
-                                Spacer(Modifier.height(10.dp))
+                            // Plain Column; each child keyed by the STABLE id
+                            Column {
+                                inputs.forEach { li ->
+                                    val base = allLines.firstOrNull { stableLineId(headerId, it) == li.lineId }
+                                        ?: return@forEach
+                                    key(li.lineId) {
+                                        ToLineCard(
+                                            line = base,
+                                            input = li,
+                                            onRemoveLine = { onRemoveLine(li.lineId) },
+                                            onAddSection = { onAddSection(li.lineId) },
+                                            onRemoveSection = { sec -> onRemoveSection(li.lineId, sec) },
+                                            onUpdateQty = { sec, qty -> onUpdateQty(li.lineId, sec, qty) },
+                                            onUpdateLot = { sec, lot -> onUpdateLot(li.lineId, sec, lot) }
+                                        )
+                                        Spacer(Modifier.height(10.dp))
+                                    }
+                                }
                             }
                         }
                     }
 
-                    Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.height(20.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         OutlinedButton(
                             onClick = onBack,
                             modifier = Modifier.weight(1f).height(52.dp)
@@ -196,7 +204,8 @@ fun ToAndReceiveCard(
 
                         Button(
                             onClick = onReview,
-                            modifier = Modifier.weight(1f).height(52.dp).alpha(if (allowReview) 1f else 0.35f),
+                            modifier = Modifier.weight(1f).height(52.dp)
+                                .alpha(if (allowReview) 1f else 0.35f),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
                         ) { Text("Review & Submit", color = Color.White) }
                     }
@@ -204,10 +213,54 @@ fun ToAndReceiveCard(
             }
         }
     }
+
+    // --- Add Item Dialog (safe keys) ---
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("Select Transfer Order Line") },
+            text = {
+                if (candidates.isEmpty()) {
+                    Text("All TO lines are already added.", color = Color(0xFF64748B))
+                } else {
+                    // No custom key() to avoid duplicate key crash if backend ids are 0/dup
+                    LazyColumn {
+                        items(items = candidates) { c ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                                    .clickable {
+                                        onAddLine(stableLineId(headerId, c))
+                                        showAddDialog = false
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            ) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(c.itemDescription ?: c.itemNumber, fontWeight = FontWeight.SemiBold)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("Item: ${c.itemNumber}", color = Color(0xFF64748B))
+                                    if (!c.subinventory.isNullOrBlank()) {
+                                        Text("Subinv: ${c.subinventory}", color = Color(0xFF64748B))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) { Text("Close") }
+            }
+        )
+    }
 }
 
 @Composable
-private fun ToLineBox(
+private fun ToLineCard(
     line: TransferOrderLine,
     input: ToLineInput,
     onRemoveLine: () -> Unit,
@@ -216,56 +269,84 @@ private fun ToLineBox(
     onUpdateQty: (Int, Int) -> Unit,
     onUpdateLot: (Int, String) -> Unit
 ) {
+    var expanded by remember { mutableStateOf(true) }
+    var confirmDelete by remember { mutableStateOf(false) }
+
     Surface(
         tonalElevation = 2.dp,
         shadowElevation = 2.dp,
         shape = RoundedCornerShape(16.dp),
         color = Color(0xFFFDFEFF),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
     ) {
         Column(Modifier.padding(14.dp)) {
+            // Title
             Text(
-                text = line.itemNumber,
+                text = line.itemDescription ?: line.itemNumber,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF143A7B)
+                color = Color(0xFF143A7B),
+                maxLines = 3
             )
-            Spacer(Modifier.height(6.dp))
-            ReadFieldInline("UOM", line.unitOfMeasure ?: "-")
-            ReadFieldInline("Subinventory", line.subinventory ?: "-")
-
-            Spacer(Modifier.height(10.dp))
-            Divider()
-            Spacer(Modifier.height(10.dp))
-
-            input.sections.sortedBy { it.section }.forEach { sec ->
-                SectionRow(
-                    title = "Section #${sec.section}",
-                    qty = sec.qty,
-                    lot = sec.lot,
-                    onQtyChange = { onUpdateQty(sec.section, it) },
-                    onLotChange = { onUpdateLot(sec.section, it) },
-                    onDelete = { onRemoveSection(sec.section) }
+            if (!line.itemDescription.isNullOrBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Item: ${line.itemNumber}",
+                    style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF334155))
                 )
-                Spacer(Modifier.height(8.dp))
             }
 
-            TextButton(
-                onClick = onAddSection,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFE8F0FF))
-                    .padding(horizontal = 6.dp, vertical = 3.dp)
-            ) {
-                Text("+ Add Section", color = Color(0xFF1D4ED8), fontWeight = FontWeight.SemiBold)
-            }
+            if (expanded) {
+                Spacer(Modifier.height(10.dp))
+                ReadFieldInline("UOM", line.unitOfMeasure ?: "-")
+                ReadFieldInline("Subinventory", line.subinventory ?: "-")
 
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onRemoveLine, colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB00020))) {
-                    Text("Remove line")
+                Spacer(Modifier.height(12.dp))
+                input.sections.sortedBy { it.section }.forEach { sec ->
+                    SectionRow(
+                        title = "Section #${sec.section}",
+                        qty = sec.qty,
+                        lot = sec.lot,
+                        onQtyChange = { onUpdateQty(sec.section, it) },
+                        onLotChange = { onUpdateLot(sec.section, it) },
+                        onDelete = { onRemoveSection(sec.section) }
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                TextButton(
+                    onClick = onAddSection,
+                    modifier = Modifier
+                        .background(Color(0xFFE8F0FF), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                ) {
+                    Text("+ Add Section", color = Color(0xFF1D4ED8), fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(Modifier.height(6.dp))
+                IconButton(onClick = { confirmDelete = true }) {
+                    Icon(Icons.Outlined.Delete, contentDescription = "Delete line", tint = Color(0xFFB00020))
                 }
             }
         }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+            title = { Text("Remove line ${line.itemNumber}?") },
+            text = { Text("This will remove the line from this receipt.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; onRemoveLine() }) {
+                    Text("Remove", color = Color(0xFFB00020))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 
@@ -289,9 +370,10 @@ private fun SectionRow(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(title, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onDelete, colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB00020))) {
-                    Text("Delete")
-                }
+                TextButton(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB00020))
+                ) { Text("Delete") }
             }
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(

@@ -203,15 +203,6 @@ fun LandingScreenContent(
                     onClick = onManualGrn
                 )
             }
-            // NEW: Manual GRN - TO (mirrors the PO card)
-            item {
-                FeatureCard(
-                    icon = Icons.Outlined.Description,
-                    title = "Manual GRN Creation - TO",
-                    subtitle = "Create receipt by entering TO number",
-                    onClick = onManualToGrn
-                )
-            }
             item {
                 FeatureCard(
                     icon = Icons.Outlined.QrCode,
@@ -230,6 +221,15 @@ fun LandingScreenContent(
                     title = "Scan Pick Up Slip",
                     subtitle = "Receive transfers from pharmacy",
                     onClick = onScanPickUp // <-- changed from onInProgress
+                )
+            }
+            // NEW: Manual GRN - TO (mirrors the PO card)
+            item {
+                FeatureCard(
+                    icon = Icons.Outlined.Description,
+                    title = "Manual GRN Creation - TO",
+                    subtitle = "Create receipt by entering TO number",
+                    onClick = onManualToGrn
                 )
             }
 

@@ -251,6 +251,7 @@ data class ToHeaderSearchResponse(
 data class TransferOrderLine(
     @SerializedName("TransferOrderLineId") val transferOrderLineId: Long,
     @SerializedName("TransferOrderHeaderId") val transferOrderHeaderId: Long,
+    @SerializedName("ItemDescription") val itemDescription: String? = null,
     @SerializedName("ItemNumber") val itemNumber: String,
     @SerializedName("Subinventory") val subinventory: String? = null,
     @SerializedName("UnitOfMeasure") val unitOfMeasure: String? = null,
