@@ -21,25 +21,31 @@ fun parseGs1(raw0: String): Gs1Result? {
     val s = raw0.trim()
         .removePrefix("]Q3")
         .removePrefix("]Q1")
+    val regex = Regex("\\((\\d{2})\\)([^()]+)")
+    val matches = regex.findAll(s)
 
-    val gtin = Regex("(?:\\(01\\)|01)(\\d{14})").find(s)?.groupValues?.get(1)?.let { candidate ->
-        if (validateCheckDigit) {
-            candidate.takeIf { isValidGtin14(it) }
-        } else candidate
-    } ?: return null
-    val expRaw = Regex("(?:\\(17\\)|17)([0-9\\-]{6,10})").find(s)?.groupValues?.get(1)
-    val expiryYmd = expRaw?.let { exp ->
-        val digits = exp.replace("-", "")
-        if (digits.length == 6) {
-            val yy = digits.substring(0, 2)
-            val mm = digits.substring(2, 4)
-            val dd = digits.substring(4, 6)
-            "20$yy-$mm-$dd"
-        } else null
+    var gtin: String? = null
+    var expiry: String? = null
+    var lot: String? = null
+
+    matches.forEach { match ->
+        val ai = match.groupValues[1]
+        val value = match.groupValues[2].trim()
+
+        when (ai) {
+            "01" -> {
+                gtin = if (validateCheckDigit && value.length == 14) {
+                    value.takeIf { isValidGtin14(it) }
+                } else value
+            }
+            "17" -> {
+                expiry = value.replace(Regex("[-/]"), "").take(6)
+            }
+            "10" -> lot = value
+        }
     }
-    val lot = Regex("(?:\\(10\\)|10)([^$GS()]{1,20})").find(s)?.groupValues?.get(1)
     val serial = Regex("(?:\\(21\\)|21)([^$GS()]{1,20})").find(s)?.groupValues?.get(1)
-    return Gs1Result(raw0, gtin = gtin, lot = lot, expiryYmd = expiryYmd, serial = serial)
+    return Gs1Result(raw0, gtin = gtin, lot = lot, expiryYmd = expiry, serial = serial)
 }
 
 fun isValidGtin14(s: String): Boolean {
