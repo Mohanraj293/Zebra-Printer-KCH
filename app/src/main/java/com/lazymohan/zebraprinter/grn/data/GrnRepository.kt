@@ -87,8 +87,22 @@ class GrnRepository(
         api.getToLines(headerId).items
     }
 
-    // Step 3
+    // Step 3a: shipment lines for a TO number (fallback to get ShipmentNumber)
     suspend fun getShipmentForToNumber(toNumber: String): Result<ShipmentLine?> = runCatching {
-        api.getShipmentLinesByOrder(q = "Order=$toNumber").firstOrNull()
+        api.getShipmentLines(q = "Order=$toNumber").firstOrNull()
+    }
+
+    // Step 3b: shipment lines for a TO number + Item (to build sections per lot)
+    suspend fun getShipmentLinesForOrderAndItem(orderNumber: String, itemNumber: String): Result<List<ShipmentLine>> =
+        runCatching {
+            // Example q: Order=103006;Item="PH11233"
+            val q = "Order=$orderNumber;Item=\"$itemNumber\""
+            api.getShipmentLines(q = q).list()
+        }
+
+    // Step 2.2: lot expiry lookup
+    suspend fun getLotExpiry(lotNumber: String): Result<String?> = runCatching {
+        val resp = api.getInventoryItemLots(q = "LotNumber=\"$lotNumber\"")
+        resp.items.firstOrNull()?.lotExpirationDate
     }
 }

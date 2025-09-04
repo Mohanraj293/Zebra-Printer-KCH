@@ -7,9 +7,12 @@ import com.lazymohan.zebraprinter.grn.domain.*
 import com.lazymohan.zebraprinter.grn.domain.usecase.CreateToReceiptUseCase
 import com.lazymohan.zebraprinter.grn.domain.usecase.FetchToBundleUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 
 /* ---------- UI state & models ---------- */
@@ -17,7 +20,8 @@ import javax.inject.Inject
 data class ToLineSection(
     val section: Int,
     val qty: Int,
-    val lot: String
+    val lot: String,
+    val expiry: String? = null
 )
 
 data class ToLineInput(
@@ -49,7 +53,8 @@ enum class ToStep { ENTER, RECEIVE, REVIEW, SUMMARY }
 @HiltViewModel
 class ToViewModel @Inject constructor(
     private val fetchToBundle: FetchToBundleUseCase,
-    private val createReceipt: CreateToReceiptUseCase
+    private val createReceipt: CreateToReceiptUseCase,
+    private val repo: GrnRepository
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(ToUiState())
@@ -73,34 +78,79 @@ class ToViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, error = null, linesLoaded = false)
+
             val res = fetchToBundle(number)
-            _ui.value = res.fold(
-                onSuccess = { b ->
-                    // seed inputs with STABLE ids (works even if backend ids are 0/duplicate)
-                    val seededInputs = b.lines.map { ToLineInput(lineId = stableLineId(b.header.headerId, it)) }
-                    _ui.value.copy(
-                        loading = false,
-                        header = b.header,
-                        lines = b.lines,
-                        shipment = b.shipment,
-                        linesLoaded = true,
-                        lineInputs = seededInputs,
-                        step = ToStep.RECEIVE
-                    )
-                },
-                onFailure = { e ->
-                    _ui.value.copy(
-                        loading = false,
-                        error = e.message ?: "TO not found or API error"
-                    )
-                }
-            )
+
+            res.onSuccess { b ->
+                // We’re already inside a coroutine; call suspend helper directly
+                val enrichedInputs = buildInputsWithShipments(
+                    toNumber = number,
+                    headerId = b.header.headerId,
+                    lines = b.lines
+                )
+                _ui.value = _ui.value.copy(
+                    loading = false,
+                    header = b.header,
+                    lines = b.lines,
+                    shipment = b.shipment, // fallback ShipmentNumber for DocumentNumber
+                    linesLoaded = true,
+                    lineInputs = enrichedInputs,
+                    step = ToStep.RECEIVE
+                )
+            }.onFailure { e ->
+                _ui.value = _ui.value.copy(
+                    loading = false,
+                    error = e.message ?: "TO not found or API error"
+                )
+            }
         }
+    }
+
+    /** Build ToLineInput list creating multiple sections when multiple shipment lots are present */
+    private suspend fun buildInputsWithShipments(
+        toNumber: String,
+        headerId: Long,
+        lines: List<TransferOrderLine>
+    ): List<ToLineInput> = coroutineScope {
+        lines.map { line ->
+            async {
+                val shipments = repo.getShipmentLinesForOrderAndItem(toNumber, line.itemNumber)
+                    .getOrElse { emptyList() }
+                    .filter { !it.lotNumber.isNullOrBlank() }
+
+                val baseSections = if (shipments.isEmpty()) {
+                    listOf(ToLineSection(1, 0, lot = ""))
+                } else {
+                    shipments.mapIndexed { idx, s ->
+                        ToLineSection(
+                            section = idx + 1,
+                            // Pre-fill with shipped qty for that lot
+                            qty = (s.shippedQuantity ?: 0.0).toInt(),
+                            lot = s.lotNumber.orEmpty(),
+                            expiry = null
+                        )
+                    }
+                }
+
+                // fetch expiries per lot (if any)
+                val withExpiry = baseSections.map { sec ->
+                    if (sec.lot.isBlank()) sec
+                    else {
+                        val exp = repo.getLotExpiry(sec.lot).getOrNull()
+                        sec.copy(expiry = exp)
+                    }
+                }
+
+                ToLineInput(
+                    lineId = stableLineId(headerId, line),
+                    sections = withExpiry
+                )
+            }
+        }.awaitAll()
     }
 
     /* ----- id helpers ----- */
 
-    // Same logic as UI helper, but here we always have the latest header id
     private fun stableLineId(headerId: Long?, line: TransferOrderLine): Long {
         val raw = line.transferOrderLineId
         if (raw != 0L) return raw
@@ -133,7 +183,7 @@ class ToViewModel @Inject constructor(
     fun addSection(lineId: Long) {
         val li = _ui.value.lineInputs.find { it.lineId == lineId } ?: return
         val next = (li.sections.maxOfOrNull { it.section } ?: 0) + 1
-        val upd = li.copy(sections = li.sections + ToLineSection(next, 0, ""))
+        val upd = li.copy(sections = li.sections + ToLineSection(next, 0, "", null))
         replaceInput(upd)
     }
 
@@ -142,7 +192,7 @@ class ToViewModel @Inject constructor(
         val upd = li.copy(
             sections = li.sections
                 .filterNot { it.section == section }
-                .ifEmpty { listOf(ToLineSection(1, 0, "")) }
+                .ifEmpty { listOf(ToLineSection(1, 0, "", null)) }
         )
         replaceInput(upd)
     }
@@ -157,10 +207,28 @@ class ToViewModel @Inject constructor(
 
     fun updateSectionLot(lineId: Long, section: Int, lot: String) {
         val li = _ui.value.lineInputs.find { it.lineId == lineId } ?: return
-        val upd = li.copy(sections = li.sections.map {
-            if (it.section == section) it.copy(lot = lot) else it
-        })
-        replaceInput(upd)
+        // set lot immediately (expiry unknown yet)
+        replaceInput(
+            li.copy(
+                sections = li.sections.map {
+                    if (it.section == section) it.copy(lot = lot, expiry = null) else it
+                }
+            )
+        )
+        // then fetch expiry async
+        if (lot.isNotBlank()) {
+            viewModelScope.launch {
+                val expiry = repo.getLotExpiry(lot).getOrNull()
+                val li2 = _ui.value.lineInputs.find { it.lineId == lineId } ?: return@launch
+                replaceInput(
+                    li2.copy(
+                        sections = li2.sections.map {
+                            if (it.section == section) it.copy(expiry = expiry) else it
+                        }
+                    )
+                )
+            }
+        }
     }
 
     private fun replaceInput(newLi: ToLineInput) {
@@ -177,6 +245,15 @@ class ToViewModel @Inject constructor(
         val hasAnyQty = _ui.value.lineInputs.any { it.sections.any { s -> s.qty > 0 } }
         val hasShipment = _ui.value.shipment?.shipmentNumber != null
         return hasAnyQty && header.headerId > 0 && hasShipment
+    }
+
+    /** Human-friendly reason for not being able to review. */
+    fun reviewBlockReason(): String = when {
+        _ui.value.header == null -> "Transfer Order not loaded."
+        _ui.value.lineInputs.isEmpty() -> "Add at least one line to receive."
+        _ui.value.lineInputs.none { it.sections.any { s -> s.qty > 0 } } -> "Enter a quantity > 0 in at least one section."
+        _ui.value.shipment?.shipmentNumber == null -> "Shipment number not found for this TO."
+        else -> "Cannot proceed to review."
     }
 
     fun goToReview() {
@@ -201,7 +278,8 @@ class ToViewModel @Inject constructor(
                         ToReceiveLineInput(
                             line = line,
                             quantity = s.qty,
-                            lotNumber = s.lot.ifBlank { null }
+                            lotNumber = s.lot.ifBlank { null },
+                            lotExpirationDate = s.expiry
                         )
                     }
             }
@@ -215,15 +293,14 @@ class ToViewModel @Inject constructor(
 
         viewModelScope.launch {
             _ui.value = _ui.value.copy(submitting = true, submitError = null)
+
             val res = createReceipt(request)
-            _ui.value = res.fold(
-                onSuccess = { r ->
-                    _ui.value.copy(submitting = false, receipt = r, step = ToStep.SUMMARY)
-                },
-                onFailure = { e ->
-                    _ui.value.copy(submitting = false, submitError = e.message ?: "Submit failed")
-                }
-            )
+
+            res.onSuccess { r ->
+                _ui.value = _ui.value.copy(submitting = false, receipt = r, step = ToStep.SUMMARY)
+            }.onFailure { e ->
+                _ui.value = _ui.value.copy(submitting = false, submitError = e.message ?: "Submit failed")
+            }
         }
     }
 

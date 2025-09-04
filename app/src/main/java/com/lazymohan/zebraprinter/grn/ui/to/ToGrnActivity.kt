@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dagger.hilt.android.AndroidEntryPoint
 import com.lazymohan.zebraprinter.grn.ui.Header
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ToGrnActivity : ComponentActivity() {
@@ -32,6 +33,7 @@ class ToGrnActivity : ComponentActivity() {
                 val ui by vm.ui.collectAsState()
                 val snack = remember { SnackbarHostState() }
                 val step = ui.step
+                val scope = rememberCoroutineScope()
 
                 Scaffold(
                     containerColor = Color(0xFFF6F8FF),
@@ -87,7 +89,15 @@ class ToGrnActivity : ComponentActivity() {
                                 onRemoveSection = vm::removeSection,
                                 onUpdateQty = vm::updateSectionQty,
                                 onUpdateLot = vm::updateSectionLot,
-                                onReview = { if (vm.canReview()) vm.goToReview() }
+                                onReview = {
+                                    if (vm.canReview()) {
+                                        vm.goToReview()
+                                    } else {
+                                        scope.launch {
+                                            snack.showSnackbar(vm.reviewBlockReason())
+                                        }
+                                    }
+                                }
                             )
                             ToStep.REVIEW -> ReviewCardTO(
                                 header = ui.header!!,

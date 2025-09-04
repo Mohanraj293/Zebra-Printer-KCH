@@ -26,13 +26,12 @@ import com.lazymohan.zebraprinter.grn.data.TransferOrderLine
 import com.lazymohan.zebraprinter.grn.data.ShipmentLine
 import com.lazymohan.zebraprinter.grn.ui.ReadFieldInline
 
-/* ---- local helper: build a stable id even if backend id is 0/duplicate ---- */
+/* ---- local helper: stable id for lines ---- */
 private fun stableLineId(headerId: Long?, line: TransferOrderLine): Long {
     val raw = line.transferOrderLineId
     if (raw != 0L) return raw
     val hid = headerId ?: 0L
     val ln = (line.lineNumber ?: 0)
-    // Compose a positive, reproducible id: header bucket + line number
     return (hid shl 20) + ln.toLong()
 }
 
@@ -54,7 +53,6 @@ fun ToAndReceiveCard(
 ) {
     val headerId = header?.headerId
 
-    // Candidates computed against STABLE ids, so "Add" enables correctly
     val candidates by remember(allLines, inputs, headerId) {
         derivedStateOf {
             val chosen = inputs.map { it.lineId }.toSet()
@@ -71,7 +69,7 @@ fun ToAndReceiveCard(
     var showAddDialog by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
-        // single scroll parent to avoid infinite height crashes
+        // Single scroll parent to avoid infinite height issues
         Column(Modifier.verticalScroll(rememberScrollState())) {
 
             // --- Transfer Order Header ---
@@ -116,7 +114,7 @@ fun ToAndReceiveCard(
                             Column(Modifier.padding(12.dp)) {
                                 Text("Shipment Info", fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
                                 Spacer(Modifier.height(6.dp))
-                                ReadFieldInline("Shipment #", it.shipmentNumber.toString())
+                                ReadFieldInline("Shipment #", it.shipmentNumber?.toString() ?: "—")
                                 ReadFieldInline("Lot (default)", it.lotNumber ?: "—")
                             }
                         }
@@ -170,11 +168,12 @@ fun ToAndReceiveCard(
                             Text("No TO lines found.", color = Color(0xFF64748B))
                         }
                         else -> {
-                            // Plain Column; each child keyed by the STABLE id
                             Column {
                                 inputs.forEach { li ->
-                                    val base = allLines.firstOrNull { stableLineId(headerId, it) == li.lineId }
-                                        ?: return@forEach
+                                    val base = allLines.firstOrNull { l ->
+                                        l.transferOrderLineId == li.lineId ||
+                                                stableLineId(headerId, l) == li.lineId
+                                    } ?: return@forEach
                                     key(li.lineId) {
                                         ToLineCard(
                                             line = base,
@@ -214,7 +213,7 @@ fun ToAndReceiveCard(
         }
     }
 
-    // --- Add Item Dialog (safe keys) ---
+    // --- Add Item Dialog ---
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
@@ -223,7 +222,6 @@ fun ToAndReceiveCard(
                 if (candidates.isEmpty()) {
                     Text("All TO lines are already added.", color = Color(0xFF64748B))
                 } else {
-                    // No custom key() to avoid duplicate key crash if backend ids are 0/dup
                     LazyColumn {
                         items(items = candidates) { c ->
                             Card(
@@ -302,12 +300,19 @@ private fun ToLineCard(
                 ReadFieldInline("UOM", line.unitOfMeasure ?: "-")
                 ReadFieldInline("Subinventory", line.subinventory ?: "-")
 
+                val qtyText = line.quantity?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "-"
+                ReadFieldInline("Quantity", qtyText)
+
+                val priceText = line.unitPrice?.let { p -> "%,.2f".format(p).trimEnd('0').trimEnd('.') } ?: "-"
+                ReadFieldInline("Unit Price", priceText)
+
                 Spacer(Modifier.height(12.dp))
                 input.sections.sortedBy { it.section }.forEach { sec ->
                     SectionRow(
                         title = "Section #${sec.section}",
                         qty = sec.qty,
                         lot = sec.lot,
+                        expiry = sec.expiry,
                         onQtyChange = { onUpdateQty(sec.section, it) },
                         onLotChange = { onUpdateLot(sec.section, it) },
                         onDelete = { onRemoveSection(sec.section) }
@@ -355,6 +360,7 @@ private fun SectionRow(
     title: String,
     qty: Int,
     lot: String,
+    expiry: String?,
     onQtyChange: (Int) -> Unit,
     onLotChange: (String) -> Unit,
     onDelete: () -> Unit
@@ -391,6 +397,10 @@ private fun SectionRow(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            if (!expiry.isNullOrBlank()) {
+                Spacer(Modifier.height(6.dp))
+                ReadFieldInline("Expiry", expiry)
+            }
         }
     }
 }

@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/data/FusionApi.kt
 package com.lazymohan.zebraprinter.grn.data
 
 import retrofit2.http.Body
@@ -84,7 +83,7 @@ interface FusionApi {
     @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
     suspend fun getToHeaders(
         @Query("onlyData") onlyData: String = "true",
-        // q="HeaderNumber=\"107054\""  (quotes are tolerated; some tenants also work without)
+        // q="HeaderNumber=\"107054\""
         @Query("q") q: String
     ): ToHeaderSearchResponse
 
@@ -96,12 +95,19 @@ interface FusionApi {
         @Query("onlyData") onlyData: String = "true"
     ): ToLinesResponse
 
-    // Step 3: Get Shipment Number by TO Number
+    // Step 3: Shipment lines (accept any q, e.g. Order=103006;Item="PH11233")
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/shipmentLines")
-    suspend fun getShipmentLinesByOrder(
+    suspend fun getShipmentLines(
         @Query("onlyData") onlyData: String = "true",
-        // q="Order=107054"
         @Query("q") q: String
     ): ShipmentLinesResponse
+
+    // Step 2.2: Inventory lots (expiry)
+    @Headers("Accept: application/json")
+    @GET("fscmRestApi/resources/11.13.18.05/inventoryItemLots")
+    suspend fun getInventoryItemLots(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String
+    ): InventoryLotsResponse
 }

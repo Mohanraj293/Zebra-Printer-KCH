@@ -230,8 +230,7 @@ data class AttachmentResponse(
 )
 
 /* =========================================================
-   TO FLOW DTOS (NEW) — added with distinct names to avoid
-   breaking the PO flow.
+   TO FLOW DTOS (NEW)
    ========================================================= */
 
 // --- STEP 1: Transfer Order Header Search ---
@@ -253,36 +252,78 @@ data class TransferOrderLine(
     @SerializedName("TransferOrderHeaderId") val transferOrderHeaderId: Long,
     @SerializedName("ItemDescription") val itemDescription: String? = null,
     @SerializedName("ItemNumber") val itemNumber: String,
-    @SerializedName("Subinventory") val subinventory: String? = null,
-    @SerializedName("UnitOfMeasure") val unitOfMeasure: String? = null,
+
+    // Show DESTINATION subinventory on the card
+    @SerializedName(
+        value = "Subinventory",
+        alternate = ["DestinationSubinventoryCode", "DestinationSubinventory"]
+    )
+    val subinventory: String? = null,
+
+    // UOM
+    @SerializedName(
+        value = "UnitOfMeasure",
+        alternate = ["QuantityUOMName", "QuantityUOM"]
+    )
+    val unitOfMeasure: String? = null,
+
     @SerializedName("LineNumber") val lineNumber: Int? = null,
-    @SerializedName("Quantity") val quantity: Double? = null
+
+    // Displayed quantity
+    @SerializedName(
+        value = "Quantity",
+        alternate = ["RequestedQuantity"]
+    )
+    val quantity: Double? = null,
+
+    // Displayed unit price
+    @SerializedName("UnitPrice") val unitPrice: Double? = null
 )
 
 data class ToLinesResponse(
     @SerializedName("items") val items: List<TransferOrderLine> = emptyList()
 )
 
-// --- STEP 3: Shipment Lines (by TO number) ---
+// --- STEP 3: Shipment Lines (by TO number and/or item) ---
+// Some tenants return "Shipment": "6021" (String) instead of ShipmentNumber.
 data class ShipmentLine(
-    @SerializedName("ShipmentNumber") val shipmentNumber: Long? = null,
-    @SerializedName("LotNumber") val lotNumber: String? = null
-)
+    @SerializedName(value = "ShipmentNumber", alternate = ["Shipment"])
+    val shipmentRaw: String? = null,
+
+    @SerializedName("LotNumber") val lotNumber: String? = null,
+
+    @SerializedName("ShippedQuantity") val shippedQuantity: Double? = null
+) {
+    val shipmentNumber: Long?
+        get() = shipmentRaw?.toLongOrNull()
+}
 
 data class ShipmentLinesResponse(
-    // normal oracle response
     @SerializedName("items") val items: List<ShipmentLine>? = null,
-    // some tenants return a bare object (your sample)
-    @SerializedName("ShipmentNumber") val shipmentNumber: Long? = null,
-    @SerializedName("LotNumber") val lotNumber: String? = null
+    // fallback single-object style
+    @SerializedName("ShipmentNumber") val shipmentNumberFallback: Long? = null,
+    @SerializedName("LotNumber") val lotNumberFallback: String? = null
 ) {
-    fun firstOrNull(): ShipmentLine? =
+    fun list(): List<ShipmentLine> =
         when {
-            !items.isNullOrEmpty()                     -> items.first()
-            shipmentNumber != null || lotNumber != null -> ShipmentLine(shipmentNumber, lotNumber)
-            else                                       -> null
+            !items.isNullOrEmpty() -> items
+            shipmentNumberFallback != null || lotNumberFallback != null ->
+                listOf(ShipmentLine(shipmentNumberFallback?.toString(), lotNumberFallback, null))
+            else -> emptyList()
         }
+    fun firstOrNull(): ShipmentLine? = list().firstOrNull()
 }
+
+// --- STEP 2.2: Inventory Item Lots (expiration) ---
+data class InventoryLotsResponse(
+    @SerializedName("items") val items: List<InventoryLot> = emptyList()
+)
+
+data class InventoryLot(
+    @SerializedName("LotNumber") val lotNumber: String? = null,
+    @SerializedName(value = "LotExpirationDate", alternate = ["ExpirationDate"])
+    val lotExpirationDate: String? = null
+)
 
 // --- STEP 4: Receipt (create GRN) against TO ---
 data class ReceiptRequestTo(
@@ -315,5 +356,6 @@ data class ReceiptLineTo(
 
 data class LotEntryTo(
     @SerializedName("LotNumber") val lotNumber: String,
-    @SerializedName("TransactionQuantity") val transactionQuantity: Int
+    @SerializedName("TransactionQuantity") val transactionQuantity: Int,
+    @SerializedName("LotExpirationDate") val lotExpirationDate: String? = null
 )
