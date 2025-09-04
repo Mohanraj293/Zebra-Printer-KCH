@@ -2,9 +2,7 @@ package com.lazymohan.zebraprinter.grn.data
 
 import com.google.gson.annotations.SerializedName
 
-/* =========================================================
-   PO FLOW DTOS  (UNCHANGED – keep old flow working)
-   ========================================================= */
+// PO FLOW DTOS
 
 // --- PO lookup ---
 data class PoResponse(
@@ -175,13 +173,17 @@ data class ReceiptResponse(
     @SerializedName("ReceiptHeaderId")
     val ReceiptHeaderId: Long? = null,
 
-    // your code uses lowercase `lines`
     @SerializedName(value = "lines", alternate = ["Lines"])
     val lines: List<ReceiptLineResponse>? = null,
 
-    // Oracle sometimes returns generic "Message" for failures
     @SerializedName("Message")
-    val Message: String? = null
+    val Message: String? = null,
+
+    @SerializedName("ReturnMessage")
+    val ReturnMessage: String? = null,
+
+    @SerializedName("ProcessingStatusCode")
+    val ProcessingStatusCode: String? = null
 )
 
 data class ReceiptLineResponse(
@@ -229,9 +231,7 @@ data class AttachmentResponse(
     val UploadedFileName: String? = null
 )
 
-/* =========================================================
-   TO FLOW DTOS (NEW)
-   ========================================================= */
+// TO FLOW DTOS
 
 // --- STEP 1: Transfer Order Header Search ---
 data class TransferOrderHeader(
@@ -248,35 +248,15 @@ data class ToHeaderSearchResponse(
 
 // --- STEP 2: Transfer Order Lines ---
 data class TransferOrderLine(
-    @SerializedName("TransferOrderLineId") val transferOrderLineId: Long,
-    @SerializedName("TransferOrderHeaderId") val transferOrderHeaderId: Long,
+    @SerializedName("LineId") val transferOrderLineId: Long,
+    @SerializedName("HeaderId") val transferOrderHeaderId: Long,
     @SerializedName("ItemDescription") val itemDescription: String? = null,
     @SerializedName("ItemNumber") val itemNumber: String,
-
-    // Show DESTINATION subinventory on the card
-    @SerializedName(
-        value = "Subinventory",
-        alternate = ["DestinationSubinventoryCode", "DestinationSubinventory"]
-    )
+    @SerializedName(value = "DestinationSubinventoryCode", alternate = ["SourceSubinventoryCode"])
     val subinventory: String? = null,
-
-    // UOM
-    @SerializedName(
-        value = "UnitOfMeasure",
-        alternate = ["QuantityUOMName", "QuantityUOM"]
-    )
-    val unitOfMeasure: String? = null,
-
+    @SerializedName("QuantityUOMName") val unitOfMeasure: String? = null,
     @SerializedName("LineNumber") val lineNumber: Int? = null,
-
-    // Displayed quantity
-    @SerializedName(
-        value = "Quantity",
-        alternate = ["RequestedQuantity"]
-    )
-    val quantity: Double? = null,
-
-    // Displayed unit price
+    @SerializedName("RequestedQuantity") val quantity: Double? = null,
     @SerializedName("UnitPrice") val unitPrice: Double? = null
 )
 
@@ -284,23 +264,20 @@ data class ToLinesResponse(
     @SerializedName("items") val items: List<TransferOrderLine> = emptyList()
 )
 
-// --- STEP 3: Shipment Lines (by TO number and/or item) ---
-// Some tenants return "Shipment": "6021" (String) instead of ShipmentNumber.
+// --- STEP 3: Shipment Lines (used for lot/qty prefill + document numbers) ---
 data class ShipmentLine(
     @SerializedName(value = "ShipmentNumber", alternate = ["Shipment"])
     val shipmentRaw: String? = null,
-
+    @SerializedName("ShipmentLine")
+    val shipmentLine: String? = null,
     @SerializedName("LotNumber") val lotNumber: String? = null,
-
     @SerializedName("ShippedQuantity") val shippedQuantity: Double? = null
 ) {
-    val shipmentNumber: Long?
-        get() = shipmentRaw?.toLongOrNull()
+    val shipmentNumber: Long? get() = shipmentRaw?.toLongOrNull()
 }
 
 data class ShipmentLinesResponse(
     @SerializedName("items") val items: List<ShipmentLine>? = null,
-    // fallback single-object style
     @SerializedName("ShipmentNumber") val shipmentNumberFallback: Long? = null,
     @SerializedName("LotNumber") val lotNumberFallback: String? = null
 ) {
@@ -330,18 +307,18 @@ data class ReceiptRequestTo(
     @SerializedName("FromOrganizationCode") val fromOrganizationCode: String,
     @SerializedName("OrganizationCode") val organizationCode: String,
     @SerializedName("EmployeeId") val employeeId: Long,
-    @SerializedName("ReceiptSourceCode") val receiptSourceCode: String, // "TRANSFER ORDER"
+    @SerializedName("ReceiptSourceCode") val receiptSourceCode: String,
     @SerializedName("ShipmentNumber") val shipmentNumber: Long?,
     @SerializedName("lines") val lines: List<ReceiptLineTo>
 )
 
 data class ReceiptLineTo(
-    @SerializedName("SourceDocumentCode") val sourceDocumentCode: String,   // "TRANSFER ORDER"
-    @SerializedName("ReceiptSourceCode") val receiptSourceCode: String,     // "TRANSFER ORDER"
-    @SerializedName("TransactionType") val transactionType: String,         // "RECEIVE"
-    @SerializedName("AutoTransactCode") val autoTransactCode: String,       // "DELIVER"
-    @SerializedName("DocumentNumber") val documentNumber: Long?,            // ShipmentNumber
-    @SerializedName("DocumentLineNumber") val documentLineNumber: Int,      // usually 1..N
+    @SerializedName("SourceDocumentCode") val sourceDocumentCode: String,
+    @SerializedName("ReceiptSourceCode") val receiptSourceCode: String,
+    @SerializedName("TransactionType") val transactionType: String,
+    @SerializedName("AutoTransactCode") val autoTransactCode: String,
+    @SerializedName("DocumentNumber") val documentNumber: Long?,
+    @SerializedName("DocumentLineNumber") val documentLineNumber: Int,
     @SerializedName("ItemNumber") val itemNumber: String,
     @SerializedName("OrganizationCode") val organizationCode: String,
     @SerializedName("Quantity") val quantity: Int,

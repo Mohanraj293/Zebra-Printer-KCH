@@ -1,5 +1,6 @@
 package com.lazymohan.zebraprinter.grn.data
 
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Headers
@@ -9,11 +10,6 @@ import retrofit2.http.Query
 
 /**
  * Oracle Fusion REST APIs for PO, lines, GTIN, GRN (receipt requests), TO, and attachments.
- *
- * NOTE:
- * - Do NOT pass Authorization headers here. Your Retrofit client should add
- *   "Authorization: Bearer <token>" via an OkHttp interceptor using AppPref.
- * - Use ?onlyData=true where applicable.
  */
 interface FusionApi {
 
@@ -22,7 +18,6 @@ interface FusionApi {
     @GET("fscmRestApi/resources/11.13.18.05/purchaseOrders")
     suspend fun getPurchaseOrders(
         @Query("onlyData") onlyData: String = "true",
-        // Example: q = "OrderNumber=\"12345\""
         @Query("q") q: String
     ): PoResponse
 
@@ -50,7 +45,7 @@ interface FusionApi {
     @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
     suspend fun createReceipt(
         @Body body: Any
-    ): ReceiptResponse
+    ): Response<ReceiptResponse>
 
     // --- GRN: Processing errors for a line ---
     @Headers("Accept: application/json")
@@ -83,7 +78,6 @@ interface FusionApi {
     @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
     suspend fun getToHeaders(
         @Query("onlyData") onlyData: String = "true",
-        // q="HeaderNumber=\"107054\""
         @Query("q") q: String
     ): ToHeaderSearchResponse
 
@@ -95,7 +89,7 @@ interface FusionApi {
         @Query("onlyData") onlyData: String = "true"
     ): ToLinesResponse
 
-    // Step 3: Shipment lines (accept any q, e.g. Order=103006;Item="PH11233")
+    // Step 3: Shipment lines
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/shipmentLines")
     suspend fun getShipmentLines(
@@ -103,11 +97,12 @@ interface FusionApi {
         @Query("q") q: String
     ): ShipmentLinesResponse
 
-    // Step 2.2: Inventory lots (expiry)
+    // Step 4: Inventory lots (to fetch expiry)
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/inventoryItemLots")
     suspend fun getInventoryItemLots(
         @Query("onlyData") onlyData: String = "true",
+        // q="LotNumber=\"PGS0YMH\""
         @Query("q") q: String
     ): InventoryLotsResponse
 }

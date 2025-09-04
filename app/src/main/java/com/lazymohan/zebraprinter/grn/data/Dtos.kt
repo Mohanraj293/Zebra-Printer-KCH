@@ -1,4 +1,6 @@
-//// app/src/main/java/com/lazymohan/zebraprinter/grn/data/FusionDtos.kt
+// kept it for reference, we can delete this file after both TO and PO are fully migrated to their own DTOs
+
+
 //package com.lazymohan.zebraprinter.grn.data
 //
 //import com.google.gson.annotations.SerializedName

@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalLayoutApi::class)
-
 package com.lazymohan.zebraprinter.grn.ui.to
 
 import androidx.compose.foundation.BorderStroke
@@ -60,16 +58,17 @@ fun ToAndReceiveCard(
         }
     }
 
-    val allowReview by remember(inputs) {
+    val allowReview by remember(inputs, header) {
         derivedStateOf {
-            inputs.isNotEmpty() && inputs.all { li -> li.sections.any { it.qty > 0 } }
+            val hasQty = inputs.isNotEmpty() && inputs.any { it.sections.any { s -> s.qty > 0 } }
+            val hasToNumber = header?.headerNumber?.toLongOrNull() != null
+            hasQty && hasToNumber
         }
     }
 
     var showAddDialog by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
-        // Single scroll parent to avoid infinite height issues
         Column(Modifier.verticalScroll(rememberScrollState())) {
 
             // --- Transfer Order Header ---
@@ -98,27 +97,12 @@ fun ToAndReceiveCard(
                             Text("Loading TO…", color = Color.Gray)
                         }
                     } else {
-                        ReadFieldInline("Header Number", header.headerNumber)
+                        ReadFieldInline("TO Number", header.headerNumber)
                         ReadFieldInline("Business Unit", header.businessUnitName ?: "-")
                         ReadFieldInline("Status", header.status ?: "-")
                         ReadFieldInline("Interface Status", header.interfaceStatus ?: "-")
                     }
 
-                    Spacer(Modifier.height(8.dp))
-                    shipment?.let {
-                        Surface(
-                            color = Color(0xFFF1F5F9),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                        ) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text("Shipment Info", fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                                Spacer(Modifier.height(6.dp))
-                                ReadFieldInline("Shipment #", it.shipmentNumber?.toString() ?: "—")
-                                ReadFieldInline("Lot (default)", it.lotNumber ?: "—")
-                            }
-                        }
-                    }
                 }
             }
 
@@ -203,7 +187,9 @@ fun ToAndReceiveCard(
 
                         Button(
                             onClick = onReview,
-                            modifier = Modifier.weight(1f).height(52.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp)
                                 .alpha(if (allowReview) 1f else 0.35f),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
                         ) { Text("Review & Submit", color = Color.White) }
@@ -241,7 +227,7 @@ fun ToAndReceiveCard(
                                     Spacer(Modifier.height(4.dp))
                                     Text("Item: ${c.itemNumber}", color = Color(0xFF64748B))
                                     if (!c.subinventory.isNullOrBlank()) {
-                                        Text("Subinv: ${c.subinventory}", color = Color(0xFF64748B))
+                                        Text("Subinv (Dest): ${c.subinventory}", color = Color(0xFF64748B))
                                     }
                                 }
                             }
@@ -298,13 +284,12 @@ private fun ToLineCard(
             if (expanded) {
                 Spacer(Modifier.height(10.dp))
                 ReadFieldInline("UOM", line.unitOfMeasure ?: "-")
-                ReadFieldInline("Subinventory", line.subinventory ?: "-")
-
-                val qtyText = line.quantity?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "-"
-                ReadFieldInline("Quantity", qtyText)
-
-                val priceText = line.unitPrice?.let { p -> "%,.2f".format(p).trimEnd('0').trimEnd('.') } ?: "-"
-                ReadFieldInline("Unit Price", priceText)
+                ReadFieldInline("Subinventory (Dest)", line.subinventory ?: "-")
+                ReadFieldInline(
+                    "Requested Qty",
+                    (line.quantity ?: 0.0).let { if (it % 1.0 == 0.0) it.toInt().toString() else "%.2f".format(it) }
+                )
+                ReadFieldInline("Unit Price", line.unitPrice?.let { "%,.2f".format(it) } ?: "-")
 
                 Spacer(Modifier.height(12.dp))
                 input.sections.sortedBy { it.section }.forEach { sec ->
@@ -393,7 +378,7 @@ private fun SectionRow(
             OutlinedTextField(
                 value = lot,
                 onValueChange = onLotChange,
-                placeholder = { Text("Lot Number (optional — will fallback to shipment lot)") },
+                placeholder = { Text("Lot Number (optional)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )

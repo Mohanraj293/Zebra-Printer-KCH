@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/domain/ToDomain.kt
 package com.lazymohan.zebraprinter.grn.domain
 
 import com.google.gson.annotations.SerializedName
@@ -51,32 +50,42 @@ data class ToLotEntryPayload(
     @SerializedName("LotExpirationDate") val lotExpirationDate: String? = null
 )
 
+/** Build payload like your sample: 1 line per TO line, with multiple lotItemLots */
 fun buildToReceiptRequest(
     cfg: ToConfig,
     header: TransferOrderHeader,
     shipment: ShipmentLine?,
     inputs: List<ToReceiveLineInput>
 ): ToReceiptRequestPayload {
-    val lines = inputs.mapIndexed { idx, inp ->
-        ToReceiptLinePayload(
-            documentNumber = shipment?.shipmentNumber,
-            documentLineNumber = (inp.line.lineNumber ?: (idx + 1)),
-            itemNumber = inp.line.itemNumber,
-            organizationCode = cfg.organizationCode,
-            quantity = inp.quantity,
-            unitOfMeasure = inp.line.unitOfMeasure,
-            subinventory = inp.line.subinventory,
-            transferOrderHeaderId = header.headerId,
-            transferOrderLineId = inp.line.transferOrderLineId,
-            lotItemLots = inp.lotNumber?.let {
-                listOf(
-                    ToLotEntryPayload(
-                        lotNumber = it,
-                        transactionQuantity = inp.quantity,
-                        lotExpirationDate = inp.lotExpirationDate
-                    )
+
+    // group all sections (inputs) by the TO line
+    val grouped = inputs.groupBy { it.line.transferOrderLineId }
+
+    val lines: List<ToReceiptLinePayload> = grouped.values.mapIndexed { idx, group ->
+        val first = group.first()
+        val line = first.line
+
+        val lotEntries = group.mapNotNull { s ->
+            s.lotNumber?.let {
+                ToLotEntryPayload(
+                    lotNumber = it,
+                    transactionQuantity = s.quantity,
+                    lotExpirationDate = s.lotExpirationDate
                 )
             }
+        }
+
+        ToReceiptLinePayload(
+            documentNumber = shipment?.shipmentNumber,
+            documentLineNumber = line.lineNumber ?: (idx + 1),
+            itemNumber = line.itemNumber,
+            organizationCode = cfg.organizationCode,
+            quantity = group.sumOf { it.quantity },
+            unitOfMeasure = line.unitOfMeasure,
+            subinventory = line.subinventory,
+            transferOrderHeaderId = header.headerId,
+            transferOrderLineId = line.transferOrderLineId,
+            lotItemLots = lotEntries.ifEmpty { null }
         )
     }
 

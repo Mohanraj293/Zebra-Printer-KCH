@@ -1,7 +1,10 @@
+// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/to/ToViewModel.kt
 package com.lazymohan.zebraprinter.grn.ui.to
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.GsonBuilder
 import com.lazymohan.zebraprinter.grn.data.*
 import com.lazymohan.zebraprinter.grn.domain.*
 import com.lazymohan.zebraprinter.grn.domain.usecase.CreateToReceiptUseCase
@@ -9,10 +12,10 @@ import com.lazymohan.zebraprinter.grn.domain.usecase.FetchToBundleUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 
 /* ---------- UI state & models ---------- */
@@ -29,6 +32,21 @@ data class ToLineInput(
     val sections: List<ToLineSection> = listOf(ToLineSection(section = 1, qty = 0, lot = ""))
 )
 
+enum class ToStep { ENTER, RECEIVE, REVIEW, SUMMARY }
+enum class PartStatus { PENDING, SUBMITTING, SUCCESS, FAILED }
+
+data class ToProgressPart(
+    val sectionIndex: Int = 1,
+    val status: PartStatus = PartStatus.PENDING,
+    val returnStatus: String? = null,
+    val message: String? = null,
+    val httpCode: Int? = null,
+    val url: String? = null,
+    val errorBody: String? = null,
+    val errors: List<String> = emptyList(),
+    val exception: String? = null
+)
+
 data class ToUiState(
     val toNumber: String = "",
     val loading: Boolean = false,
@@ -43,12 +61,13 @@ data class ToUiState(
 
     val submitting: Boolean = false,
     val submitError: String? = null,
+    val reviewError: String? = null,
+
     val receipt: ReceiptResponse? = null,
+    val progress: List<ToProgressPart> = emptyList(),
 
     val step: ToStep = ToStep.ENTER
 )
-
-enum class ToStep { ENTER, RECEIVE, REVIEW, SUMMARY }
 
 @HiltViewModel
 class ToViewModel @Inject constructor(
@@ -78,31 +97,34 @@ class ToViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, error = null, linesLoaded = false)
-
             val res = fetchToBundle(number)
-
-            res.onSuccess { b ->
-                // We’re already inside a coroutine; call suspend helper directly
-                val enrichedInputs = buildInputsWithShipments(
-                    toNumber = number,
-                    headerId = b.header.headerId,
-                    lines = b.lines
-                )
-                _ui.value = _ui.value.copy(
-                    loading = false,
-                    header = b.header,
-                    lines = b.lines,
-                    shipment = b.shipment, // fallback ShipmentNumber for DocumentNumber
-                    linesLoaded = true,
-                    lineInputs = enrichedInputs,
-                    step = ToStep.RECEIVE
-                )
-            }.onFailure { e ->
-                _ui.value = _ui.value.copy(
-                    loading = false,
-                    error = e.message ?: "TO not found or API error"
-                )
-            }
+            _ui.value = res.fold(
+                onSuccess = { b ->
+                    viewModelScope.launch {
+                        val enrichedInputs = buildInputsWithShipments(
+                            toNumber = number,
+                            headerId = b.header.headerId,
+                            lines = b.lines
+                        )
+                        _ui.value = _ui.value.copy(
+                            loading = false,
+                            header = b.header,
+                            lines = b.lines,
+                            shipment = b.shipment,
+                            linesLoaded = true,
+                            lineInputs = enrichedInputs,
+                            step = ToStep.RECEIVE
+                        )
+                    }
+                    _ui.value
+                },
+                onFailure = { e ->
+                    _ui.value.copy(
+                        loading = false,
+                        error = e.message ?: "TO not found or API error"
+                    )
+                }
+            )
         }
     }
 
@@ -122,17 +144,16 @@ class ToViewModel @Inject constructor(
                     listOf(ToLineSection(1, 0, lot = ""))
                 } else {
                     shipments.mapIndexed { idx, s ->
+                        val defQty = (s.shippedQuantity ?: 0.0).toInt()
                         ToLineSection(
                             section = idx + 1,
-                            // Pre-fill with shipped qty for that lot
-                            qty = (s.shippedQuantity ?: 0.0).toInt(),
+                            qty = defQty,
                             lot = s.lotNumber.orEmpty(),
                             expiry = null
                         )
                     }
                 }
 
-                // fetch expiries per lot (if any)
                 val withExpiry = baseSections.map { sec ->
                     if (sec.lot.isBlank()) sec
                     else {
@@ -207,7 +228,6 @@ class ToViewModel @Inject constructor(
 
     fun updateSectionLot(lineId: Long, section: Int, lot: String) {
         val li = _ui.value.lineInputs.find { it.lineId == lineId } ?: return
-        // set lot immediately (expiry unknown yet)
         replaceInput(
             li.copy(
                 sections = li.sections.map {
@@ -215,7 +235,6 @@ class ToViewModel @Inject constructor(
                 }
             )
         )
-        // then fetch expiry async
         if (lot.isNotBlank()) {
             viewModelScope.launch {
                 val expiry = repo.getLotExpiry(lot).getOrNull()
@@ -241,24 +260,27 @@ class ToViewModel @Inject constructor(
 
     fun canReview(): Boolean {
         val header = _ui.value.header ?: return false
-        if (_ui.value.lineInputs.isEmpty()) return false
         val hasAnyQty = _ui.value.lineInputs.any { it.sections.any { s -> s.qty > 0 } }
-        val hasShipment = _ui.value.shipment?.shipmentNumber != null
-        return hasAnyQty && header.headerId > 0 && hasShipment
+        return hasAnyQty && header.headerId > 0
     }
 
-    /** Human-friendly reason for not being able to review. */
-    fun reviewBlockReason(): String = when {
-        _ui.value.header == null -> "Transfer Order not loaded."
-        _ui.value.lineInputs.isEmpty() -> "Add at least one line to receive."
-        _ui.value.lineInputs.none { it.sections.any { s -> s.qty > 0 } } -> "Enter a quantity > 0 in at least one section."
-        _ui.value.shipment?.shipmentNumber == null -> "Shipment number not found for this TO."
-        else -> "Cannot proceed to review."
+    /** Reason string used by ToGrnActivity when review is blocked */
+    fun reviewBlockReason(): String {
+        val s = _ui.value
+        val reasons = buildString {
+            if (s.header == null) appendLine("• Missing Transfer Order details.")
+            val hasAnyQty = s.lineInputs.any { it.sections.any { sec -> sec.qty > 0 } }
+            if (!hasAnyQty) appendLine("• Enter at least one Quantity.")
+        }.trim()
+        return if (reasons.isBlank()) "Nothing to review." else reasons
     }
 
     fun goToReview() {
-        if (!canReview()) return
-        _ui.value = _ui.value.copy(step = ToStep.REVIEW)
+        if (!canReview()) {
+            _ui.value = _ui.value.copy(reviewError = reviewBlockReason())
+            return
+        }
+        _ui.value = _ui.value.copy(reviewError = null, step = ToStep.REVIEW)
     }
 
     fun backToReceive() {
@@ -267,7 +289,7 @@ class ToViewModel @Inject constructor(
 
     fun submitReceipt() {
         val header = _ui.value.header ?: return
-        if (!canReview()) return
+        val toNumber = _ui.value.toNumber
 
         val toInputs: List<ToReceiveLineInput> =
             _ui.value.lineInputs.flatMap { li ->
@@ -284,27 +306,154 @@ class ToViewModel @Inject constructor(
                     }
             }
 
-        val request = buildToReceiptRequest(
-            cfg = cfg,
-            header = header,
-            shipment = _ui.value.shipment,
-            inputs = toInputs
-        )
-
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(submitting = true, submitError = null)
+            _ui.value = _ui.value.copy(
+                submitting = true,
+                submitError = null,
+                progress = listOf(ToProgressPart(status = PartStatus.SUBMITTING))
+            )
+
+            val request = buildToReceiptRequest(
+                cfg = cfg,
+                header = header,
+                toNumber = toNumber,
+                inputs = toInputs
+            )
+
+
+
+            if (request.shipmentNumber == null) {
+                _ui.value = _ui.value.copy(
+                    submitting = false,
+                    submitError = "No Shipment Number found for this TO. Please ensure shipments exist.",
+                    progress = listOf(ToProgressPart(status = PartStatus.FAILED)),
+                    step = ToStep.SUMMARY
+                )
+                return@launch
+            }
 
             val res = createReceipt(request)
 
-            res.onSuccess { r ->
-                _ui.value = _ui.value.copy(submitting = false, receipt = r, step = ToStep.SUMMARY)
-            }.onFailure { e ->
-                _ui.value = _ui.value.copy(submitting = false, submitError = e.message ?: "Submit failed")
-            }
+            _ui.value = res.fold(
+                onSuccess = { r ->
+                    val isSuccess = r.ReturnStatus.equals("SUCCESS", true)
+                    val headerIface = r.HeaderInterfaceId
+                    val ifaceTxn = r.lines?.firstOrNull()?.InterfaceTransactionId
+                    val inlineErrors = mutableListOf<String>()
+
+                    if (!isSuccess) inlineErrors += "ReturnStatus: ${r.ReturnStatus}"
+
+                    if (!headerIface.isNullOrBlank() && !ifaceTxn.isNullOrBlank()) {
+                        repo.fetchProcessingErrors(headerIface, ifaceTxn).onSuccess { fetched ->
+                            inlineErrors += fetched.mapNotNull { it.ErrorMessage?.trim() }
+                                .filter { it.isNotBlank() }
+                        }.onFailure { pe ->
+                            inlineErrors += "ProcessingErrors fetch failed: ${pe.message}"
+                        }
+                    } else {
+                        r.Message?.let { inlineErrors += it }
+                        r.ReturnMessage?.let { inlineErrors += it }
+                    }
+
+                    val part = ToProgressPart(
+                        status = if (isSuccess) PartStatus.SUCCESS else PartStatus.FAILED,
+                        returnStatus = r.ReturnStatus,
+                        message = r.Message ?: r.ReturnMessage ?: r.toString(),
+                        errors = inlineErrors
+                    )
+                    _ui.value.copy(
+                        submitting = false,
+                        receipt = r,
+                        progress = listOf(part),
+                        step = ToStep.SUMMARY
+                    )
+                },
+                onFailure = { e ->
+                    val part = ToProgressPart(
+                        status = PartStatus.FAILED,
+                        message = e.message,
+                        exception = e.toString()
+                    )
+                    _ui.value.copy(
+                        submitting = false,
+                        submitError = e.message ?: "Submit failed",
+                        progress = listOf(part),
+                        step = ToStep.SUMMARY
+                    )
+                }
+            )
         }
     }
 
     fun restart() {
         _ui.value = ToUiState()
+    }
+
+    /* ---------- request builder with shipment mapping ---------- */
+
+    private suspend fun buildToReceiptRequest(
+        cfg: ToConfig,
+        header: TransferOrderHeader,
+        toNumber: String,
+        inputs: List<ToReceiveLineInput>
+    ): ReceiptRequestTo {
+        val shipmentsByItem: Map<String, List<ShipmentLine>> =
+            inputs.map { it.line.itemNumber }.distinct().associateWith { item ->
+                repo.getShipmentLinesForOrderAndItem(toNumber, item).getOrElse { emptyList() }
+            }
+
+        val headerShipmentNumber: Long? =
+            shipmentsByItem.values
+                .asSequence()
+                .flatten()
+                .mapNotNull { it.shipmentNumber }
+                .firstOrNull()
+
+        val lines = inputs.mapIndexed { idx, it ->
+            val itemShipments = shipmentsByItem[it.line.itemNumber].orEmpty()
+
+            val docShipment: Long? = when {
+                !it.lotNumber.isNullOrBlank() ->
+                    itemShipments.firstOrNull { s ->
+                        s.lotNumber?.equals(it.lotNumber, ignoreCase = true) == true
+                    }?.shipmentNumber
+                else ->
+                    itemShipments.firstOrNull { s -> s.shipmentNumber != null }?.shipmentNumber
+            } ?: headerShipmentNumber
+
+            ReceiptLineTo(
+                sourceDocumentCode = "TRANSFER ORDER",
+                receiptSourceCode = "TRANSFER ORDER",
+                transactionType = "RECEIVE",
+                autoTransactCode = "DELIVER",
+                documentNumber = docShipment,                    // per-line shipment number
+                documentLineNumber = idx + 1,
+                itemNumber = it.line.itemNumber,
+                organizationCode = cfg.organizationCode,
+                quantity = it.quantity,
+                unitOfMeasure = it.line.unitOfMeasure ?: "EA",
+                subinventory = it.line.subinventory,             // destination when present
+                transferOrderHeaderId = header.headerId,
+                transferOrderLineId = it.line.transferOrderLineId,
+                lotItemLots = it.lotNumber?.let { lot ->
+                    listOf(
+                        LotEntryTo(
+                            lotNumber = lot,
+                            transactionQuantity = it.quantity,
+                            lotExpirationDate = it.lotExpirationDate
+                        )
+                    )
+                }
+            )
+        }
+
+        return ReceiptRequestTo(
+            fromOrganizationCode = cfg.fromOrganizationCode,
+            organizationCode = cfg.organizationCode,
+            employeeId = cfg.employeeId,
+            receiptSourceCode = "TRANSFER ORDER",
+            shipmentNumber = headerShipmentNumber,
+            lines = lines
+        )
     }
 }

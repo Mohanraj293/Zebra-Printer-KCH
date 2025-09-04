@@ -8,7 +8,7 @@ import javax.inject.Inject
 class CreateToReceiptUseCase @Inject constructor(
     private val repo: GrnRepository
 ) {
-    // body can be PO ReceiptRequest or TO payload
+    // It can be PO ReceiptRequest or TO payload
     suspend operator fun invoke(body: Any): Result<ReceiptResponse> =
         repo.createReceipt(body)
 }

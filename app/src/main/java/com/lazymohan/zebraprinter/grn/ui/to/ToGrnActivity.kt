@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/to/ToGrnActivity.kt
 package com.lazymohan.zebraprinter.grn.ui.to
 
 import android.os.Bundle
@@ -50,14 +49,12 @@ class ToGrnActivity : ComponentActivity() {
                                 ToStep.RECEIVE -> "Receive Items — TO"
                                 ToStep.REVIEW  -> "Review & Submit"
                                 ToStep.SUMMARY -> "Receipt Summary"
-                                else           -> ""
                             },
                             subtitle = when (step) {
                                 ToStep.ENTER   -> "Fetch Transfer Order"
                                 ToStep.RECEIVE -> "Enter quantities & lots"
                                 ToStep.REVIEW  -> "Confirm details"
                                 ToStep.SUMMARY -> "Completed"
-                                else           -> ""
                             },
                             onLogoClick = { finish() },
                             step = when (step) {
@@ -65,7 +62,6 @@ class ToGrnActivity : ComponentActivity() {
                                 ToStep.RECEIVE -> 2
                                 ToStep.REVIEW  -> 3
                                 ToStep.SUMMARY -> 4
-                                else           -> 1
                             }
                         )
 
@@ -93,9 +89,8 @@ class ToGrnActivity : ComponentActivity() {
                                     if (vm.canReview()) {
                                         vm.goToReview()
                                     } else {
-                                        scope.launch {
-                                            snack.showSnackbar(vm.reviewBlockReason())
-                                        }
+                                        val msg = vm.reviewBlockReason()
+                                        scope.launch { snack.showSnackbar(message = msg) }
                                     }
                                 }
                             )
@@ -109,10 +104,9 @@ class ToGrnActivity : ComponentActivity() {
                                 onSubmit = vm::submitReceipt
                             )
                             ToStep.SUMMARY -> SummaryCardTO(
-                                response = ui.receipt,
+                                ui = ui,                     // ⚠️ pass the whole ui (like PO)
                                 onStartOver = { vm.restart() }
                             )
-                            else -> {}
                         }
                     }
                 }
