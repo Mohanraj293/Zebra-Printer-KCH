@@ -267,18 +267,37 @@ private fun ToLineCard(
     ) {
         Column(Modifier.padding(14.dp)) {
             // Title
-            Text(
-                text = line.itemDescription ?: line.itemNumber,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF143A7B),
-                maxLines = 3
-            )
-            if (!line.itemDescription.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Item: ${line.itemNumber}",
-                    style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF334155))
-                )
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = line.itemDescription ?: line.itemNumber,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color(0xFF143A7B),
+                        maxLines = 3
+                    )
+                    if (!line.itemDescription.isNullOrBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Item: ${line.itemNumber}",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF334155))
+                        )
+                    }
+                }
+
+                // right-top delete icon
+                IconButton(
+                    onClick = { confirmDelete = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = "Delete line",
+                        tint = Color(0xFFB00020)
+                    )
+                }
             }
 
             if (expanded) {
@@ -315,9 +334,6 @@ private fun ToLineCard(
                 }
 
                 Spacer(Modifier.height(6.dp))
-                IconButton(onClick = { confirmDelete = true }) {
-                    Icon(Icons.Outlined.Delete, contentDescription = "Delete line", tint = Color(0xFFB00020))
-                }
             }
         }
     }

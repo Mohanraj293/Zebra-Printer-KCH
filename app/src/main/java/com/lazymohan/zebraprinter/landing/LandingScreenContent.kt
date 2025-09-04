@@ -215,14 +215,14 @@ fun LandingScreenContent(
             // Pharmacy Operations
             item { Spacer(Modifier.height(8.dp)) }
             item { SectionHeader(title = "Pharmacy Operations", emojiBg = Color(0xFF2E6BFF)) }
-            item {
-                FeatureCard(
-                    icon = Icons.Outlined.ReceiptLong,
-                    title = "Scan Pick Up Slip",
-                    subtitle = "Receive transfers from pharmacy",
-                    onClick = onScanPickUp // <-- changed from onInProgress
-                )
-            }
+//            item {
+//                FeatureCard(
+//                    icon = Icons.Outlined.ReceiptLong,
+//                    title = "Scan Pick Up Slip",
+//                    subtitle = "Receive transfers from pharmacy",
+//                    onClick = onScanPickUp // <-- changed from onInProgress
+//                )
+//            }
             // NEW: Manual GRN - TO (mirrors the PO card)
             item {
                 FeatureCard(
