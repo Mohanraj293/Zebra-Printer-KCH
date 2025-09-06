@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/AddLineDialog.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import androidx.compose.foundation.clickable

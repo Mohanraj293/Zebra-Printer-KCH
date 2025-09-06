@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/data/OcrRepository.kt
 package com.lazymohan.zebraprinter.scan.data
 
 import android.content.Context

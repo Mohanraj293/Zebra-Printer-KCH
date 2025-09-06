@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/GrnScreens.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import android.net.Uri

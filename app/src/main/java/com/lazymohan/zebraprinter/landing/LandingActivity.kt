@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/landing/LandingActivity.kt
 package com.lazymohan.zebraprinter.landing
 
 import android.content.Intent

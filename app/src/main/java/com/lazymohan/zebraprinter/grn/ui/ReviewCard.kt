@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/ReviewCard.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import android.net.Uri
@@ -484,16 +483,16 @@ private fun KeyValueRow(label: String, value: String) {
     }
 }
 
-private fun fmt(d: Double): String =
-    if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
+//private fun fmt(d: Double): String =
+//    if (d % 1.0 == 0.0) d.toInt().toString() else "%.2f".format(d)
 
 private fun fmtMoney(value: Double?): String =
     value?.let { "%,.2f".format(it) } ?: "-"
 
-private fun fmtQtyBadge(q: Double): String {
-    val rounded = if (q % 1.0 == 0.0) q.toInt().toString() else (q * 100.0).roundToInt() / 100.0
-    return rounded.toString()
-}
+//private fun fmtQtyBadge(q: Double): String {
+//    val rounded = if (q % 1.0 == 0.0) q.toInt().toString() else (q * 100.0).roundToInt() / 100.0
+//    return rounded.toString()
+//}
 
 private fun daysUntil(dateStr: String): Int? {
     if (dateStr.isBlank() || dateStr == "-") return null

@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/util/Gs1.kt
 package com.lazymohan.zebraprinter.grn.util
 
 /**

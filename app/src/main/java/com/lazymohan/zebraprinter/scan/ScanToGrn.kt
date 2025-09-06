@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/ui/ScanDeliverySlipScreen.kt
 package com.lazymohan.zebraprinter.scan
 
 import com.google.gson.Gson

@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/landing/LandingScreenContent.kt
 package com.lazymohan.zebraprinter.landing
 
 import androidx.compose.foundation.background
@@ -24,7 +23,6 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.QrCode
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card

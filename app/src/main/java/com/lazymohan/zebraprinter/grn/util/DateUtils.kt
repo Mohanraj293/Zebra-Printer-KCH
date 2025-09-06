@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/util/DateUtils.kt
 package com.lazymohan.zebraprinter.grn.util
 
 import java.time.LocalDate

@@ -1,10 +1,7 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/to/ToViewModel.kt
 package com.lazymohan.zebraprinter.grn.ui.to
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.GsonBuilder
 import com.lazymohan.zebraprinter.grn.data.*
 import com.lazymohan.zebraprinter.grn.domain.*
 import com.lazymohan.zebraprinter.grn.domain.usecase.CreateToReceiptUseCase

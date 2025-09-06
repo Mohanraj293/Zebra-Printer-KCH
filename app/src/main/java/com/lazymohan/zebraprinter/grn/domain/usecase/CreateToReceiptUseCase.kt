@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/grn/domain/usecase/CreateToReceiptUseCase.kt
 package com.lazymohan.zebraprinter.grn.domain.usecase
 
 import com.lazymohan.zebraprinter.grn.data.GrnRepository
