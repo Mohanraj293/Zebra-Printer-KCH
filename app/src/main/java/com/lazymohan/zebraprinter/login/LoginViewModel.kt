@@ -71,6 +71,7 @@ class LoginViewModel @Inject constructor(
             )
             appPref.isLoggedIn = true
             Log.d(TAG, "Tokens saved.")
+            Log.d("accessToken", accessToken)
 
             // 2) Extract username from access token's "sub"
             val usernameFromToken = extractSubFromAccessToken(accessToken)

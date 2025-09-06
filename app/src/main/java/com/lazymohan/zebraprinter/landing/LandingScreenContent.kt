@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.QrCode
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -57,7 +56,9 @@ fun LandingScreenContent(
     onScanDelivery: () -> Unit,
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
+    onManualToGrn: () -> Unit,     // <-- NEW
     onPhysicalInventory: () -> Unit,
+    onScanPickUp: () -> Unit,      // <-- NEW
     onInProgress: (String) -> Unit,
     logoutHandler: () -> Unit,
     userName: String,
@@ -65,7 +66,6 @@ fun LandingScreenContent(
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val overlap = 28.dp
     var showDialog by remember { mutableStateOf(false) }
-
 
     Scaffold(
         containerColor = Color(0xFFF6F8FF),
@@ -213,12 +213,21 @@ fun LandingScreenContent(
             // Pharmacy Operations
             item { Spacer(Modifier.height(8.dp)) }
             item { SectionHeader(title = "Pharmacy Operations", emojiBg = Color(0xFF2E6BFF)) }
+//            item {
+//                FeatureCard(
+//                    icon = Icons.Outlined.ReceiptLong,
+//                    title = "Scan Pick Up Slip",
+//                    subtitle = "Receive transfers from pharmacy",
+//                    onClick = onScanPickUp // <-- changed from onInProgress
+//                )
+//            }
+            // NEW: Manual GRN - TO (mirrors the PO card)
             item {
                 FeatureCard(
-                    icon = Icons.Outlined.ReceiptLong,
-                    title = "Scan Pick Up Slip",
-                    subtitle = "Receive transfers from pharmacy",
-                    onClick = { onInProgress("Scan Pick Up Slip") }
+                    icon = Icons.Outlined.Description,
+                    title = "Manual GRN Creation - TO",
+                    subtitle = "Create receipt by entering TO number",
+                    onClick = onManualToGrn
                 )
             }
 

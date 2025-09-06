@@ -1,5 +1,6 @@
 package com.lazymohan.zebraprinter.grn.data
 
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Headers
@@ -8,25 +9,19 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
- * Oracle Fusion REST APIs for PO, lines, GTIN, GRN (receipt requests) and attachments.
- *
- * NOTE:
- * - Do NOT pass Authorization headers here. Your Retrofit client should add
- *   "Authorization: Bearer <token>" via an OkHttp interceptor using AppPref.
- * - Most endpoints accept ?onlyData=true to reduce HAL payload. Keep it on where applicable.
+ * Oracle Fusion REST APIs for PO, lines, GTIN, GRN (receipt requests), TO, and attachments.
  */
 interface FusionApi {
 
-    // --- Step 1: Purchase Orders by OrderNumber ---
+    // --- PO: Step 1: Purchase Orders by OrderNumber ---
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/purchaseOrders")
     suspend fun getPurchaseOrders(
         @Query("onlyData") onlyData: String = "true",
-        // Example: q = "OrderNumber=\"12345\""
         @Query("q") q: String
     ): PoResponse
 
-    // --- Step 2: Lines for a specific PO header ---
+    // --- PO: Step 2: Lines for a specific PO header ---
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/purchaseOrders/{poHeaderId}/child/lines")
     suspend fun getPoLines(
@@ -42,17 +37,17 @@ interface FusionApi {
         @Query("q") q: String
     ): GtinResponse
 
-    // --- Step 4: Create receipt (GRN) OR add lines to same GRN (when ReceiptHeaderId present) ---
+    // --- GRN: Create receipt (works for PO or TO payloads) ---
     @Headers(
         "Accept: application/json",
         "Content-Type: application/json"
     )
     @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
     suspend fun createReceipt(
-        @Body body: ReceiptRequest
-    ): ReceiptResponse
+        @Body body: Any
+    ): Response<ReceiptResponse>
 
-    // --- Step 5: Processing errors for a line ---
+    // --- GRN: Processing errors for a line ---
     @Headers("Accept: application/json")
     @GET(
         "fscmRestApi/resources/11.13.18.05/receivingReceiptRequests/{headerInterfaceId}/child/lines/{interfaceTransactionId}/child/processingErrors"
@@ -63,7 +58,7 @@ interface FusionApi {
         @Query("onlyData") onlyData: String = "true"
     ): ProcessingErrorsResponse
 
-    // --- Step 6: Upload attachments against the receipt request (use ReceiptHeaderId as {receiptid}) ---
+    // --- GRN: Upload attachments (use ReceiptHeaderId for {receiptid}) ---
     @Headers(
         "Accept: application/json",
         "Content-Type: application/json"
@@ -73,4 +68,41 @@ interface FusionApi {
         @Path("receiptid") receiptId: String,
         @Body body: AttachmentRequest
     ): AttachmentResponse
+
+    // =========================
+    // Transfer Order (TO) APIs
+    // =========================
+
+    // Step 1: Fetch Transfer Order Header Details
+    @Headers("Accept: application/json")
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
+    suspend fun getToHeaders(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String
+    ): ToHeaderSearchResponse
+
+    // Step 2: Fetch Transfer Order Line Items
+    @Headers("Accept: application/json")
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders/{headerId}/child/transferOrderLines")
+    suspend fun getToLines(
+        @Path("headerId") headerId: Long,
+        @Query("onlyData") onlyData: String = "true"
+    ): ToLinesResponse
+
+    // Step 3: Shipment lines
+    @Headers("Accept: application/json")
+    @GET("fscmRestApi/resources/11.13.18.05/shipmentLines")
+    suspend fun getShipmentLines(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String
+    ): ShipmentLinesResponse
+
+    // Step 4: Inventory lots (to fetch expiry)
+    @Headers("Accept: application/json")
+    @GET("fscmRestApi/resources/11.13.18.05/inventoryItemLots")
+    suspend fun getInventoryItemLots(
+        @Query("onlyData") onlyData: String = "true",
+        // q="LotNumber=\"PGS0YMH\""
+        @Query("q") q: String
+    ): InventoryLotsResponse
 }
