@@ -214,9 +214,9 @@ fun MatchBreakdownDialog(
                                 )
                                 Spacer(Modifier.height(6.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    m.slip.qtyDelivered?.let { Chip("Qty: ${fmt(it)}") }
-                                    m.slip.batchNo?.takeIf { it.isNotBlank() }?.let { Chip("Lot: $it") }
-                                    m.slip.expiryDate?.takeIf { it.isNotBlank() }?.let { Chip("Exp: $it") }
+                                    m.slip.qtyDelivered.let { Chip("Qty: ${fmt(it)}") }
+                                    m.slip.batchNo.takeIf { it.isNotBlank() }?.let { Chip("Lot: $it") }
+                                    m.slip.expiryDate.takeIf { it.isNotBlank() }?.let { Chip("Exp: $it") }
                                 }
 
                                 Spacer(Modifier.height(10.dp))
