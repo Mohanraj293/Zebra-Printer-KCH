@@ -132,7 +132,7 @@ fun LotsListMainContent(
                 lotNumber = lot.lotNumber.orEmpty(),
                 description = lot.itemDescription.orEmpty(),
                 statusCode = lot.statusCode.orEmpty(),
-                expirationDate = dateTimeConverter.getDisplayDate(lot.expirationDate),
+                expirationDate = dateTimeConverter.getUIDisplayDate(lot.expirationDate),
                 onClick = {
                     handleEvent(
                         LotsListsEvent.OnLotSelected(
