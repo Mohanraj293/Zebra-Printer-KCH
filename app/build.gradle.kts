@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.ui.graphics)
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.foundation.layout)
+    implementation(libs.androidx.leanback)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.lazymohan.zebraprinter.app.AppPref
 import com.lazymohan.zebraprinter.grn.ui.GrnActivity
+import com.lazymohan.zebraprinter.grn.ui.to.ToGrnActivity   // <-- NEW
 import com.lazymohan.zebraprinter.login.LoginActivity
 import com.lazymohan.zebraprinter.product.ProductsActivity
 import com.lazymohan.zebraprinter.scan.ScanDeliverySlipActivity
@@ -45,8 +46,15 @@ class LandingActivity : ComponentActivity() {
                     onManualGrn = {
                         startActivity(Intent(this, GrnActivity::class.java))
                     },
+                    onManualToGrn = {
+                        startActivity(Intent(this, ToGrnActivity::class.java))
+                    },
                     onPhysicalInventory = {
                         startActivity(Intent(this, InventoryActivity::class.java))
+                    },
+                    // NEW: Pharmacy Scan (use existing scanner for now)
+                    onScanPickUp = {
+                        startActivity(Intent(this, ScanDeliverySlipActivity::class.java))
                     },
                     onInProgress = { label ->
                         scope.launch { snack.showSnackbar("$label work in progress") }

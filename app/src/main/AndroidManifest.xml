@@ -56,7 +56,6 @@
                 <data
                     android:scheme="${appAuthRedirectScheme}"
                     android:path="/oauth2redirect" />
-
             </intent-filter>
         </activity>
 
@@ -112,6 +111,13 @@
         <activity
             android:name=".grn.ui.GrnActivity"
             android:exported="false"
+            android:theme="@style/Theme.ZebraPrinterKCH" />
+
+        <!-- NEW: Transfer Order GRN screen -->
+        <activity
+            android:name=".grn.ui.to.ToGrnActivity"
+            android:exported="false"
+            android:parentActivityName=".landing.LandingActivity"
             android:theme="@style/Theme.ZebraPrinterKCH" />
 
         <activity

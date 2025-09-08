@@ -32,6 +32,7 @@ material3 = "1.3.2"
 uiGraphics = "1.9.0"
 foundation = "1.9.0"
 foundationLayout = "1.9.0"
+leanback = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -81,6 +82,7 @@ ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref
 androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 firebase-crashlytics-gradle = { module = "com.google.firebase:firebase-crashlytics-gradle", version.ref = "firebaseCrashlyticsGradle" }
+androidx-leanback = { group = "androidx.leanback", name = "leanback", version.ref = "leanback" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
