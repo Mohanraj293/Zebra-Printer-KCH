@@ -253,7 +253,13 @@ class GrnViewModel @Inject constructor(
         lot: String? = null,
         expiry: String? = null
     ) {
-        updateLineSection(lineNumber, sectionIndex = 1, qty = qty, lot = lot, expiry = expiry)
+        updateLineSection(
+            lineNumber = lineNumber,
+            sectionIndex = 1,
+            qty = qty,
+            lot = lot,
+            expiry = expiry
+        )
     }
 
     fun removeLine(lineNumber: Int) {

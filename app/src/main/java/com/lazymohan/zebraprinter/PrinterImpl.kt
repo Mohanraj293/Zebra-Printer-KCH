@@ -130,8 +130,9 @@ class PrinterImpl(
         ^PW400
         ^LL300
         ^FO20,50^FB350,1,0,L^FDItem Number: ${contentModel.itemNum}^FS
-        ^FO20,80^FB350,1,0,L^FDLot/Batch No:${contentModel.batchNo}^FS
-        ^FO20,110^FB350,1,0,L^FDExpiry Date: ${contentModel.expiryDate}^FS
+        ^FO20,75^FB350,1,0,L^FDDescription: ${contentModel.description}^FS
+        ^FO20,100^FB350,1,0,L^FDLot/Batch No:${contentModel.batchNo}^FS
+        ^FO20,125^FB350,1,0,L^FDExpiry Date: ${contentModel.expiryDate}^FS
         ^FO120,150
         ^BY2,2
         ^BQN,2,4
