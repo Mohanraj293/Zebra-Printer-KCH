@@ -608,7 +608,12 @@ private fun SectionedLineCard(
                         value = s1Qty,
                         onChange = { new ->
                             if (new.all { it.isDigit() }) {
-                                onUpdateLine(ln.LineNumber, new.toIntOrNull() ?: 0, null, null)
+                                onUpdateLine(
+                                    ln.LineNumber,
+                                    new.toIntOrNull() ?: 0,
+                                    s1Lot,
+                                    s1Exp
+                                )
                             }
                         },
                         max = ln.Quantity
@@ -616,7 +621,12 @@ private fun SectionedLineCard(
                     Spacer(Modifier.height(8.dp))
                     LinedTextField(
                         value = s1Lot,
-                        onChange = { onUpdateLine(ln.LineNumber, -1, it, null) },
+                        onChange = { onUpdateLine(
+                            ln.LineNumber,
+                            s1Qty.toInt(),
+                            it,
+                            s1Exp
+                        ) },
                         placeholder = "Lot Number"
                     )
                     Spacer(Modifier.height(8.dp))
@@ -625,8 +635,8 @@ private fun SectionedLineCard(
                         onDatePicked = { iso ->
                             onUpdateLine(
                                 ln.LineNumber,
-                                -1,
-                                null,
+                                s1Qty.toInt(),
+                                s1Lot,
                                 iso
                             )
                         } // already ISO
@@ -653,8 +663,8 @@ private fun SectionedLineCard(
                                         ln.LineNumber,
                                         sec.section,
                                         quantity,
-                                        null,
-                                        null
+                                        sec.lot,
+                                        sec.expiry
                                     )
                                 },
                                 max = ln.Quantity
@@ -666,9 +676,9 @@ private fun SectionedLineCard(
                                     onUpdateSection(
                                         ln.LineNumber,
                                         sec.section,
-                                        -1,
+                                        sec.qty,
                                         it,
-                                        null
+                                        sec.expiry
                                     )
                                 },
                                 placeholder = "Lot Number"
@@ -680,8 +690,8 @@ private fun SectionedLineCard(
                                     onUpdateSection(
                                         ln.LineNumber,
                                         sec.section,
-                                        -1,
-                                        null,
+                                        sec.qty,
+                                        sec.lot,
                                         iso
                                     )
                                 } // already ISO
