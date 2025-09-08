@@ -10,7 +10,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.lazymohan.zebraprinter.app.AppPref
 import com.lazymohan.zebraprinter.grn.ui.GrnActivity
-import com.lazymohan.zebraprinter.grn.ui.to.ToGrnActivity   // <-- NEW
+import com.lazymohan.zebraprinter.grn.ui.add.AddToGrnActivity
+import com.lazymohan.zebraprinter.grn.ui.to.ToGrnActivity
 import com.lazymohan.zebraprinter.login.LoginActivity
 import com.lazymohan.zebraprinter.product.ProductsActivity
 import com.lazymohan.zebraprinter.scan.ScanDeliverySlipActivity
@@ -51,6 +52,9 @@ class LandingActivity : ComponentActivity() {
                     },
                     onPhysicalInventory = {
                         startActivity(Intent(this, InventoryActivity::class.java))
+                    },
+                    onAddToExistingPoGrn = {
+                        startActivity(Intent(this, AddToGrnActivity::class.java))
                     },
                     // NEW: Pharmacy Scan (use existing scanner for now)
                     onScanPickUp = {
