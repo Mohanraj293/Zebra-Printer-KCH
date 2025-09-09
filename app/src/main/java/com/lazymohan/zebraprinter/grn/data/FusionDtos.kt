@@ -95,7 +95,10 @@ data class ReceiptRequest(
     val EmployeeId: Long,
 
     @SerializedName(value = "lines", alternate = ["Lines"])
-    val lines: List<ReceiptLine>
+    val lines: List<ReceiptLine>,
+
+    @SerializedName("InvoiceNumber")
+    val InvoiceNumber: String? = null,
 )
 
 data class ReceiptLine(
@@ -161,29 +164,17 @@ data class LotItem(
 
 // --- Receipt response (works for PO & TO) ---
 data class ReceiptResponse(
-    @SerializedName("ReceiptNumber")
-    val ReceiptNumber: String? = null,
+    @SerializedName("ReceiptNumber") val ReceiptNumber: String? = null,
+    @SerializedName("ReturnStatus") val ReturnStatus: String? = null,
+    @SerializedName("HeaderInterfaceId") val HeaderInterfaceId: String? = null,
+    @SerializedName("ReceiptHeaderId") val ReceiptHeaderId: Long? = null,
+    @SerializedName(value = "lines", alternate = ["Lines"]) val lines: List<ReceiptLineResponse>? = null,
+    @SerializedName("Message") val Message: String? = null,
+    @SerializedName("ReturnMessage") val ReturnMessage: String? = null,
+    @SerializedName("ProcessingStatusCode") val ProcessingStatusCode: String? = null,
 
-    @SerializedName("ReturnStatus")
-    val ReturnStatus: String? = null,
-
-    @SerializedName("HeaderInterfaceId")
-    val HeaderInterfaceId: String? = null,
-
-    @SerializedName("ReceiptHeaderId")
-    val ReceiptHeaderId: Long? = null,
-
-    @SerializedName(value = "lines", alternate = ["Lines"])
-    val lines: List<ReceiptLineResponse>? = null,
-
-    @SerializedName("Message")
-    val Message: String? = null,
-
-    @SerializedName("ReturnMessage")
-    val ReturnMessage: String? = null,
-
-    @SerializedName("ProcessingStatusCode")
-    val ProcessingStatusCode: String? = null
+    @SerializedName("VendorName") val VendorName: String? = null,
+    @SerializedName("EmployeeName") val EmployeeName: String? = null
 )
 
 data class ReceiptLineResponse(
@@ -335,4 +326,23 @@ data class LotEntryTo(
     @SerializedName("LotNumber") val lotNumber: String,
     @SerializedName("TransactionQuantity") val transactionQuantity: Int,
     @SerializedName("LotExpirationDate") val lotExpirationDate: String? = null
+)
+
+// ===== NEW: Lifecycle + header searches =====
+
+// PO lifecycle → receipts
+data class PoLifecycleReceiptsResponse(
+    @SerializedName("items") val items: List<PoLifecycleReceipt> = emptyList()
+)
+
+data class PoLifecycleReceipt(
+    @SerializedName("Receipt") val Receipt: String? = null,           // ReceiptNumber
+    @SerializedName("ReceiptId") val ReceiptId: Long? = null,         // ReceiptHeaderId
+    @SerializedName("ReceiptDate") val ReceiptDate: String? = null,
+    @SerializedName("ReceivedBy") val ReceivedBy: String? = null
+)
+
+// receivingReceiptRequests finder (headers)
+data class ReceiptRequestsSearchResponse(
+    @SerializedName("items") val items: List<ReceiptResponse> = emptyList()
 )

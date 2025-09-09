@@ -12,9 +12,10 @@ class AuthRepo @Inject constructor(
     private val service: LoginApiService = apiClient.retrofit.create(LoginApiService::class.java)
 
     suspend fun fetchUserByUsername(username: String): Result<UserResponse> {
-        Log.d("AuthRepo", "fetchUserByUsername called with username=$username")
+        val trimmed = username.trim()
+        Log.d("AuthRepo", "fetchUserByUsername called with username=$trimmed")
         return runCatching {
-            val response = service.getUserAccount(query = "Username=\"$username\"")
+            val response = service.getUserAccount(query = "advancedSearch;userID=$trimmed")
             Log.d("AuthRepo", "fetchUserByUsername SUCCESS → items=${response.items.size}")
             response
         }.onFailure { e ->

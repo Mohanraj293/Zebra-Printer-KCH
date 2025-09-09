@@ -102,7 +102,26 @@ interface FusionApi {
     @GET("fscmRestApi/resources/11.13.18.05/inventoryItemLots")
     suspend fun getInventoryItemLots(
         @Query("onlyData") onlyData: String = "true",
-        // q="LotNumber=\"PGS0YMH\""
         @Query("q") q: String
     ): InventoryLotsResponse
+
+    // NEW: Lifecycle & Header searches for SUCCESS
+
+    // Purchase Order Lifecycle → Receipts (by PO HeaderId)
+    @Headers("Accept: application/json")
+    @GET("fscmRestApi/resources/11.13.18.05/purchaseOrderLifeCycleDetails/{poHeaderId}/child/receipts")
+    suspend fun getPoLifecycleReceipts(
+        @Path("poHeaderId") poHeaderId: String,
+        @Query("onlyData") onlyData: String = "true"
+    ): PoLifecycleReceiptsResponse
+
+    // Search receiving headers (filter by ReceiptHeaderId or status, etc.)
+    @Headers("Accept: application/json")
+    @GET("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
+    suspend fun searchReceiptRequests(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("fields")
+        fields: String = "HeaderInterfaceId,ReceiptHeaderId,ReceiptNumber,VendorName,EmployeeName,ProcessingStatusCode",
+        @Query("q") q: String
+    ): ReceiptRequestsSearchResponse
 }
