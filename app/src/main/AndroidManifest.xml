@@ -113,7 +113,14 @@
             android:exported="false"
             android:theme="@style/Theme.ZebraPrinterKCH" />
 
-        <!-- NEW: Transfer Order GRN screen -->
+        <!-- NEW: Add to Existing GRN (PO) -->
+        <activity
+            android:name=".grn.ui.add.AddToGrnActivity"
+            android:exported="false"
+            android:parentActivityName=".landing.LandingActivity"
+            android:theme="@style/Theme.ZebraPrinterKCH" />
+
+        <!-- Existing TO GRN -->
         <activity
             android:name=".grn.ui.to.ToGrnActivity"
             android:exported="false"

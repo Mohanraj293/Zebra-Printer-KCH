@@ -59,6 +59,7 @@ fun LandingScreenContent(
     onManualToGrn: () -> Unit,     // <-- NEW
     onPhysicalInventory: () -> Unit,
     onScanPickUp: () -> Unit,      // <-- NEW
+    onAddToExistingPoGrn: () -> Unit,
     onInProgress: (String) -> Unit,
     logoutHandler: () -> Unit,
     userName: String,
@@ -199,6 +200,14 @@ fun LandingScreenContent(
                     title = "Manual GRN Creation - PO",
                     subtitle = "Create receipt by entering PO number",
                     onClick = onManualGrn
+                )
+            }
+            item {
+                FeatureCard(
+                    icon = Icons.Outlined.Description,
+                    title = "Add to Existing GRN - PO",
+                    subtitle = "Enter PO and pick an existing receipt",
+                    onClick = onAddToExistingPoGrn
                 )
             }
             item {

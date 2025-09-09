@@ -99,4 +99,14 @@ class GrnRepository(
         val item = api.getInventoryItemLots(q = q).items.firstOrNull()
         item?.lotExpirationDate?.take(10) // YYYY-MM-DD
     }
+
+    suspend fun getLifecycleReceiptsByPo(poNumber: String): Result<List<PoLifecycleReceipt>> = runCatching {
+        val po = fetchPo(poNumber).getOrThrow()
+        api.getPoLifecycleReceipts(po.POHeaderId).items
+    }
+
+    suspend fun findHeaderByReceiptHeaderIdSuccess(receiptHeaderId: Long): Result<ReceiptResponse?> = runCatching {
+        val q = "ReceiptHeaderId=$receiptHeaderId;ProcessingStatusCode=\"SUCCESS\""
+        api.searchReceiptRequests(q = q).items.firstOrNull()
+    }
 }
