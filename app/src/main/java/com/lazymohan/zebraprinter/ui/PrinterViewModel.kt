@@ -84,7 +84,7 @@ class PrinterViewModel @AssistedInject constructor(
             onCoroutineException = ::handleErrors
         ) {
             showLoading()
-            val trimmedDescription = if (lots.itemDescription.orEmpty().length > 30) {
+            val trimmedDescription = if (lots.itemDescription.orEmpty().length > 25) {
                 lots.itemDescription?.take(30) + "…"
             } else {
                 lots.itemDescription
@@ -94,7 +94,8 @@ class PrinterViewModel @AssistedInject constructor(
                 description = trimmedDescription.orEmpty(),
                 gtinNum = gtinNum,
                 batchNo = lots.lotNumber.orEmpty(),
-                expiryDate = dateTimeConverter.getGS1DisplayDate(lots.expirationDate)
+                expiryDate = dateTimeConverter.getGS1DisplayDate(lots.expirationDate),
+                labelExpiryDate = dateTimeConverter.getLabelDisplayDate(lots.expirationDate)
             )
 
             if (gtinNum.isEmpty()) {

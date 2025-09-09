@@ -5,5 +5,6 @@ data class PrintContentModel(
     val description: String,
     val gtinNum: String,
     val batchNo: String,
-    val expiryDate: String
+    val expiryDate: String,
+    val labelExpiryDate: String,
 )
