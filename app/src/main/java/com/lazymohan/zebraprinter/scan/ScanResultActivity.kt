@@ -1,4 +1,3 @@
-// app/src/main/java/com/lazymohan/zebraprinter/scan/ScanResultActivity.kt
 package com.lazymohan.zebraprinter.scan
 
 import android.content.Intent
@@ -51,7 +50,6 @@ class ScanResultActivity : ComponentActivity() {
 
         setContent {
             TUITheme {
-                // If @AndroidEntryPoint is missing, this line typically triggers a crash
                 val vm: ScanResultViewModel = hiltViewModel()
                 LaunchedEffect(uris) {
                     Log.d(TAG, "Starting upload/poll with ${uris.size} pages")
@@ -60,40 +58,14 @@ class ScanResultActivity : ComponentActivity() {
                 ScanResultScreen(
                     pages = uris,
                     onBack = {
-                        Log.d(TAG, "onBack -> finish()")
                         finish()
                     },
                     onRetake = {
-                        Log.d(TAG, "onRetake -> finish()")
                         finish()
-                    }
+                    },
+                    isFromPickSlip = intent.getBooleanExtra("isFromPickSlip", false),
                 )
             }
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        Log.d(TAG, "onStart()")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "onResume()")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d(TAG, "onPause()")
-    }
-
-    override fun onStop() {
-        super.onStop()
-        Log.d(TAG, "onStop()")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d(TAG, "onDestroy()")
     }
 }

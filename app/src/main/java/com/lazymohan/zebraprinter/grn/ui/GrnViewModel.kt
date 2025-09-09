@@ -7,6 +7,7 @@ import android.provider.OpenableColumns
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
 import com.lazymohan.zebraprinter.BuildConfig
 import com.lazymohan.zebraprinter.app.AppPref
 import com.lazymohan.zebraprinter.grn.data.AttachmentRequest
@@ -18,8 +19,10 @@ import com.lazymohan.zebraprinter.grn.data.ProcessingError
 import com.lazymohan.zebraprinter.grn.data.ReceiptLine
 import com.lazymohan.zebraprinter.grn.data.ReceiptRequest
 import com.lazymohan.zebraprinter.grn.data.ReceiptResponse
+import com.lazymohan.zebraprinter.grn.util.ExtractedItem
 import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
 import com.lazymohan.zebraprinter.grn.util.parseToIso
+import com.lazymohan.zebraprinter.scan.ScanExtractTransfer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -94,7 +97,7 @@ data class GrnUiState(
     val lineErrors: List<ProcessingError> = emptyList(),
 
     // scan payload (unchanged)
-    val extractedFromScan: List<com.lazymohan.zebraprinter.grn.util.ExtractedItem> = emptyList(),
+    val extractedFromScan: List<ExtractedItem> = emptyList(),
 
     // cache file paths for scanned images (from ScanResultScreen)
     val scanImageCachePaths: List<String> = emptyList(),
@@ -538,12 +541,12 @@ class GrnViewModel @Inject constructor(
 
         if (!scanJson.isNullOrBlank()) {
             try {
-                val transfer = com.google.gson.Gson().fromJson(
+                val transfer = Gson().fromJson(
                     scanJson,
-                    com.lazymohan.zebraprinter.scan.ScanExtractTransfer::class.java
+                    ScanExtractTransfer::class.java
                 )
                 val normalized = transfer.items.map {
-                    com.lazymohan.zebraprinter.grn.util.ExtractedItem(
+                    ExtractedItem(
                         description = it.description,
                         qtyDelivered = it.qty,
                         expiryDate = it.expiry,

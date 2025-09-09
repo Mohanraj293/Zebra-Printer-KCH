@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun LandingScreenContent(
-    snackbarHostState: SnackbarHostState,
     onScanDelivery: () -> Unit,
     onPrintQr: () -> Unit,
     onManualGrn: () -> Unit,
@@ -60,13 +59,13 @@ fun LandingScreenContent(
     onPhysicalInventory: () -> Unit,
     onScanPickUp: () -> Unit,      // <-- NEW
     onAddToExistingPoGrn: () -> Unit,
-    onInProgress: (String) -> Unit,
     logoutHandler: () -> Unit,
     userName: String,
 ) {
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
     val overlap = 28.dp
     var showDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
         containerColor = Color(0xFFF6F8FF),
@@ -222,15 +221,14 @@ fun LandingScreenContent(
             // Pharmacy Operations
             item { Spacer(Modifier.height(8.dp)) }
             item { SectionHeader(title = "Pharmacy Operations", emojiBg = Color(0xFF2E6BFF)) }
-//            item {
-//                FeatureCard(
-//                    icon = Icons.Outlined.ReceiptLong,
-//                    title = "Scan Pick Up Slip",
-//                    subtitle = "Receive transfers from pharmacy",
-//                    onClick = onScanPickUp // <-- changed from onInProgress
-//                )
-//            }
-            // NEW: Manual GRN - TO (mirrors the PO card)
+            item {
+                FeatureCard(
+                    icon = Icons.Outlined.Description,
+                    title = "Scan Pickup slip - TO",
+                    subtitle = "Position document within camera frame",
+                    onClick = onScanPickUp
+                )
+            }
             item {
                 FeatureCard(
                     icon = Icons.Outlined.Description,

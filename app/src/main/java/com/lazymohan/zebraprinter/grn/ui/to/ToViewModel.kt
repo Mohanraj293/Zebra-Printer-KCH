@@ -1,18 +1,30 @@
 package com.lazymohan.zebraprinter.grn.ui.to
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lazymohan.zebraprinter.grn.data.*
-import com.lazymohan.zebraprinter.grn.domain.*
+import com.google.gson.Gson
+import com.lazymohan.zebraprinter.grn.data.GrnRepository
+import com.lazymohan.zebraprinter.grn.data.LotEntryTo
+import com.lazymohan.zebraprinter.grn.data.ReceiptLineTo
+import com.lazymohan.zebraprinter.grn.data.ReceiptRequestTo
+import com.lazymohan.zebraprinter.grn.data.ReceiptResponse
+import com.lazymohan.zebraprinter.grn.data.ShipmentLine
+import com.lazymohan.zebraprinter.grn.data.TransferOrderHeader
+import com.lazymohan.zebraprinter.grn.data.TransferOrderLine
+import com.lazymohan.zebraprinter.grn.domain.ToConfig
+import com.lazymohan.zebraprinter.grn.domain.ToReceiveLineInput
 import com.lazymohan.zebraprinter.grn.domain.usecase.CreateToReceiptUseCase
 import com.lazymohan.zebraprinter.grn.domain.usecase.FetchToBundleUseCase
+import com.lazymohan.zebraprinter.grn.util.ExtractedItem
+import com.lazymohan.zebraprinter.scan.ScanExtractTransfer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /* ---------- UI state & models ---------- */
@@ -62,6 +74,12 @@ data class ToUiState(
 
     val receipt: ReceiptResponse? = null,
     val progress: List<ToProgressPart> = emptyList(),
+
+    // scan payload (unchanged)
+    val extractedFromScan: List<ExtractedItem> = emptyList(),
+
+    // cache file paths for scanned images (from ScanResultScreen)
+    val scanImageCachePaths: List<String> = emptyList(),
 
     val step: ToStep = ToStep.ENTER
 )
@@ -452,5 +470,51 @@ class ToViewModel @Inject constructor(
             shipmentNumber = headerShipmentNumber,
             lines = lines
         )
+    }
+
+    fun prefillFromScan(to: String?, scanJson: String?, cachePaths: List<String>) {
+        Log.d(
+            "GRN",
+            "prefillFromScan(po=$to, jsonLen=${scanJson?.length ?: 0}, cachePaths=${cachePaths.size})"
+        )
+
+        var next = _ui.value
+        if (!to.isNullOrBlank()) next = next.copy(toNumber = to)
+
+        if (!scanJson.isNullOrBlank()) {
+            try {
+                val transfer = Gson().fromJson(
+                    scanJson,
+                    ScanExtractTransfer::class.java
+                )
+                val normalized = transfer.items.map {
+                    ExtractedItem(
+                        description = it.description,
+                        qtyDelivered = it.qty,
+                        expiryDate = it.expiry,
+                        batchNo = it.batchNo
+                    )
+                }
+                val poNum = if (!to.isNullOrBlank()) to else transfer.poNumber
+                next = next.copy(
+                    toNumber = poNum,
+                    extractedFromScan = normalized,
+                    scanImageCachePaths = cachePaths
+                )
+            } catch (e: Exception) {
+                Log.e("GRN", "Failed to read scan payload: ${e.message}")
+                next = next.copy(
+                    error = "Failed to read scan payload: ${e.message}",
+                    scanImageCachePaths = cachePaths
+                )
+            }
+        } else {
+            if (cachePaths.isNotEmpty()) next = next.copy(scanImageCachePaths = cachePaths)
+        }
+
+        _ui.value = next
+        if (_ui.value.toNumber.isNotBlank() && _ui.value.step == ToStep.ENTER) {
+            fetchTo()
+        }
     }
 }
