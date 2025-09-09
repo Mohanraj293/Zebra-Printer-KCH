@@ -94,6 +94,7 @@ fun ReviewCard(
                 KeyValueRow("Vendor", po?.Supplier ?: "-")
                 KeyValueRow("Site", po?.SupplierSite ?: "-")
                 KeyValueRow("Business Unit", po?.ProcurementBU ?: "-")
+                KeyValueRow("Invoice Number", ui.invoiceNumber)
 
                 Spacer(Modifier.height(10.dp))
 

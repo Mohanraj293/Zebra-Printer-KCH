@@ -72,7 +72,8 @@ class GrnActivity : ComponentActivity() {
                     onSubmit = { vm.submitReceipt() },
                     onStartOver = { vm.startOver() },
                     onBack = { finish() },
-                    onAddAttachments = { uris -> vm.addManualAttachmentsFromUris(context, uris) }
+                    onAddAttachments = { uris -> vm.addManualAttachmentsFromUris(context, uris) },
+                    onInvoiceChanged = vm::updateInvoiceNumber
                 )
             }
         }

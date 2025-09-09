@@ -12,7 +12,8 @@ data class ScanExtractItem(
 
 data class ScanExtractTransfer(
     val poNumber: String,
-    val items: List<ScanExtractItem>
+    val items: List<ScanExtractItem>,
+    val invoiceNo: String
 )
 
 private fun parseQty(src: String?): Double {
@@ -27,6 +28,7 @@ fun OcrContentResponse.toTransfer(): ScanExtractTransfer? {
 
     val po = listOf(xt.poNo)
         .firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
+    val invoiceNo = xt.invoiceNo?.trim().orEmpty()
 
     val items = buildList {
         xt.items.forEach { item ->
@@ -48,7 +50,7 @@ fun OcrContentResponse.toTransfer(): ScanExtractTransfer? {
     }
 
     if (po.isBlank() && items.isEmpty()) return null
-    return ScanExtractTransfer(poNumber = po, items = items)
+    return ScanExtractTransfer(poNumber = po, items = items, invoiceNo = invoiceNo)
 }
 
 val scanGson: Gson by lazy { Gson() }

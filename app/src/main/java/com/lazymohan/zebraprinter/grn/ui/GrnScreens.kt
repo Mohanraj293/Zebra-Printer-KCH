@@ -31,7 +31,8 @@ fun GrnScreens(
     onSubmit: () -> Unit,
     onStartOver: () -> Unit,
     onBack: () -> Unit,
-    onAddAttachments: (List<Uri>) -> Unit
+    onAddAttachments: (List<Uri>) -> Unit,
+    onInvoiceChanged: (String) -> Unit
 ) {
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
 
@@ -81,6 +82,7 @@ fun GrnScreens(
                     onAddSection = onAddSection,
                     onRemoveSection = onRemoveSection,
                     onUpdateSection = onUpdateSection,
+                    onInvoiceChanged = onInvoiceChanged,
                     onReview = onReview,
                     snackbarHostState = snackbarHostState,
                     dateTimeConverter = dateTimeConverter

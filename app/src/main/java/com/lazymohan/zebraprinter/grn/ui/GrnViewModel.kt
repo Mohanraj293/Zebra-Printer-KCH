@@ -1,3 +1,4 @@
+// grn/ui/GrnViewModel.kt
 package com.lazymohan.zebraprinter.grn.ui
 
 import android.content.Context
@@ -84,6 +85,7 @@ data class GrnUiState(
     val allPoLines: List<PoLineItem> = emptyList(),
     // whether lines fetch is completed (to distinguish from “loading”)
     val linesLoaded: Boolean = false,
+    val invoiceNumber: String = "",
 
     val staged: List<StagedReceipt> = emptyList(),
     val progress: List<PartProgress> = emptyList(),
@@ -111,6 +113,11 @@ class GrnViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(GrnUiState())
     val state: StateFlow<GrnUiState> = _state
+
+    // NEW: allow UI to change invoice number
+    fun updateInvoiceNumber(text: String) {
+        _state.value = _state.value.copy(invoiceNumber = text)
+    }
 
     fun setPoNumber(po: String) {
         _state.value = _state.value.copy(poNumber = po)
@@ -333,7 +340,8 @@ class GrnViewModel @Inject constructor(
                         VendorSiteCode = po.SupplierSite,
                         BusinessUnit = po.ProcurementBU,
                         EmployeeId = appPref.personId,
-                        lines = linesForThisSection
+                        lines = linesForThisSection,
+                        InvoiceNumber = s.invoiceNumber.takeIf { it.isNotBlank() }
                     )
                 )
                 progress += PartProgress(sectionIndex = secIdx, lines = linesForThisSection.size)
@@ -543,8 +551,10 @@ class GrnViewModel @Inject constructor(
                     )
                 }
                 val poNum = if (!po.isNullOrBlank()) po else transfer.poNumber
+                val invoiceNumber = transfer.invoiceNo
                 next = next.copy(
                     poNumber = poNum,
+                    invoiceNumber = invoiceNumber,
                     extractedFromScan = normalized,
                     scanImageCachePaths = cachePaths
                 )
