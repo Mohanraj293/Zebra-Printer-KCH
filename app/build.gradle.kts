@@ -29,7 +29,7 @@ android {
         buildConfigField("String", "DEFAULT_SUBINVENTORY", "\"DHHPHMAIN\"")
         buildConfigField("String", "DEFAULT_LOCATOR", "\"0.0.0\"")
 
-        buildConfigField("boolean", "OCR_FAKE", "true")
+        buildConfigField("boolean", "OCR_FAKE", "false")
         buildConfigField("String", "OCR_FAKE_ASSET", "\"\"")
 
         // === OAuth / IDCS config ===
