@@ -52,6 +52,8 @@ class AddToGrnViewModel @Inject constructor(
 
     fun setPoNumber(po: String) = updateBase { it.copy(poNumber = po) }
 
+    fun updateInvoiceNumber(text: String) = updateBase { it.copy(invoiceNumber = text) }
+
     /** Step 1 -> Step 2: Find SUCCESS receipts by PO using lifecycle API, then enrich from headers. */
     fun findExistingGrns() = viewModelScope.launch {
         val po = _ui.value.base.poNumber

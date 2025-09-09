@@ -35,7 +35,8 @@ fun AddToGrnScreens(
     onAddAttachments: (List<Uri>) -> Unit,
     onEditReceive: () -> Unit,
     onSubmit: () -> Unit,
-    onStartOver: () -> Unit
+    onStartOver: () -> Unit,
+    onInvoiceChanged: (String) -> Unit
 ) {
     val gradient = Brush.verticalGradient(listOf(Color(0xFF0E63FF), Color(0xFF5AA7FF)))
 
@@ -105,6 +106,7 @@ fun AddToGrnScreens(
                         onAddSection = onAddSection,
                         onRemoveSection = onRemoveSection,
                         onUpdateSection = onUpdateSection,
+                        onInvoiceChanged = onInvoiceChanged,
                         onReview = onReview,
                         dateTimeConverter = dateTimeConverter,
                         snackbarHostState = snackbarHostState

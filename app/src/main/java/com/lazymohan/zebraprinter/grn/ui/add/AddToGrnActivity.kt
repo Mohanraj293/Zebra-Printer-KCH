@@ -54,7 +54,8 @@ class AddToGrnActivity : ComponentActivity() {
                     onStartOver = {
                         vm.startOver()
                         finish()
-                    }
+                    },
+                    onInvoiceChanged = vm::updateInvoiceNumber
                 )
             }
         }

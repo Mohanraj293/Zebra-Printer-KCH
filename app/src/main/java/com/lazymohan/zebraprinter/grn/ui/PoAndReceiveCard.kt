@@ -121,6 +121,8 @@ fun PoAndReceiveCard(
     onRemoveSection: (Int, Int) -> Unit,                    // lineNumber, section#
     onUpdateSection: (Int, Int, Int, String?, String?) -> Unit, // lineNumber, section#, qty, lot, expiry
 
+    onInvoiceChanged: (String) -> Unit,
+
     onReview: () -> Unit,
     dateTimeConverter: DateTimeConverter,
     snackbarHostState: SnackbarHostState
@@ -252,6 +254,16 @@ fun PoAndReceiveCard(
                                     Modifier.weight(1f)
                                 )
                             }
+
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = ui.invoiceNumber,
+                                onValueChange = onInvoiceChanged,
+                                singleLine = true,
+                                label = { Text("Invoice Number") },
+                                placeholder = { Text("Enter invoice number") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -621,12 +633,14 @@ private fun SectionedLineCard(
                     Spacer(Modifier.height(8.dp))
                     LinedTextField(
                         value = s1Lot,
-                        onChange = { onUpdateLine(
-                            ln.LineNumber,
-                            s1Qty.toInt(),
-                            it,
-                            s1Exp
-                        ) },
+                        onChange = {
+                            onUpdateLine(
+                                ln.LineNumber,
+                                s1Qty.toInt(),
+                                it,
+                                s1Exp
+                            )
+                        },
                         placeholder = "Lot Number"
                     )
                     Spacer(Modifier.height(8.dp))
