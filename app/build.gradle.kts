@@ -57,8 +57,17 @@ android {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.lazymohan.zebraprinter"
         buildConfigField("String","REDIRECT_URI","\"com.lazymohan.zebraprinter:/oauth2redirect\"")
 
-        // Fusion base URL
-        buildConfigField("String", "FUSION_BASE_URL", "\"https://effb-test.fa.em3.oraclecloud.com/\"")
+        // === Microsoft Graph (client credentials) ===
+        buildConfigField("String", "GRAPH_TENANT_ID", "\"d2624b5b-89fd-468e-b504-6570779aa3b6\"")
+        buildConfigField("String", "GRAPH_CLIENT_ID", "\"2aeb3d3f-23dd-4a1b-a65d-98c5e14e7e6e\"")
+        buildConfigField("String", "GRAPH_CLIENT_SECRET", "\"u.R8Q~VRnquVagmRMmG.Ie5ySYddDvpIQQmVEcnC\"")
+        buildConfigField("String", "GRAPH_SCOPES", "\"https://graph.microsoft.com/.default\"")
+
+        // Target drive & paths
+        buildConfigField("String", "GRAPH_DRIVE_ID", "\"b!ZAGC8ntOU0OjB2mN-10Bkd1EJurDv09Gg7ZZMhLEf0O0SZRxQIK0TIeQ97KgkPrY\"")
+        buildConfigField("String", "GRAPH_FOLDER_PATH", "\"KCH Mediscan\"")
+        buildConfigField("String", "MASTER_CSV_FILE", "\"OnHandExport.csv\"")
+        buildConfigField("String", "COUNTS_XLSX_FILE", "\"PhysicalCountTemplate.csv\"")
     }
 
     buildTypes {
@@ -125,7 +134,9 @@ dependencies {
     implementation(libs.kotlinx.collections.immutable)
 
     implementation(libs.bundles.retrofit)
-
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation(libs.play.services.mlkit.document.scanner)
     implementation(libs.play.services.base)
     implementation(libs.coil.compose)

@@ -3,12 +3,51 @@ package com.lazymohan.zebraprinter.inventory.data
 import android.app.Application
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.ByteArrayInputStream
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 object OnHandCsv {
 
-    // Read from assets/inventory/OnHandExport.csv
+    // Read from OneDrive bytes
+    fun readFromBytes(bytes: ByteArray): List<OnHandRow> {
+        ByteArrayInputStream(bytes).use { input ->
+            BufferedReader(InputStreamReader(input)).use { br ->
+                val header = br.readLine() ?: error("CSV has no header")
+                val cols = splitCsv(header)
+
+                fun idx(vararg names: String) = cols.indexOfFirst { c ->
+                    names.any { n -> c.equals(n, ignoreCase = true) }
+                }
+
+                val iTxn  = idx("transaction id", "transactionid", "txn_id")
+                val iLot  = idx("lot number", "lot", "batch", "batch number")
+                val iExp  = idx("lot expiry", "expiry", "expiration", "exp")
+                val iDesc = idx("description", "item description")
+                val iGtin = idx("gtin", "barcode", "ean")
+
+                require(iTxn >= 0 && iLot >= 0 && iExp >= 0) {
+                    "CSV must include Transaction Id, Lot Number and Lot Expiry"
+                }
+
+                val out = mutableListOf<OnHandRow>()
+                while (true) {
+                    val line = br.readLine() ?: break
+                    if (line.isBlank()) continue
+                    val cells = splitCsv(line)
+                    fun g(i: Int) = cells.getOrNull(i)?.trim().orEmpty()
+                    val txn = g(iTxn).toLongOrNull() ?: continue
+                    val lot = g(iLot)
+                    val exp = normalizeExpiry(g(iExp))
+                    val desc = if (iDesc >= 0) g(iDesc) else null
+                    val gtin = if (iGtin >= 0) g(iGtin) else null
+                    out += OnHandRow(txn, lot, exp, desc, gtin)
+                }
+                return out
+            }
+        }
+    }
+
     fun readFromAssets(app: Application, assetPath: String): List<OnHandRow> {
         app.assets.open(assetPath).use { input ->
             BufferedReader(InputStreamReader(input)).use { br ->

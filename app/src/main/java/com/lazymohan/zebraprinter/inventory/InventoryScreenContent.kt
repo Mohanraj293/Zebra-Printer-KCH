@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Domain
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -79,6 +80,7 @@ fun InventoryScreenContent(
                     InventoryStage.Actions -> ActionsContent(
                         onScanClick = onScanClick,
                         onExportClick = { viewModel.exportCsv() },
+                        onExportClickDrive = { viewModel.exportCsvToOneDrive() },
                         enabled = ui.onHandLoaded,
                         lines = ui.counts.size,
                         org = ui.orgName,
@@ -114,42 +116,42 @@ private fun ChooseOrgCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(8.dp)
     ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(14.dp)),
-                    color = Color(0xFFEFF4FF)
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(
-                            imageVector = Icons.Outlined.Domain,
-                            contentDescription = null,
-                            tint = Color(0xFF2E6BFF)
-                        )
-                    }
-                }
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = org,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            color = Color(0xFF133A7B),
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = subinventory,
-                        style = MaterialTheme.typography.bodyMedium.copy(color = Color(0xFF6E7791))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(14.dp)),
+                color = Color(0xFFEFF4FF)
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        imageVector = Icons.Outlined.Domain,
+                        contentDescription = null,
+                        tint = Color(0xFF2E6BFF)
                     )
                 }
-                Icon(
-                    imageVector = Icons.Outlined.ChevronRight,
-                    contentDescription = null,
-                    tint = Color(0xFF8A94AC)
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = org,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        color = Color(0xFF133A7B),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = subinventory,
+                    style = MaterialTheme.typography.bodyMedium.copy(color = Color(0xFF6E7791))
                 )
             }
+            Icon(
+                imageVector = Icons.Outlined.ChevronRight,
+                contentDescription = null,
+                tint = Color(0xFF8A94AC)
+            )
+        }
     }
 }
 
@@ -157,6 +159,7 @@ private fun ChooseOrgCard(
 private fun ActionsContent(
     onScanClick: () -> Unit,
     onExportClick: () -> Unit,
+    onExportClickDrive: () -> Unit,
     enabled: Boolean,
     lines: Int,
     org: String,
@@ -205,6 +208,15 @@ private fun ActionsContent(
             primary = false,
             enabled = true,
             onClick = onExportClick
+        )
+        Spacer(Modifier.height(12.dp))
+        ActionCard(
+            title = "Sync Counts to OneDrive",
+            subtitle = "Uploads CSV to PhysicalCountTemplate.xlsx",
+            icon = Icons.Outlined.FileUpload,
+            primary = false,
+            enabled = true,
+            onClick = onExportClickDrive
         )
         Spacer(Modifier.height(8.dp))
     }
