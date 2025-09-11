@@ -17,7 +17,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStreamWriter
 import java.time.LocalDateTime
@@ -35,6 +34,8 @@ class InventoryViewModel @Inject constructor(
 
     val snackHost = SnackbarHostState()
 
+    @Volatile private var templateHeader: String = "Transaction Id,Physical Onhand"
+
     private fun normalizeCsvExpiry(raw: String): String {
         val digits = raw.replace(Regex("[^0-9]"), "")
         return if (digits.length == 8 && raw.startsWith("00-")) {
@@ -45,7 +46,7 @@ class InventoryViewModel @Inject constructor(
         } else raw
     }
 
-    private var onHandByLotExpiry: Map<Pair<String, String>, OnHandRow> = emptyMap()
+    private var onHandByGtinLotExpiry: Map<Triple<String, String, String>, OnHandRow> = emptyMap()
 
     private val countFile: File by lazy {
         File(app.filesDir, "inventory/PhysicalCountTemplate.csv")
@@ -53,68 +54,74 @@ class InventoryViewModel @Inject constructor(
 
     init {
         loadOnHandFromDriveOrFallback()
-        loadCounts()
+//        loadCounts()
     }
 
-    fun goToActions() { _uiState.value = _uiState.value.copy(stage = InventoryStage.Actions) }
-    fun backToChoose() { _uiState.value = _uiState.value.copy(stage = InventoryStage.Choose) }
+    /** Clear all locally saved counts and reset UI state. */
+    fun clearCounts() {
+        _uiState.value = _uiState.value.copy(counts = emptyList(), matchDialog = null)
+        runCatching {
+            if (countFile.exists()) countFile.delete()
+        }
+    }
 
-    private fun loadOnHandFromDriveOrFallback() = viewModelScope.launch {
+    private fun loadOnHandFromDriveOrFallback() = viewModelScope.launch(Dispatchers.IO) {
+        fun indexRows(rows: List<OnHandRow>) {
+            onHandByGtinLotExpiry = rows
+                .asSequence()
+                .filter { !it.gtin.isNullOrBlank() && it.lotNumber.isNotBlank() && it.expiryIso.isNotBlank() }
+                .associateBy {
+                    Triple(
+                        it.gtin!!.trim(),
+                        it.lotNumber.trim(),
+                        normalizeCsvExpiry(it.expiryIso)
+                    )
+                }
+        }
+
         runCatching {
             val bytes = drive.downloadMasterCsv()
             OnHandCsv.readFromBytes(bytes)
         }.onSuccess { rows ->
-            onHandByLotExpiry = rows.associateBy { it.lotNumber.trim() to normalizeCsvExpiry(it.expiryIso) }
+            indexRows(rows)
             _uiState.value = _uiState.value.copy(onHandLoaded = true)
-            postSnack("Loaded master from OneDrive")
+            postSnack("Loaded ${onHandByGtinLotExpiry.size} items from OneDrive")
         }.onFailure { e ->
-            // Fallback to assets
             runCatching {
                 val rows = OnHandCsv.readFromAssets(app, "inventory/OnHandExport.csv")
-                onHandByLotExpiry = rows.associateBy { it.lotNumber.trim() to normalizeCsvExpiry(it.expiryIso) }
+                indexRows(rows)
                 _uiState.value = _uiState.value.copy(onHandLoaded = true)
-                postSnack("Loaded master from assets (drive error: ${e.message})")
+                postSnack("Loaded ${onHandByGtinLotExpiry.size} items from assets (drive error: ${e.message})")
             }.onFailure { ex ->
-                postSnack("Failed to load master: ${ex.message}")
+                postSnack("Failed to load items: ${ex.message}")
             }
         }
     }
 
-    private fun loadCounts() {
-        if (!countFile.exists()) return
-        runCatching {
-            val list = countFile.readLines()
-                .drop(1)
-                .mapNotNull { line ->
-                    val parts = line.split(",")
-                    if (parts.size == 2) {
-                        val txn = parts[0].toLongOrNull()
-                        val qty = parts[1].toIntOrNull()
-                        if (txn != null && qty != null) txn to qty else null
-                    } else null
-                }
-            _uiState.value = _uiState.value.copy(counts = list)
-        }.onFailure { postSnack("Failed to load saved counts: ${it.message}") }
-    }
-
     fun handleRawScan(raw: String) = viewModelScope.launch {
         val r = runCatching { parseGs1(raw) }.getOrNull()
-        val lot = r?.lot
-        val expiryIso = r?.expiryYmd
-        if (lot.isNullOrBlank() || expiryIso.isNullOrBlank()) {
-            postSnack("QR code not recognised (expecting GS1 with Lot and Expiry).")
+
+        val gtin = r?.gtin?.trim()
+        val lot = r?.lot?.trim()
+        val expiryIsoKey = r?.expiryYmd?.let { normalizeCsvExpiry(it) }
+
+        // Strict requirement: GTIN + Lot + Expiry must be present in the QR
+        if (gtin.isNullOrBlank() || lot.isNullOrBlank() || expiryIsoKey.isNullOrBlank()) {
+            postSnack("QR not recognised. Expecting GS1 with GTIN, Lot and Expiry.")
             return@launch
         }
-        val row = onHandByLotExpiry[lot to expiryIso]
+
+        val row = onHandByGtinLotExpiry[Triple(gtin, lot, expiryIsoKey)]
         if (row == null) {
-            postSnack("Product does not exist (lot=$lot, exp=$expiryIso).")
+            postSnack("Product does not exist (gtin=$gtin, lot=$lot, exp=$expiryIsoKey).")
             return@launch
         }
+
         _uiState.value = _uiState.value.copy(
             matchDialog = MatchDialogData(
                 transactionId = row.transactionId,
                 description = row.description,
-                gtin = r.gtin,
+                gtin = gtin,
                 lot = row.lotNumber,
                 expiryIso = row.expiryIso
             )
@@ -133,7 +140,7 @@ class InventoryViewModel @Inject constructor(
         runCatching {
             countFile.parentFile?.mkdirs()
             countFile.printWriter().use { w ->
-                w.println("Transaction Id,Physical Onhand")
+                w.println(templateHeader)
                 data.forEach { (txn, qty) -> w.println("$txn,$qty") }
             }
         }.onFailure { postSnack("Failed to persist counts: ${it.message}") }
@@ -141,11 +148,10 @@ class InventoryViewModel @Inject constructor(
 
     fun dismissDialog() { _uiState.value = _uiState.value.copy(matchDialog = null) }
 
-
     @RequiresApi(Build.VERSION_CODES.Q)
     fun exportCsv() = viewModelScope.launch {
         val data = _uiState.value.counts
-        val fileName = "PhysicalCountTemplate_${
+        val fileName = "PhysicalCount_${
             DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
         }.csv"
 
@@ -159,24 +165,24 @@ class InventoryViewModel @Inject constructor(
 
         resolver.openOutputStream(uri)?.use { os ->
             OutputStreamWriter(os).use { w ->
-                w.appendLine("Transaction Id,Physical Onhand")
+                w.appendLine(templateHeader)
                 data.forEach { (txn, qty) -> w.appendLine("$txn,$qty") }
             }
         }
-        snackHost.showSnackbar("Exported ${data.size} rows → $fileName")
+        snackHost.showSnackbar("Downloaded $fileName")
     }
 
-    fun exportCsvToOneDrive() = viewModelScope.launch {
-        val csv = withContext(Dispatchers.Default) {
-            buildString {
-                appendLine("Transaction Id,Physical Onhand")
-                _uiState.value.counts.forEach { (txn, qty) -> appendLine("$txn,$qty") }
-            }
-        }
-        runCatching { drive.uploadCountsFromString(csv) }
-            .onSuccess { snackHost.showSnackbar("Uploaded ${_uiState.value.counts.size} rows → OneDrive") }
-            .onFailure { postSnack("Upload failed: ${it.message}") }
-    }
+
+//    fun exportCsvToOneDrive() = viewModelScope.launch {
+//        val csv = withContext(Dispatchers.Default) {
+//            buildString {
+//                appendLine("Transaction Id,Physical Onhand")
+//                _uiState.value.counts.forEach { (txn, qty) -> appendLine("$txn,$qty") }
+//            }
+//        }
+//        runCatching { drive.uploadCountsFromString(csv) }
+//            .onSuccess { snackHost.showSnackbar("Uploaded ${_uiState.value.counts.size} rows → OneDrive") }
+//            .onFailure { postSnack("Upload failed: ${it.message}") }
 
     fun postSnack(msg: String) = viewModelScope.launch { snackHost.showSnackbar(msg) }
 }

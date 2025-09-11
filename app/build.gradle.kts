@@ -67,7 +67,7 @@ android {
         buildConfigField("String", "GRAPH_DRIVE_ID", "\"b!ZAGC8ntOU0OjB2mN-10Bkd1EJurDv09Gg7ZZMhLEf0O0SZRxQIK0TIeQ97KgkPrY\"")
         buildConfigField("String", "GRAPH_FOLDER_PATH", "\"KCH Mediscan\"")
         buildConfigField("String", "MASTER_CSV_FILE", "\"OnHandExport.csv\"")
-        buildConfigField("String", "COUNTS_XLSX_FILE", "\"PhysicalCountTemplate.csv\"")
+        buildConfigField("String", "COUNTS_CSV_FILE", "\"PhysicalCountTemplate.csv\"")
     }
 
     buildTypes {
