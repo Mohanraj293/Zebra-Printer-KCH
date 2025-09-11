@@ -101,7 +101,10 @@ data class ReceiptRequest(
     val InvoiceNumber: String? = null,
 
     @SerializedName("Comments")
-    val Comments: String? = null
+    val Comments: String? = null,
+
+    @SerializedName("DFF")
+    val DFF: List<ReceiptRequestDff>? = null
 )
 
 data class ReceiptLine(
@@ -152,6 +155,13 @@ data class ReceiptLine(
 
     @SerializedName("lotItemLots")
     val lotItemLots: List<LotItem>
+)
+
+data class ReceiptRequestDff(
+    @SerializedName("supplierInvoiceNumber")
+    val supplierInvoiceNumber: String?,
+    @SerializedName("__FLEX_Context")
+    val flexContext: String? = null
 )
 
 data class LotItem(

@@ -18,6 +18,7 @@ import com.lazymohan.zebraprinter.grn.data.PoLineItem
 import com.lazymohan.zebraprinter.grn.data.ProcessingError
 import com.lazymohan.zebraprinter.grn.data.ReceiptLine
 import com.lazymohan.zebraprinter.grn.data.ReceiptRequest
+import com.lazymohan.zebraprinter.grn.data.ReceiptRequestDff
 import com.lazymohan.zebraprinter.grn.data.ReceiptResponse
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem
 import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
@@ -129,8 +130,11 @@ class GrnViewModel @Inject constructor(
     fun fetchPo() = viewModelScope.launch {
         val s = _state.value
         if (s.poNumber.isBlank()) return@launch
-        _state.value = s.copy(loading = true, error = null)
-        repo.fetchPo(s.poNumber)
+
+        val poNumber = s.poNumber.trim().uppercase()
+
+        _state.value = s.copy(loading = true, error = null, poNumber = poNumber)
+        repo.fetchPo(poNumber)
             .onSuccess { po ->
                 Log.d("GRN", "PO fetched: ${po.OrderNumber}, header=${po.POHeaderId}")
                 _state.value = _state.value.copy(loading = false, po = po, step = GrnStep.SHOW_PO)
@@ -138,10 +142,10 @@ class GrnViewModel @Inject constructor(
             }
             .onFailure { e ->
                 Log.e("GRN", "fetchPo failed: ${e.message}")
-                _state.value =
-                    _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
+                _state.value = _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
             }
     }
+
 
     private fun PoLineItem.toLineInput(initial: LineSectionInput? = null) = LineInput(
         lineNumber = LineNumber,
@@ -347,7 +351,11 @@ class GrnViewModel @Inject constructor(
                         EmployeeId = appPref.personId,
                         lines = linesForThisSection,
                         InvoiceNumber = s.invoiceNumber.takeIf { it.isNotBlank() },
-                        Comments = headerNote
+                        Comments = headerNote,
+                        DFF = invoiceNo.takeIf { it.isNotBlank() }?.let {
+                            listOf(ReceiptRequestDff(supplierInvoiceNumber = it, flexContext = null))
+                        }
+
                     )
                 )
                 progress += PartProgress(sectionIndex = secIdx, lines = linesForThisSection.size)
