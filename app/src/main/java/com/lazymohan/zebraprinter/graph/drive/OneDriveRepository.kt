@@ -3,6 +3,8 @@ package com.lazymohan.zebraprinter.graph.drive
 import com.lazymohan.zebraprinter.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,4 +28,20 @@ class OneDriveRepository @Inject constructor(
     suspend fun downloadCountTemplateCsv(): ByteArray = withContext(Dispatchers.IO) {
         api.downloadFile(driveId, folderPath, countTemplateCsvFile).bytes()
     }
+
+    /** Upload a CSV string as a new file under .../<GRAPH_FOLDER_PATH>/physical count files/{fileName}. */
+    suspend fun uploadCountsFromString(csv: String, fileName: String) = withContext(Dispatchers.IO) {
+        val csvBody = csv.toRequestBody("text/csv".toMediaType())
+        val subFolder = encodeSegment("physical count files")
+        val uploadFolder = "$folderPath/$subFolder"
+        api.uploadFile(
+            driveId = driveId,
+            folder = uploadFolder,
+            fileName = fileName,
+            body = csvBody,
+            contentType = "text/csv"
+        )
+    }
+
+    private fun encodeSegment(seg: String): String = seg.replace(" ", "%20")
 }

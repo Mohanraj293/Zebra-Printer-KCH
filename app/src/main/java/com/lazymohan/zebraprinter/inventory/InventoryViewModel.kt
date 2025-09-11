@@ -17,8 +17,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStreamWriter
+import java.nio.charset.Charset
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -53,8 +55,10 @@ class InventoryViewModel @Inject constructor(
     }
 
     init {
+        // Load master and header template
         loadOnHandFromDriveOrFallback()
-//        loadCounts()
+        loadHeaderFromDriveOrFallback()
+        // loadCounts()
     }
 
     /** Clear all locally saved counts and reset UI state. */
@@ -95,6 +99,19 @@ class InventoryViewModel @Inject constructor(
             }.onFailure { ex ->
                 postSnack("Failed to load items: ${ex.message}")
             }
+        }
+    }
+
+    private fun loadHeaderFromDriveOrFallback() = viewModelScope.launch(Dispatchers.IO) {
+        runCatching {
+            val bytes = drive.downloadCountTemplateCsv()
+            val header = bytes.toString(Charset.defaultCharset())
+                .lineSequence()
+                .firstOrNull()
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+            if (!header.isNullOrEmpty()) templateHeader = header
+        }.onFailure {
         }
     }
 
@@ -151,38 +168,54 @@ class InventoryViewModel @Inject constructor(
     @RequiresApi(Build.VERSION_CODES.Q)
     fun exportCsv() = viewModelScope.launch {
         val data = _uiState.value.counts
-        val fileName = "PhysicalCount_${
-            DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
-        }.csv"
-
-        val resolver = app.contentResolver
-        val values = ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-            put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+        val scanned = data.size
+        if (scanned == 0) {
+            snackHost.showSnackbar("No items scanned.")
+            return@launch
         }
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: run { postSnack("Unable to create CSV file."); return@launch }
 
-        resolver.openOutputStream(uri)?.use { os ->
-            OutputStreamWriter(os).use { w ->
-                w.appendLine(templateHeader)
-                data.forEach { (txn, qty) -> w.appendLine("$txn,$qty") }
+        val timestamp = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss").format(LocalDateTime.now())
+        val fileName = "PhysicalCount_${timestamp}.csv"
+        val csv = withContext(Dispatchers.Default) {
+            buildString {
+                appendLine(templateHeader)
+                data.forEach { (txn, qty) -> appendLine("$txn,$qty") }
             }
         }
-        snackHost.showSnackbar("Downloaded $fileName")
+
+        // 1) Upload to OneDrive
+        val uploadResult = runCatching {
+            drive.uploadCountsFromString(csv, fileName)
+        }
+
+        if (uploadResult.isFailure) {
+            postSnack("Upload failed: ${uploadResult.exceptionOrNull()?.message}")
+            return@launch
+        }
+
+        // 2) Also save to local Downloads for user convenience
+        runCatching {
+            val resolver = app.contentResolver
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+            }
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("Unable to create CSV file in Downloads.")
+
+            resolver.openOutputStream(uri)?.use { os ->
+                OutputStreamWriter(os).use { w ->
+                    w.appendLine(templateHeader)
+                    data.forEach { (txn, qty) -> w.appendLine("$txn,$qty") }
+                }
+            }
+        }
+
+        // 3) Reset counts after successful export
+        clearCounts()
+
+        snackHost.showSnackbar("Exported $scanned items • Uploaded to OneDrive as $fileName")
     }
-
-
-//    fun exportCsvToOneDrive() = viewModelScope.launch {
-//        val csv = withContext(Dispatchers.Default) {
-//            buildString {
-//                appendLine("Transaction Id,Physical Onhand")
-//                _uiState.value.counts.forEach { (txn, qty) -> appendLine("$txn,$qty") }
-//            }
-//        }
-//        runCatching { drive.uploadCountsFromString(csv) }
-//            .onSuccess { snackHost.showSnackbar("Uploaded ${_uiState.value.counts.size} rows → OneDrive") }
-//            .onFailure { postSnack("Upload failed: ${it.message}") }
 
     fun postSnack(msg: String) = viewModelScope.launch { snackHost.showSnackbar(msg) }
 }

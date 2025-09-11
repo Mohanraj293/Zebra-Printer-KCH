@@ -63,7 +63,8 @@ fun InventoryScreenContent(
             Column(Modifier.padding(horizontal = 20.dp)) {
                 ActionCard(
                     title = "Scan Item",
-                    subtitle = if (ui.onHandLoaded) "Scan a GS1 QR to record a count" else "Loading master list…",
+                    subtitle = if (ui.onHandLoaded) "Scan a GS1 QR to record a count"
+                    else "Loading master list…",
                     icon = Icons.Outlined.QrCodeScanner,
                     primary = true,
                     enabled = ui.onHandLoaded,
@@ -72,7 +73,7 @@ fun InventoryScreenContent(
                 Spacer(Modifier.height(12.dp))
                 ActionCard(
                     title = "Export Physical Count CSV",
-                    subtitle = "Uses latest template header",
+                    subtitle = "${ui.counts.size} items scanned • Uploads to OneDrive",
                     icon = Icons.Outlined.FileDownload,
                     primary = false,
                     enabled = true,
