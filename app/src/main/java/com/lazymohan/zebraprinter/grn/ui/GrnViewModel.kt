@@ -305,10 +305,12 @@ class GrnViewModel @Inject constructor(
         val staged = mutableListOf<StagedReceipt>()
         val progress = mutableListOf<PartProgress>()
 
+        val invoiceNo = s.invoiceNumber.trim()
+        val headerNote: String? = invoiceNo.takeIf { it.isNotEmpty() }?.let { "Supplier Invoice Number: $it" }
+
         for (secIdx in 1..maxSection) {
             val linesForThisSection = s.lines.mapNotNull { line ->
-                val li = s.lineInputs.firstOrNull { it.lineNumber == line.LineNumber }
-                    ?: return@mapNotNull null
+                val li = s.lineInputs.firstOrNull { it.lineNumber == line.LineNumber } ?: return@mapNotNull null
                 val sec = li.sections.firstOrNull { it.section == secIdx } ?: return@mapNotNull null
                 if (!sec.isValidFor(line)) return@mapNotNull null
 
@@ -344,7 +346,8 @@ class GrnViewModel @Inject constructor(
                         BusinessUnit = po.ProcurementBU,
                         EmployeeId = appPref.personId,
                         lines = linesForThisSection,
-                        InvoiceNumber = s.invoiceNumber.takeIf { it.isNotBlank() }
+                        InvoiceNumber = s.invoiceNumber.takeIf { it.isNotBlank() },
+                        Comments = headerNote
                     )
                 )
                 progress += PartProgress(sectionIndex = secIdx, lines = linesForThisSection.size)

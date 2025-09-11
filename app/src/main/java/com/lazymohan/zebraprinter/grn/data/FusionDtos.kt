@@ -99,6 +99,9 @@ data class ReceiptRequest(
 
     @SerializedName("InvoiceNumber")
     val InvoiceNumber: String? = null,
+
+    @SerializedName("Comments")
+    val Comments: String? = null
 )
 
 data class ReceiptLine(
