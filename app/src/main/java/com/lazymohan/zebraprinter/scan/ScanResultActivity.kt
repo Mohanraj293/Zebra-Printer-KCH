@@ -13,7 +13,7 @@ import com.lazymohan.zebraprinter.scan.ui.ScanResultViewModel
 import com.tarkalabs.tarkaui.theme.TUITheme
 import dagger.hilt.android.AndroidEntryPoint
 
-@AndroidEntryPoint // <-- REQUIRED when using hiltViewModel() in this activity
+@AndroidEntryPoint
 class ScanResultActivity : ComponentActivity() {
 
     companion object {

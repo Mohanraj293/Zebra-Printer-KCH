@@ -310,6 +310,7 @@ class GrnViewModel @Inject constructor(
         val progress = mutableListOf<PartProgress>()
 
         val invoiceNo = s.invoiceNumber.trim()
+        val supplierInvoiceNumber = invoiceNo.filter { it.isDigit() }
         val headerNote: String? = invoiceNo.takeIf { it.isNotEmpty() }?.let { "Supplier Invoice Number: $it" }
 
         for (secIdx in 1..maxSection) {
@@ -338,6 +339,7 @@ class GrnViewModel @Inject constructor(
                 )
             }
 
+
             if (linesForThisSection.isNotEmpty()) {
                 staged += StagedReceipt(
                     sectionIndex = secIdx,
@@ -352,9 +354,9 @@ class GrnViewModel @Inject constructor(
                         lines = linesForThisSection,
                         InvoiceNumber = s.invoiceNumber.takeIf { it.isNotBlank() },
                         Comments = headerNote,
-                        DFF = invoiceNo.takeIf { it.isNotBlank() }?.let {
-                            listOf(ReceiptRequestDff(supplierInvoiceNumber = it, flexContext = null))
-                        }
+                        DFF = supplierInvoiceNumber.toBigDecimalOrNull()?.let { num ->
+                        listOf(ReceiptRequestDff(supplierInvoiceNumber = num, flexContext = null))
+                    }
 
                     )
                 )
