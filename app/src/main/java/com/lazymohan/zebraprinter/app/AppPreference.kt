@@ -1,22 +1,25 @@
 package com.lazymohan.zebraprinter.app
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.lazymohan.zebraprinter.login.LoginActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 /**
- * includes OAuth token storage (access/refresh/expiry/type/scope/idToken).
- * Tokens are kept in plain SharedPreferences for simplicity—consider migrating
- * to EncryptedSharedPreferences for production.
+ * Includes OAuth token storage (access/refresh/expiry/type/scope/idToken).
+ * NOTE: Consider EncryptedSharedPreferences for production.
  */
 class AppPref @Inject constructor(
     @ApplicationContext context: Context
 ) {
 
+    private val appContext: Context = context.applicationContext
+
     private val preferences: SharedPreferences =
-        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
 
     companion object {
         private const val PREF_NAME = "my_app_prefs"
@@ -34,6 +37,11 @@ class AppPref @Inject constructor(
         private const val KEY_TOKEN_TYPE = "oauth_token_type"
         private const val KEY_SCOPE = "oauth_scope"
         private const val KEY_ID_TOKEN = "oauth_id_token"
+
+        // >>> used when we hard-redirect to Login <<<
+        const val EXTRA_LOGOUT_REASON = "extra_logout_reason"
+        const val LOGOUT_REASON_401 = "SESSION_EXPIRED_401"
+        const val EXTRA_LOGOUT_MESSAGE = "extra_logout_message"
     }
 
     // ---------- Feature flags / misc ----------
@@ -155,9 +163,7 @@ class AppPref @Inject constructor(
         }
     }
 
-    /**
-     * Clear only OAuth tokens (used on logout or token invalidation).
-     */
+    /** Clear only OAuth tokens */
     fun clearTokens() {
         preferences.edit {
             remove(KEY_ACCESS_TOKEN)
@@ -169,12 +175,30 @@ class AppPref @Inject constructor(
         }
     }
 
-    /**
-     * Full logout: clears user and tokens.
-     */
+    /** Full logout: clears user and tokens. */
     fun logout() {
         clearTokens()
         clearUser()
+    }
+
+    /**
+     * 🚪 Hard-kick to Login screen with a reason/message:
+     * - Clears tokens & user
+     * - Starts LoginActivity as a fresh task (clears back stack)
+     * Safe to call from any thread (uses application context + NEW_TASK).
+     */
+    fun forceLogoutToLogin(
+        reason: String = LOGOUT_REASON_401,
+        message: String = "Session expired. Please sign in again."
+    ) {
+        // Idempotent logout
+        logout()
+        val intent = Intent(appContext, LoginActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            putExtra(EXTRA_LOGOUT_REASON, reason)
+            putExtra(EXTRA_LOGOUT_MESSAGE, message)
+        }
+        appContext.startActivity(intent)
     }
 
     fun clear() {
