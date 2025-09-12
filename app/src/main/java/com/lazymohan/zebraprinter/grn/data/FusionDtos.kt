@@ -1,6 +1,7 @@
 package com.lazymohan.zebraprinter.grn.data
 
 import com.google.gson.annotations.SerializedName
+import java.math.BigDecimal
 
 // PO FLOW DTOS
 
@@ -99,6 +100,12 @@ data class ReceiptRequest(
 
     @SerializedName("InvoiceNumber")
     val InvoiceNumber: String? = null,
+
+    @SerializedName("Comments")
+    val Comments: String? = null,
+
+    @SerializedName("DFF")
+    val DFF: List<ReceiptRequestDff>? = null
 )
 
 data class ReceiptLine(
@@ -149,6 +156,13 @@ data class ReceiptLine(
 
     @SerializedName("lotItemLots")
     val lotItemLots: List<LotItem>
+)
+
+data class ReceiptRequestDff(
+    @SerializedName("supplierInvoiceNumber")
+    val supplierInvoiceNumber: BigDecimal,
+    @SerializedName("__FLEX_Context")
+    val flexContext: String? = null
 )
 
 data class LotItem(

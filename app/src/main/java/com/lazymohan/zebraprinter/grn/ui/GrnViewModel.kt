@@ -18,6 +18,7 @@ import com.lazymohan.zebraprinter.grn.data.PoLineItem
 import com.lazymohan.zebraprinter.grn.data.ProcessingError
 import com.lazymohan.zebraprinter.grn.data.ReceiptLine
 import com.lazymohan.zebraprinter.grn.data.ReceiptRequest
+import com.lazymohan.zebraprinter.grn.data.ReceiptRequestDff
 import com.lazymohan.zebraprinter.grn.data.ReceiptResponse
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem
 import com.lazymohan.zebraprinter.grn.util.bestMatchIndex
@@ -129,8 +130,11 @@ class GrnViewModel @Inject constructor(
     fun fetchPo() = viewModelScope.launch {
         val s = _state.value
         if (s.poNumber.isBlank()) return@launch
-        _state.value = s.copy(loading = true, error = null)
-        repo.fetchPo(s.poNumber)
+
+        val poNumber = s.poNumber.trim().uppercase()
+
+        _state.value = s.copy(loading = true, error = null, poNumber = poNumber)
+        repo.fetchPo(poNumber)
             .onSuccess { po ->
                 Log.d("GRN", "PO fetched: ${po.OrderNumber}, header=${po.POHeaderId}")
                 _state.value = _state.value.copy(loading = false, po = po, step = GrnStep.SHOW_PO)
@@ -138,10 +142,10 @@ class GrnViewModel @Inject constructor(
             }
             .onFailure { e ->
                 Log.e("GRN", "fetchPo failed: ${e.message}")
-                _state.value =
-                    _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
+                _state.value = _state.value.copy(loading = false, error = e.message ?: "Failed to load PO")
             }
     }
+
 
     private fun PoLineItem.toLineInput(initial: LineSectionInput? = null) = LineInput(
         lineNumber = LineNumber,
@@ -305,10 +309,13 @@ class GrnViewModel @Inject constructor(
         val staged = mutableListOf<StagedReceipt>()
         val progress = mutableListOf<PartProgress>()
 
+        val invoiceNo = s.invoiceNumber.trim()
+        val supplierInvoiceNumber = invoiceNo.filter { it.isDigit() }
+        val headerNote: String? = invoiceNo.takeIf { it.isNotEmpty() }?.let { "Supplier Invoice Number: $it" }
+
         for (secIdx in 1..maxSection) {
             val linesForThisSection = s.lines.mapNotNull { line ->
-                val li = s.lineInputs.firstOrNull { it.lineNumber == line.LineNumber }
-                    ?: return@mapNotNull null
+                val li = s.lineInputs.firstOrNull { it.lineNumber == line.LineNumber } ?: return@mapNotNull null
                 val sec = li.sections.firstOrNull { it.section == secIdx } ?: return@mapNotNull null
                 if (!sec.isValidFor(line)) return@mapNotNull null
 
@@ -332,6 +339,7 @@ class GrnViewModel @Inject constructor(
                 )
             }
 
+
             if (linesForThisSection.isNotEmpty()) {
                 staged += StagedReceipt(
                     sectionIndex = secIdx,
@@ -344,7 +352,12 @@ class GrnViewModel @Inject constructor(
                         BusinessUnit = po.ProcurementBU,
                         EmployeeId = appPref.personId,
                         lines = linesForThisSection,
-                        InvoiceNumber = s.invoiceNumber.takeIf { it.isNotBlank() }
+                        InvoiceNumber = s.invoiceNumber.takeIf { it.isNotBlank() },
+                        Comments = headerNote,
+                        DFF = supplierInvoiceNumber.toBigDecimalOrNull()?.let { num ->
+                        listOf(ReceiptRequestDff(supplierInvoiceNumber = num, flexContext = null))
+                    }
+
                     )
                 )
                 progress += PartProgress(sectionIndex = secIdx, lines = linesForThisSection.size)
@@ -367,6 +380,9 @@ class GrnViewModel @Inject constructor(
         var progress = _state.value.progress.toMutableList()
         var headerInterfaceId: String? = null
 
+        // will capture "<supplier>_<invoice>" from the FIRST body we submit
+        var prefixFromFirstBody: String? = null
+
         staged.forEachIndexed { idx, stage ->
             // mark SUBMITTING
             progress = progress.map {
@@ -374,13 +390,17 @@ class GrnViewModel @Inject constructor(
             }.toMutableList()
             _state.value = _state.value.copy(progress = progress)
 
-            // Inject the header id for stages > 1
-            val body =
-                if (idx == 0) stage.request else stage.request.copy(ReceiptHeaderId = receiptHeaderId)
-            Log.d(
-                "GRN",
-                "Submitting stage ${stage.sectionIndex} with ${body.lines.size} lines; header=$receiptHeaderId"
-            )
+            // Inject header id for stages > 1
+            val body = if (idx == 0) stage.request else stage.request.copy(ReceiptHeaderId = receiptHeaderId)
+
+            // capture supplier+invoice prefix from the *body*
+            if (prefixFromFirstBody == null) {
+                fun sanitizeToken(x: String): String =
+                    x.trim().replace(Regex("[^A-Za-z0-9]+"), "_").trim('_').take(80)
+                val sup = sanitizeToken(body.VendorName)
+                val inv = sanitizeToken(body.InvoiceNumber ?: "no_invoice")
+                prefixFromFirstBody = "${sup}_${inv}"
+            }
 
             val result = repo.createReceipt(body)
             result.onSuccess { resp ->
@@ -389,7 +409,9 @@ class GrnViewModel @Inject constructor(
 
                 val isSuccess = resp.ReturnStatus.equals("SUCCESS", true)
                 val inlineErrors = mutableListOf<String>()
-                if (!isSuccess) inlineErrors += "ReturnStatus: ${resp.ReturnStatus}"
+                if (!isSuccess) inlineErrors += "ReturnStatus: ${resp.ReturnStatus ?: "UNKNOWN"}"
+                resp.ReturnMessage?.takeIf { it.isNotBlank() }?.let { inlineErrors += it }
+                resp.Message?.takeIf { it.isNotBlank() }?.let { inlineErrors += it }
 
                 // Add processing errors if any
                 val h = resp.HeaderInterfaceId
@@ -420,30 +442,34 @@ class GrnViewModel @Inject constructor(
                 _state.value = _state.value.copy(progress = progress)
 
             }.onFailure { e ->
-                val httpCode: Int?
-                val url: String?
-                val bodyText: String?
+                val inlineErrors = mutableListOf<String>()
+                var httpCode: Int? = null
+                var url: String? = null
+                var bodyText: String? = null
 
                 if (e is HttpException) {
                     httpCode = e.code()
                     url = e.response()?.raw()?.request?.url?.toString()
-                    bodyText = try {
-                        e.response()?.errorBody()?.string()
-                    } catch (_: Exception) {
-                        null
+                    bodyText = try { e.response()?.errorBody()?.string() } catch (_: Exception) { null }
+                    val parsed: ReceiptResponse? = try {
+                        bodyText?.takeIf { it.isNotBlank() }?.let { Gson().fromJson(it, ReceiptResponse::class.java) }
+                    } catch (_: Exception) { null }
+
+                    if (parsed != null) {
+                        parsed.ReturnStatus?.let { inlineErrors += "ReturnStatus: $it" }
+                        parsed.ReturnMessage?.takeIf { it.isNotBlank() }?.let { inlineErrors += it }
+                        parsed.Message?.takeIf { it.isNotBlank() }?.let { inlineErrors += it }
+                        // if error still included header/interface ids, keep them
+                        if (!parsed.HeaderInterfaceId.isNullOrBlank() && headerInterfaceId.isNullOrBlank()) {
+                            headerInterfaceId = parsed.HeaderInterfaceId
+                        }
+                    } else {
+                        // fallback: raw text
+                        bodyText?.takeIf { it.isNotBlank() }?.let { inlineErrors += it }
                     }
-                } else {
-                    httpCode = null
-                    url = null
-                    bodyText = null
                 }
 
-                val failMsg = buildString {
-                    appendLine("Create Receipt / Add to Receipt API failed${httpCode?.let { " ($it)" } ?: ""}")
-                    if (!url.isNullOrBlank()) appendLine("URL: $url")
-                    if (!bodyText.isNullOrBlank()) appendLine(bodyText)
-                    e.message?.let { appendLine("Exception: $it") }
-                }.trim()
+                e.message?.let { inlineErrors += "Exception: $it" }
 
                 progress = progress.map {
                     if (it.sectionIndex == stage.sectionIndex)
@@ -451,12 +477,11 @@ class GrnViewModel @Inject constructor(
                             status = PartStatus.FAILED,
                             message = "Part ${stage.sectionIndex} failed",
                             returnStatus = "ERROR",
-                            errors = listOf(failMsg),
+                            errors = inlineErrors.ifEmpty { listOf("Create Receipt / Add to Receipt API failed") },
                             httpCode = httpCode,
                             url = url,
                             errorBody = bodyText,
-                            exception = e::class.java.simpleName + (e.message?.let { ": $it" }
-                                ?: "")
+                            exception = e::class.java.simpleName + (e.message?.let { ": $it" } ?: "")
                         )
                     else it
                 }.toMutableList()
@@ -464,20 +489,42 @@ class GrnViewModel @Inject constructor(
             }
         }
 
-        // Upload scanned images + extra attachments against HeaderInterfaceId
+        // ===== Attachments upload (name = <supplier>_<invoice>_<idx>.<ext>) =====
+        val finalHeaderInterfaceId = headerInterfaceId
         val imagePaths = _state.value.scanImageCachePaths
         val extra = _state.value.extraAttachments
+
         var uploadedCount = 0
-        val finalHeaderInterfaceId = headerInterfaceId
+        var attachIndex = 1
+        val namePrefix = prefixFromFirstBody ?: run {
+            fun sanitizeToken(x: String) = x.trim().replace(Regex("[^A-Za-z0-9]+"), "_").trim('_').take(80)
+            val sup = sanitizeToken(_state.value.po?.Supplier ?: "supplier")
+            val inv = sanitizeToken(_state.value.invoiceNumber.ifBlank { "no_invoice" })
+            "${sup}_${inv}"
+        }
+
         if (finalHeaderInterfaceId != null && (imagePaths.isNotEmpty() || extra.isNotEmpty())) {
-            // 1) Upload scanned images
-            for ((i, p) in imagePaths.withIndex()) {
+            fun inferExtFromMime(mime: String?): String? = when {
+                mime.isNullOrBlank() -> null
+                mime.endsWith("pdf", ignoreCase = true) -> "pdf"
+                mime.endsWith("png", ignoreCase = true) -> "png"
+                mime.endsWith("jpeg", ignoreCase = true) -> "jpg"
+                mime.endsWith("jpg", ignoreCase = true) -> "jpg"
+                else -> null
+            }
+            fun extOr(defaultExt: String, candidate: String?): String {
+                val c = candidate?.lowercase()?.trim()?.removePrefix(".")
+                return if (!c.isNullOrBlank()) c else defaultExt
+            }
+
+            // 1) scanned images → jpg
+            for (p in imagePaths) {
                 try {
                     val file = File(p)
-                    if (!file.exists()) continue
+                    if (!file.exists()) { attachIndex++; continue }
                     val bytes = file.readBytes()
                     val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                    val fileName = "delivery_slip_${i + 1}.jpg"
+                    val fileName = "${namePrefix}_${attachIndex}.jpg"
                     val req = AttachmentRequest(
                         UploadedFileName = fileName,
                         CategoryName = "MISC",
@@ -487,19 +534,27 @@ class GrnViewModel @Inject constructor(
                     repo.uploadAttachment(finalHeaderInterfaceId, req).onSuccess {
                         uploadedCount++
                         file.delete()
+                    }.onFailure {
+                        Log.e("GRN", "Attachment upload failed for $fileName: ${it.message}")
                     }
                 } catch (e: Exception) {
                     Log.e("GRN", "Attachment error for $p", e)
+                } finally {
+                    attachIndex++
                 }
             }
-            // 2) Upload user-picked attachments (any format)
+
+            // 2) user-picked attachments → infer extension
             for (att in extra) {
                 try {
                     val file = File(att.path)
-                    if (!file.exists()) continue
+                    if (!file.exists()) { attachIndex++; continue }
                     val bytes = file.readBytes()
                     val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                    val fileName = att.displayName.ifBlank { file.name }
+                    val extFromName = file.extension.takeIf { it.isNotBlank() }
+                    val extFromMime = inferExtFromMime(att.mimeType)
+                    val ext = extOr("bin", extFromMime ?: extFromName)
+                    val fileName = "${namePrefix}_${attachIndex}.${ext}"
                     val req = AttachmentRequest(
                         UploadedFileName = fileName,
                         CategoryName = "MISC",
@@ -509,9 +564,13 @@ class GrnViewModel @Inject constructor(
                     repo.uploadAttachment(finalHeaderInterfaceId, req).onSuccess {
                         uploadedCount++
                         file.delete()
+                    }.onFailure {
+                        Log.e("GRN", "Attachment upload failed for $fileName: ${it.message}")
                     }
                 } catch (e: Exception) {
                     Log.e("GRN", "Attachment error for ${att.path}", e)
+                } finally {
+                    attachIndex++
                 }
             }
         }
