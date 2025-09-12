@@ -8,6 +8,8 @@ import androidx.annotation.RequiresApi
 import androidx.compose.material3.SnackbarHostState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 
 import com.lazymohan.zebraprinter.inventory.data.OnHandCsv
 import com.lazymohan.zebraprinter.inventory.data.OnHandRow
@@ -74,6 +76,7 @@ class InventoryViewModel @Inject constructor(
             }
             _uiState.value = _uiState.value.copy(onHandLoaded = true)
         } catch (e: Exception) {
+            Firebase.crashlytics.recordException(e)
             postSnack("Failed to load OnHandExport.csv: ${e.message}")
         }
     }
@@ -93,6 +96,7 @@ class InventoryViewModel @Inject constructor(
                 }
             _uiState.value = _uiState.value.copy(counts = list)
         } catch (e: Exception) {
+            Firebase.crashlytics.recordException(e)
             postSnack("Failed to load saved counts: ${e.message}")
         }
     }
@@ -139,6 +143,7 @@ class InventoryViewModel @Inject constructor(
                 data.forEach { (txn, qty) -> w.println("$txn,$qty") }
             }
         } catch (e: Exception) {
+            Firebase.crashlytics.recordException(e)
             postSnack("Failed to persist counts: ${e.message}")
         }
     }

@@ -3,6 +3,8 @@ package com.lazymohan.zebraprinter.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.lazymohan.zebraprinter.PrinterService
 import com.lazymohan.zebraprinter.app.AppPref
 import com.lazymohan.zebraprinter.model.DiscoveredPrinterInfo
@@ -144,6 +146,7 @@ class PrinterViewModel @AssistedInject constructor(
     }
 
     fun handleErrors(throwable: Throwable) {
+        Firebase.crashlytics.recordException(throwable)
         updateSnackBarMessage(message = SnackBarMessage.StringMessage(throwable.message))
     }
 

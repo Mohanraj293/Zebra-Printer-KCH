@@ -1,6 +1,8 @@
 package com.lazymohan.zebraprinter.login
 
 import android.util.Log
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.lazymohan.zebraprinter.network.FusionApiClient
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,6 +21,7 @@ class AuthRepo @Inject constructor(
             Log.d("AuthRepo", "fetchUserByUsername SUCCESS → items=${response.items.size}")
             response
         }.onFailure { e ->
+            Firebase.crashlytics.recordException(e)
             Log.e("AuthRepo", "fetchUserByUsername FAILED: ${e.message}", e)
         }
     }
