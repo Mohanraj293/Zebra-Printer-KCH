@@ -1,4 +1,3 @@
-// login/LoginActivity.kt
 package com.lazymohan.zebraprinter.login
 
 import android.app.PendingIntent
@@ -74,7 +73,7 @@ class LoginActivity : ComponentActivity() {
 
         authService = AuthorizationService(this)
 
-        // 🔔 If we were redirected here due to a forced logout (e.g., 401), show a friendly message.
+        // If we were redirected 401, show a friendly message.
         maybeShowForcedLogoutMessage(intent)
 
         lifecycleScope.launch {
