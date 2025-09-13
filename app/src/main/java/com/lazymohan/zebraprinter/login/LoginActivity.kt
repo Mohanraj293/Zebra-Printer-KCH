@@ -13,6 +13,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.lazymohan.zebraprinter.BuildConfig
+import com.lazymohan.zebraprinter.app.AppPref
+import com.lazymohan.zebraprinter.app.AppPref.Companion.EXTRA_LOGOUT_MESSAGE
+import com.lazymohan.zebraprinter.app.AppPref.Companion.EXTRA_LOGOUT_REASON
+import com.lazymohan.zebraprinter.app.AppPref.Companion.LOGOUT_REASON_401
 import com.lazymohan.zebraprinter.landing.LandingActivity
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.tarkalabs.tarkaui.components.TUISnackBarType
@@ -28,6 +32,7 @@ import net.openid.appauth.ClientAuthentication
 import net.openid.appauth.ClientSecretBasic
 import net.openid.appauth.ResponseTypeValues
 import net.openid.appauth.TokenRequest
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class LoginActivity : ComponentActivity() {
@@ -53,6 +58,9 @@ class LoginActivity : ComponentActivity() {
     private val REDIRECT_URI = BuildConfig.REDIRECT_URI
     private val SCOPE = BuildConfig.OAUTH_SCOPE
 
+    @Inject
+    lateinit var appPref: AppPref
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -64,6 +72,9 @@ class LoginActivity : ComponentActivity() {
         Log.d(TAG, "SCOPE=$SCOPE")
 
         authService = AuthorizationService(this)
+
+        // If we were redirected 401, show a friendly message.
+        maybeShowForcedLogoutMessage(intent)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -105,9 +116,22 @@ class LoginActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        maybeShowForcedLogoutMessage(intent)
         if (intent.action == ACTION_AUTH_RESPONSE) {
             Log.d(TAG, "Handling AUTH_RESPONSE in onNewIntent")
             handleAuthResponse(intent)
+        }
+    }
+
+    private fun maybeShowForcedLogoutMessage(intent: Intent?) {
+        val reason = intent?.getStringExtra(EXTRA_LOGOUT_REASON)
+        val message = intent?.getStringExtra(EXTRA_LOGOUT_MESSAGE)
+        if (reason == LOGOUT_REASON_401) {
+            val msg = message ?: "Session expired. Please sign in again."
+            viewModel.updateSnackBarMessage(
+                message = SnackBarMessage.StringMessage(msg),
+                type = TUISnackBarType.Error
+            )
         }
     }
 
@@ -154,44 +178,26 @@ class LoginActivity : ComponentActivity() {
     }
 
     private fun handleAuthResponse(intent: Intent) {
-        Log.d(TAG, "handleAuthResponse() called with intent=$intent")
-        val extras = intent.extras
-        Log.d(TAG, "extras keys=${extras?.keySet()} data=${intent.data}")
-
-        val hasRespExtra = intent.hasExtra(AuthorizationResponse.EXTRA_RESPONSE)
-        val hasExExtra = intent.hasExtra(AuthorizationException.EXTRA_EXCEPTION)
-        Log.d(TAG, "hasRespExtra=$hasRespExtra hasExExtra=$hasExExtra")
-
-        if (!hasRespExtra && !hasExExtra) {
-            Log.w(TAG, "AUTH_RESPONSE received without AppAuth payload (likely test or stale). Ignoring.")
-            return
-        }
-
         val authResponse = AuthorizationResponse.fromIntent(intent)
         val authException = AuthorizationException.fromIntent(intent)
 
         if (authException != null) {
-            Log.e(TAG, "Authorization failed: ${authException.errorDescription}")
             viewModel.onOAuthFailed(authException.errorDescription ?: "Authorization failed.")
             return
         }
         if (authResponse == null) {
-            Log.e(TAG, "AuthorizationResponse is null")
             viewModel.onOAuthFailed("Empty authorization response.")
             return
         }
 
-        Log.d(TAG, "Authorization code received, exchanging for tokens…")
         val tokenReq: TokenRequest = authResponse.createTokenExchangeRequest()
         val clientAuth: ClientAuthentication? = CLIENT_SECRET?.let { ClientSecretBasic(it) }
 
         if (clientAuth != null) {
-            Log.d(TAG, "Using confidential client for token exchange")
             authService.performTokenRequest(tokenReq, clientAuth) { tokenResponse, ex ->
                 handleTokenResponse(tokenResponse, ex)
             }
         } else {
-            Log.d(TAG, "Using public client (PKCE) for token exchange")
             authService.performTokenRequest(tokenReq) { tokenResponse, ex ->
                 handleTokenResponse(tokenResponse, ex)
             }
@@ -203,12 +209,10 @@ class LoginActivity : ComponentActivity() {
         ex: AuthorizationException?
     ) {
         if (ex != null) {
-            Log.e(TAG, "Token exchange failed: ${ex.errorDescription}")
             viewModel.onOAuthFailed(ex.errorDescription ?: "Token exchange failed.")
             return
         }
         if (tokenResponse == null) {
-            Log.e(TAG, "Token response was null")
             viewModel.onOAuthFailed("Empty token response.")
             return
         }
@@ -216,9 +220,6 @@ class LoginActivity : ComponentActivity() {
         val accessToken = tokenResponse.accessToken.orEmpty()
         val refreshToken = tokenResponse.refreshToken
         val expiresAt = tokenResponse.accessTokenExpirationTime ?: 0L
-
-        Log.d(TAG, "Tokens received: access=${accessToken.take(6)}… refresh=${if (refreshToken != null) "yes" else "no"} exp=$expiresAt")
-        Log.d(TAG_VM, "Saving tokens…")
 
         viewModel.onOAuthTokenReceived(
             accessToken = accessToken,
