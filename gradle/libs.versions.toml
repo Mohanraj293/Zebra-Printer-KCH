@@ -1,5 +1,9 @@
 [versions]
 agp = "8.11.1"
+appauth = "0.11.1"
+barcodeScanning = "17.3.0"
+browser = "1.9.0"
+cameraxVersion = "1.4.2"
 coilCompose = "2.7.0"
 firebaseBom = "33.16.0"
 firebaseCrashlyticsGradle = "3.0.6"
@@ -33,11 +37,20 @@ uiGraphics = "1.9.0"
 foundation = "1.9.0"
 foundationLayout = "1.9.0"
 leanback = "1.2.0"
+zxingAndroidEmbedded = "4.3.0"
 
 [libraries]
+androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }
+androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraxVersion" }
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraxVersion" }
+androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraxVersion" }
+androidx-camera-mlkit-vision = { module = "androidx.camera:camera-mlkit-vision", version.ref = "cameraxVersion" }
+androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraxVersion" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+appauth = { module = "net.openid:appauth", version.ref = "appauth" }
+barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "barcodeScanning" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
@@ -83,6 +96,7 @@ androidx-foundation = { group = "androidx.compose.foundation", name = "foundatio
 androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 firebase-crashlytics-gradle = { module = "com.google.firebase:firebase-crashlytics-gradle", version.ref = "firebaseCrashlyticsGradle" }
 androidx-leanback = { group = "androidx.leanback", name = "leanback", version.ref = "leanback" }
+zxing-android-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
