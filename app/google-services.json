@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:107285563728:android:7e75efc067edefc798c455",
+        "android_client_info": {
+          "package_name": "au.kch.mediscan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXt8PPsxCj7Q_c7pUtUp5AH1Oup0TEq08"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:107285563728:android:e98169f9688f272298c455",
         "android_client_info": {
           "package_name": "com.lazymohan.zebraprinter"
