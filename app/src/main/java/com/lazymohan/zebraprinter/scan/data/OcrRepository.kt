@@ -2,6 +2,8 @@ package com.lazymohan.zebraprinter.scan.data
 
 import android.content.Context
 import android.net.Uri
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.google.gson.Gson
 import com.lazymohan.zebraprinter.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -142,6 +144,7 @@ class OcrRepository @Inject constructor(
             }
             OcrResult.ExceptionError("Timed out waiting for OCR result")
         } catch (e: Exception) {
+            Firebase.crashlytics.recordException(e)
             OcrResult.ExceptionError(e.message)
         }
     }

@@ -8,6 +8,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.lazymohan.zebraprinter.exception.PrinterConnectionException
 import com.lazymohan.zebraprinter.exception.PrinterHardwareException
 import com.lazymohan.zebraprinter.exception.PrinterLanguageException
@@ -49,11 +51,13 @@ class PrinterImpl(
                 printLabel(itemData = itemData, noOfCopies = noOfCopies)
             }
         } catch (e: Exception) {
-            throw when (e) {
+            val exception = when (e) {
                 is ConnectionException -> PrinterConnectionException(R.string.select_desired_device)
                 is ZebraPrinterLanguageUnknownException -> PrinterLanguageException()
                 else -> PrinterUnknownException()
             }
+            Firebase.crashlytics.recordException(exception)
+            throw exception
         } finally {
             disconnect()
         }
@@ -76,7 +80,8 @@ class PrinterImpl(
     override fun disconnect() {
         try {
             connection?.close()
-        } catch (_: ConnectionException) {
+        } catch (e: ConnectionException) {
+            Firebase.crashlytics.recordException(e)
         }
     }
 
@@ -107,7 +112,8 @@ class PrinterImpl(
                     throw PrinterHardwareException(R.string.unknown_error)
                 }
             }
-        } catch (_: ConnectionException) {
+        } catch (e: ConnectionException) {
+            Firebase.crashlytics.recordException(e)
             throw PrinterHardwareException(R.string.unknown_error)
         }
     }

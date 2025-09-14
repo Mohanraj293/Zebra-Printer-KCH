@@ -8,6 +8,8 @@ import androidx.annotation.RequiresApi
 import androidx.compose.material3.SnackbarHostState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.lazymohan.zebraprinter.inventory.data.OnHandCsv
 import com.lazymohan.zebraprinter.inventory.data.OnHandRow
 import com.lazymohan.zebraprinter.inventory.util.parseGs1
@@ -97,6 +99,7 @@ class InventoryViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(onHandLoaded = true)
                 postSnack("Loaded ${onHandByGtinLotExpiry.size} items from assets (drive error: ${e.message})")
             }.onFailure { ex ->
+                Firebase.crashlytics.recordException(ex)
                 postSnack("Failed to load items: ${ex.message}")
             }
         }
@@ -112,6 +115,7 @@ class InventoryViewModel @Inject constructor(
                 ?.takeIf { it.isNotEmpty() }
             if (!header.isNullOrEmpty()) templateHeader = header
         }.onFailure {
+            Firebase.crashlytics.recordException(it)
         }
     }
 
@@ -160,7 +164,10 @@ class InventoryViewModel @Inject constructor(
                 w.println(templateHeader)
                 data.forEach { (txn, qty) -> w.println("$txn,$qty") }
             }
-        }.onFailure { postSnack("Failed to persist counts: ${it.message}") }
+        }.onFailure {
+            Firebase.crashlytics.recordException(it)
+            postSnack("Failed to persist counts: ${it.message}")
+        }
     }
 
     fun dismissDialog() { _uiState.value = _uiState.value.copy(matchDialog = null) }

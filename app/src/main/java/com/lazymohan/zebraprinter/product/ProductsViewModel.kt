@@ -2,6 +2,8 @@ package com.lazymohan.zebraprinter.product
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.lazymohan.zebraprinter.product.data.Item
 import com.lazymohan.zebraprinter.product.data.Organisations
 import com.lazymohan.zebraprinter.product.data.ProductsRepo
@@ -33,6 +35,7 @@ class ProductsViewModel @Inject constructor(
                     orgIdLists.addAll(it)
                 }
             } catch (e: Exception) {
+                Firebase.crashlytics.recordException(e)
                 _uiState.update { currentState ->
                     currentState.copy(
                         snackBarMessage = SnackBarMessage.StringMessage(
@@ -102,6 +105,7 @@ class ProductsViewModel @Inject constructor(
                 }
                 hideLoading()
             } catch (e: Exception) {
+                Firebase.crashlytics.recordException(e)
                 _uiState.update { currentState ->
                     currentState.copy(
                         snackBarMessage = SnackBarMessage.StringMessage(

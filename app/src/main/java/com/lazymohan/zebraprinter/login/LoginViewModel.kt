@@ -4,6 +4,8 @@ import android.util.Base64
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.lazymohan.zebraprinter.app.AppPref
 import com.lazymohan.zebraprinter.snacbarmessage.SnackBarMessage
 import com.tarkalabs.tarkaui.components.TUISnackBarType
@@ -151,6 +153,7 @@ class LoginViewModel @Inject constructor(
             val obj = JSONObject(payloadJson)
             obj.optString("sub").takeIf { it.isNotBlank() }
         } catch (t: Throwable) {
+            Firebase.crashlytics.recordException(t)
             Log.w(TAG, "Failed to parse 'sub' from access token: ${t.message}")
             null
         }

@@ -1,6 +1,8 @@
 package com.lazymohan.zebraprinter.product.data
 
 import android.util.Log
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.google.gson.annotations.SerializedName
 import com.lazymohan.zebraprinter.network.FusionApiClient
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +38,7 @@ class ProductsRepo @Inject constructor(apiClient: FusionApiClient) {
                     null
                 }
             } catch (e: Exception) {
+                Firebase.crashlytics.recordException(e)
                 Log.e("API", "Exception: ${e.localizedMessage}", e)
                 null
             }
