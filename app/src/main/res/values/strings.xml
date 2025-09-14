@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Zebra Printer - KCH</string>
+    <string name="app_name">KCH - Mediscan</string>
     <string name="print_barcode">Print Barcode</string>
     <string name="printer_connecting">Connecting to the printer…</string>
     <string name="printer_connected">Printer connected</string>

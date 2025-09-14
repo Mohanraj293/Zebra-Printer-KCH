@@ -1,8 +1,13 @@
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-
 package com.lazymohan.zebraprinter.grn.ui
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.ExperimentalGetImage
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,7 +15,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -79,9 +83,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
+import com.google.zxing.DecodeHintType
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.grn.data.PoLineItem
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem
@@ -91,6 +97,7 @@ import com.lazymohan.zebraprinter.grn.util.similarity
 import com.lazymohan.zebraprinter.product.data.Lots
 import com.lazymohan.zebraprinter.utils.DateTimeConverter
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -106,6 +113,7 @@ import java.time.format.DateTimeFormatter
  * - Selecting an item fills that section's qty, lot, expiry (expiry normalized to YYYY-MM-DD).
  */
 
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
 @Composable
 fun PoAndReceiveCard(
     ui: GrnUiState,
@@ -393,53 +401,152 @@ fun PoAndReceiveCard(
                 }
             }
         }
+        fun invertImage(mediaImage: android.media.Image): Bitmap {
+            // Convert YUV_420_888 to ARGB Bitmap
+            val buffer: ByteBuffer = mediaImage.planes[0].buffer
+            val bytes = ByteArray(buffer.remaining())
+            buffer.get(bytes)
 
-        // --- Floating GS1/GTIN QR Scanner Button ---
+            val width = mediaImage.width
+            val height = mediaImage.height
+
+            // Decode Y-plane only to grayscale bitmap
+            val bitmap = createBitmap(width, height)
+            var idx = 0
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val yValue = bytes[idx].toInt() and 0xFF
+                    // Invert pixel value
+                    val inverted = 255 - yValue
+                    val color = android.graphics.Color.rgb(inverted, inverted, inverted)
+                    bitmap[x, y] = color
+                    idx++
+                }
+            }
+            return bitmap
+        }
+
+        fun onQrScanned(rawValue: String?) {
+            if (rawValue.isNullOrBlank()) {
+                scope.launch { snackbarHostState.showSnackbar("Scanned QR code is empty.") }
+                return
+            }
+            val gt = extractGtinFromRaw(rawValue)
+            if (gt == null) {
+                scope.launch { snackbarHostState.showSnackbar("Couldn't find a valid GTIN in scan.") }
+                return
+            }
+            scannedText = rawValue
+            lastScannedGtin = gt
+
+            val matched = ui.allPoLines
+                .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
+                .map { it.LineNumber }
+                .toSet()
+            verifiedLines = verifiedLines + matched
+
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    if (matched.isEmpty())
+                        "GTIN $gt scanned. No PO line GTIN matched."
+                    else
+                        "GTIN $gt verified for lines: ${
+                            matched.sorted().joinToString(", ")
+                        }"
+                )
+            }
+
+        }
+
+        val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
+            if (result.contents == null) {
+                Toast.makeText(context, "Cancelled", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(context, "Scanned: ${result.contents}", Toast.LENGTH_LONG).show()
+            }
+        }
+
+
+        // ✅ Button to request camera permission and launch ZXing scanner
+        val permissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                val options = ScanOptions().apply {
+                    setPrompt("Scan a barcode")
+                    setBeepEnabled(false)
+                    setBarcodeImageEnabled(true)
+                    setDesiredBarcodeFormats(ScanOptions.ALL_CODE_TYPES)
+                    addExtra(DecodeHintType.TRY_HARDER.name, true)
+                    addExtra(DecodeHintType.POSSIBLE_FORMATS.name, true)
+                }
+                scanLauncher.launch(options)
+            } else {
+                Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        val launcher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                context.startActivity(Intent(context, ScannerActivity::class.java))
+            } else {
+                Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         FloatingActionButton(
             onClick = {
-                val options = GmsBarcodeScannerOptions.Builder()
-                    .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
-                    .enableAutoZoom()
-                    .build()
-                val scanner = GmsBarcodeScanning.getClient(context, options)
-                scanner.startScan()
-                    .addOnSuccessListener { barcode ->
-                        val raw = barcode.rawValue.orEmpty()
-                        val gt = extractGtinFromRaw(raw)
-                        if (gt == null) {
-                            scope.launch { snackbarHostState.showSnackbar("Couldn't find a valid GTIN in scan.") }
-                            return@addOnSuccessListener
-                        }
-                        scannedText = raw
-                        lastScannedGtin = gt
-
-                        val matched = ui.allPoLines
-                            .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
-                            .map { it.LineNumber }
-                            .toSet()
-                        verifiedLines = verifiedLines + matched
-
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                if (matched.isEmpty())
-                                    "GTIN $gt scanned. No PO line GTIN matched."
-                                else
-                                    "GTIN $gt verified for lines: ${
-                                        matched.sorted().joinToString(", ")
-                                    }"
-                            )
-                        }
-                    }
-                    .addOnFailureListener {
-                        scope.launch { snackbarHostState.showSnackbar("Scan cancelled.") }
-                    }
+                launcher.launch(Manifest.permission.CAMERA)
+//                val options = BarcodeScannerOptions.Builder()
+//                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+//                    .build()
+//
+//                val scanner = BarcodeScanning.getClient(options)
+//
+//                val analysisUseCase = ImageAnalysis.Builder()
+//                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+//                    .build()
+//
+//                analysisUseCase.setAnalyzer(ContextCompat.getMainExecutor(context)) { imageProxy ->
+//                    val mediaImage = imageProxy.image ?: return@setAnalyzer
+//                    val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+//
+//                    scanner.process(inputImage)
+//                        .addOnSuccessListener { barcodes ->
+//                            if (barcodes.isNotEmpty()) {
+//                                val rawValue = barcodes.first().rawValue
+//                                // ✅ Got QR code
+//                                onQrScanned(rawValue)
+//                                imageProxy.close()
+//                                return@addOnSuccessListener
+//                            }
+//
+//                            // 🔄 Retry inverted if normal failed
+//                            val invertedBitmap = invertImage(mediaImage)
+//                            val invertedInput = InputImage.fromBitmap(invertedBitmap, imageProxy.imageInfo.rotationDegrees)
+//                            scanner.process(invertedInput)
+//                                .addOnSuccessListener { invertedBarcodes ->
+//                                    if (invertedBarcodes.isNotEmpty()) {
+//                                        onQrScanned(invertedBarcodes.first().rawValue)
+//                                    }
+//                                }
+//                                .addOnCompleteListener { imageProxy.close() }
+//                        }
+//                        .addOnFailureListener {
+//                            scope.launch { snackbarHostState.showSnackbar("Scan cancelled.") }
+//                        }
+//                }
             },
             containerColor = Color(0xFF2E6BFF),
             contentColor = Color.White,
             modifier = Modifier
                 .align(BottomEnd)
                 .padding(end = 20.dp, bottom = 20.dp)
-        ) { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan GS1/GTIN QR") }
+        ) {
+            Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan GS1/GTIN QR")
+        }
     }
 
     if (showAddDialog) {
@@ -776,6 +883,7 @@ private fun SectionedLineCard(
 
 /* ===================== Link Picker ===================== */
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LinkDeliveryBottomSheet(
     line: PoLineItem,
@@ -1015,6 +1123,7 @@ private fun LinedTextField(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpiryDateField(
     value: String,

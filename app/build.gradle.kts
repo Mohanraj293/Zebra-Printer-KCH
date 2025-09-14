@@ -149,7 +149,16 @@ dependencies {
     implementation(libs.firebase.perf.ktx)
     implementation(platform(libs.firebase.bom))
 
+    implementation(libs.barcode.scanning)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.camera.mlkit.vision)
+
     // OAuth/AppAuth bits
-    implementation("net.openid:appauth:0.11.1")
-    implementation("androidx.browser:browser:1.8.0")
+    implementation(libs.appauth)
+    implementation(libs.androidx.browser)
+
+    implementation(libs.zxing.android.embedded)
 }
