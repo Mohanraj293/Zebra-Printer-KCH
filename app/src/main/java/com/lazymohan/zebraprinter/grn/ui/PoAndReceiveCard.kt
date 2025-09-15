@@ -79,6 +79,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.Firebase
+import com.google.firebase.crashlytics.crashlytics
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
@@ -410,9 +412,6 @@ fun PoAndReceiveCard(
                             scope.launch { snackbarHostState.showSnackbar("Couldn't find a valid GTIN in scan.") }
                             return@addOnSuccessListener
                         }
-                        scannedText = raw
-                        lastScannedGtin = gt
-
                         val matched = ui.allPoLines
                             .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
                             .map { it.LineNumber }
@@ -431,7 +430,8 @@ fun PoAndReceiveCard(
                         }
                     }
                     .addOnFailureListener {
-                        scope.launch { snackbarHostState.showSnackbar("Scan cancelled.") }
+                        Firebase.crashlytics.recordException(it)
+                        scope.launch { snackbarHostState.showSnackbar("Scan error -> ${it.message}") }
                     }
             },
             containerColor = Color(0xFF2E6BFF),

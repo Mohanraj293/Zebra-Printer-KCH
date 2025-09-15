@@ -51,12 +51,12 @@ class PrinterImpl(
                 printLabel(itemData = itemData, noOfCopies = noOfCopies)
             }
         } catch (e: Exception) {
+            Firebase.crashlytics.recordException(e)
             val exception = when (e) {
                 is ConnectionException -> PrinterConnectionException(R.string.select_desired_device)
                 is ZebraPrinterLanguageUnknownException -> PrinterLanguageException()
                 else -> PrinterUnknownException()
             }
-            Firebase.crashlytics.recordException(exception)
             throw exception
         } finally {
             disconnect()
