@@ -119,7 +119,7 @@ class PrinterImpl(
     }
 
     private fun createLabelZPL(contentModel: PrintContentModel, copies: Int): ByteArray {
-        SGD.SET("device.language", "zpl,", connection)
+        SGD.SET("device.language", "zpl", connection)
 
         // Ensure GTIN is 14 digits
         val gtin14 = contentModel.gtinNum.padStart(14, '0')
