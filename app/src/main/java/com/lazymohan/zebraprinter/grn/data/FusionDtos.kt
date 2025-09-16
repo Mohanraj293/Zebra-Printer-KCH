@@ -238,6 +238,19 @@ data class AttachmentResponse(
 
 // TO FLOW DTOS
 
+data class ToConfig(
+    val fromOrganizationCode: String,
+    val organizationCode: String,
+    val employeeId: Long
+)
+
+data class ToReceiveLineInput(
+    val line: TransferOrderLine,
+    val quantity: Int,
+    val lotNumber: String? = null,
+    val lotExpirationDate: String? = null
+)
+
 // --- STEP 1: Transfer Order Header Search ---
 data class TransferOrderHeader(
     @SerializedName("HeaderId") val headerId: Long,
@@ -262,7 +275,10 @@ data class TransferOrderLine(
     @SerializedName("QuantityUOMName") val unitOfMeasure: String? = null,
     @SerializedName("LineNumber") val lineNumber: Int? = null,
     @SerializedName("RequestedQuantity") val quantity: Double? = null,
-    @SerializedName("UnitPrice") val unitPrice: Double? = null
+    @SerializedName("UnitPrice") val unitPrice: Double? = null,
+    @SerializedName("DestinationOrganizationCode") val destinationOrganizationCode: String? = null,
+    @SerializedName("SourceOrganizationCode") val sourceOrganizationCode: String? = null,
+
 )
 
 data class ToLinesResponse(

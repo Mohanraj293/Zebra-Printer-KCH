@@ -1,3 +1,4 @@
+// app/src/main/java/com/lazymohan/zebraprinter/grn/ui/to/ToViewModel.kt
 package com.lazymohan.zebraprinter.grn.ui.to
 
 import android.util.Log
@@ -10,10 +11,10 @@ import com.lazymohan.zebraprinter.grn.data.ReceiptLineTo
 import com.lazymohan.zebraprinter.grn.data.ReceiptRequestTo
 import com.lazymohan.zebraprinter.grn.data.ReceiptResponse
 import com.lazymohan.zebraprinter.grn.data.ShipmentLine
+import com.lazymohan.zebraprinter.grn.data.ToConfig
+import com.lazymohan.zebraprinter.grn.data.ToReceiveLineInput
 import com.lazymohan.zebraprinter.grn.data.TransferOrderHeader
 import com.lazymohan.zebraprinter.grn.data.TransferOrderLine
-import com.lazymohan.zebraprinter.grn.domain.ToConfig
-import com.lazymohan.zebraprinter.grn.domain.ToReceiveLineInput
 import com.lazymohan.zebraprinter.grn.domain.usecase.CreateToReceiptUseCase
 import com.lazymohan.zebraprinter.grn.domain.usecase.FetchToBundleUseCase
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem
