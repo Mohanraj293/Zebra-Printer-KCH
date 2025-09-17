@@ -1176,6 +1176,7 @@ fun ScanDialogNativeEditText(
                 Button(onClick = {
                     onVerified(scannedState)
                     onDismiss()
+                    scannedState = ""
                 }) {
                     Text("OK")
                 }
