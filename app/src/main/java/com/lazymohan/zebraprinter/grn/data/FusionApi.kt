@@ -37,21 +37,14 @@ interface FusionApi {
         @Query("q") q: String
     ): GtinResponse
 
-    // --- GRN: Create receipt (works for PO or TO payloads) ---
-    @Headers(
-        "Accept: application/json",
-        "Content-Type: application/json"
-    )
+    // --- GRN: Create receipt (PO or TO payloads) ---
+    @Headers("Accept: application/json", "Content-Type: application/json")
     @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
-    suspend fun createReceipt(
-        @Body body: Any
-    ): Response<ReceiptResponse>
+    suspend fun createReceipt(@Body body: Any): Response<ReceiptResponse>
 
     // --- GRN: Processing errors for a line ---
     @Headers("Accept: application/json")
-    @GET(
-        "fscmRestApi/resources/11.13.18.05/receivingReceiptRequests/{headerInterfaceId}/child/lines/{interfaceTransactionId}/child/processingErrors"
-    )
+    @GET("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests/{headerInterfaceId}/child/lines/{interfaceTransactionId}/child/processingErrors")
     suspend fun getProcessingErrors(
         @Path("headerInterfaceId") headerInterfaceId: String,
         @Path("interfaceTransactionId") interfaceTransactionId: String,
@@ -59,10 +52,7 @@ interface FusionApi {
     ): ProcessingErrorsResponse
 
     // --- GRN: Upload attachments (use ReceiptHeaderId for {receiptid}) ---
-    @Headers(
-        "Accept: application/json",
-        "Content-Type: application/json"
-    )
+    @Headers("Accept: application/json", "Content-Type: application/json")
     @POST("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests/{receiptid}/child/attachments")
     suspend fun uploadReceiptAttachment(
         @Path("receiptid") receiptId: String,
@@ -73,23 +63,15 @@ interface FusionApi {
     // Transfer Order (TO) APIs
     // =========================
 
-    // Step 1: Fetch Transfer Order Header Details
+    // STEP 1: Expected Shipment Lines (drives UI lines)
     @Headers("Accept: application/json")
-    @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
-    suspend fun getToHeaders(
+    @GET("fscmRestApi/resources/11.13.18.05/receivingReceiptExpectedShipmentLines")
+    suspend fun getExpectedShipmentLines(
         @Query("onlyData") onlyData: String = "true",
         @Query("q") q: String
-    ): ToHeaderSearchResponse
+    ): ExpectedShipmentLinesResponse
 
-    // Step 2: Fetch Transfer Order Line Items
-    @Headers("Accept: application/json")
-    @GET("fscmRestApi/resources/11.13.18.05/transferOrders/{headerId}/child/transferOrderLines")
-    suspend fun getToLines(
-        @Path("headerId") headerId: Long,
-        @Query("onlyData") onlyData: String = "true"
-    ): ToLinesResponse
-
-    // Step 3: Shipment lines
+    // STEP 2: Shipment lines (to fetch Lot, Locator, ShippedQuantity, etc.)
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/shipmentLines")
     suspend fun getShipmentLines(
@@ -97,7 +79,7 @@ interface FusionApi {
         @Query("q") q: String
     ): ShipmentLinesResponse
 
-    // Step 4: Inventory lots (to fetch expiry)
+    // STEP 3: Inventory lots (expiry)
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/inventoryItemLots")
     suspend fun getInventoryItemLots(
@@ -105,9 +87,17 @@ interface FusionApi {
         @Query("q") q: String
     ): InventoryLotsResponse
 
-    // NEW: Lifecycle & Header searches for SUCCESS
+    // ====== Helpers ======
 
-    // Purchase Order Lifecycle → Receipts (by PO HeaderId)
+    // TO header details (business unit, status, etc.)
+    @Headers("Accept: application/json")
+    @GET("fscmRestApi/resources/11.13.18.05/transferOrders")
+    suspend fun getToHeaders(
+        @Query("onlyData") onlyData: String = "true",
+        @Query("q") q: String
+    ): ToHeaderSearchResponse
+
+    // PO lifecycle → receipts
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/purchaseOrderLifeCycleDetails/{poHeaderId}/child/receipts")
     suspend fun getPoLifecycleReceipts(
@@ -115,13 +105,10 @@ interface FusionApi {
         @Query("onlyData") onlyData: String = "true"
     ): PoLifecycleReceiptsResponse
 
-    // Search receiving headers (filter by ReceiptHeaderId or status, etc.)
     @Headers("Accept: application/json")
     @GET("fscmRestApi/resources/11.13.18.05/receivingReceiptRequests")
     suspend fun searchReceiptRequests(
         @Query("onlyData") onlyData: String = "true",
-        @Query("fields")
-        fields: String = "HeaderInterfaceId,ReceiptHeaderId,ReceiptNumber,VendorName,EmployeeName,ProcessingStatusCode",
         @Query("q") q: String
     ): ReceiptRequestsSearchResponse
 }
