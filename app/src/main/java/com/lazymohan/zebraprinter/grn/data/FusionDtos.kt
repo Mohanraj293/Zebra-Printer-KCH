@@ -163,6 +163,7 @@ data class ShipmentLine(
     @SerializedName("SourceOrder") val sourceOrder: String? = null,
     @SerializedName("Order") val order: String? = null,
     @SerializedName("Locator") val locator: String? = null,
+    @SerializedName("LocatorId") val locatorId: Long? = null,
     @SerializedName("Subinventory") val subinventory: String? = null
 ) {
     val shipmentNumber: Long? get() = shipmentRaw?.toLongOrNull()
@@ -214,6 +215,7 @@ data class ReceiptLineTo(
     @SerializedName("TransferOrderHeaderId") val transferOrderHeaderId: Long,
     @SerializedName("TransferOrderLineId") val transferOrderLineId: Long,
     @SerializedName("Locator") val locator: String? = null,
+    @SerializedName("LocatorId") val locatorId: Long? = null,
     @SerializedName("lotItemLots") val lotItemLots: List<LotEntryTo>? = null
 )
 

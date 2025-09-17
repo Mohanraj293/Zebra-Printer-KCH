@@ -155,7 +155,7 @@ class ToViewModel @Inject constructor(
     /* ----- id helpers ----- */
     private fun stableLineId(headerId: Long?, line: TransferOrderLine): Long {
         val doc = line.documentLineId
-        if (doc != null && doc != 0L) return (headerId ?: 0L shl 32) + doc
+        if (doc != null && doc != 0L) return (headerId ?: (0L shl 32)) + doc
         val raw = line.transferOrderLineId
         if (raw != 0L) return raw
         val hid = headerId ?: 0L
@@ -369,7 +369,8 @@ class ToViewModel @Inject constructor(
                     subinventory = sel.line.subinventory,
                     transferOrderHeaderId = sel.line.transferOrderHeaderId,
                     transferOrderLineId = sel.line.transferOrderLineId,
-                    locator = "0.0.0",
+//                    Prod env locator is not required
+//                    locator = "0.0.0",
                     lotItemLots = sec.lot.ifBlank { null }?.let { lot ->
                         listOf(
                             LotEntryTo(
