@@ -5,7 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.lazymohan.zebraprinter.app.AppPref
-import com.lazymohan.zebraprinter.grn.data.*
+import com.lazymohan.zebraprinter.grn.data.GrnRepository
+import com.lazymohan.zebraprinter.grn.data.LotEntryTo
+import com.lazymohan.zebraprinter.grn.data.ReceiptLineTo
+import com.lazymohan.zebraprinter.grn.data.ReceiptRequestTo
+import com.lazymohan.zebraprinter.grn.data.ReceiptResponse
+import com.lazymohan.zebraprinter.grn.data.ShipmentLine
+import com.lazymohan.zebraprinter.grn.data.TransferOrderHeader
+import com.lazymohan.zebraprinter.grn.data.TransferOrderLine
 import com.lazymohan.zebraprinter.grn.domain.usecase.CreateToReceiptUseCase
 import com.lazymohan.zebraprinter.grn.domain.usecase.FetchToBundleUseCase
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem
@@ -362,7 +369,7 @@ class ToViewModel @Inject constructor(
                     subinventory = sel.line.subinventory,
                     transferOrderHeaderId = sel.line.transferOrderHeaderId,
                     transferOrderLineId = sel.line.transferOrderLineId,
-                    locator = matchedShipment?.locator,
+                    locator = "0.0.0",
                     lotItemLots = sec.lot.ifBlank { null }?.let { lot ->
                         listOf(
                             LotEntryTo(
