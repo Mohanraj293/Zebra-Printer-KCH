@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
@@ -18,14 +19,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.lazymohan.zebraprinter.grn.data.ShipmentLine
 import com.lazymohan.zebraprinter.grn.data.TransferOrderHeader
 import com.lazymohan.zebraprinter.grn.data.TransferOrderLine
-import com.lazymohan.zebraprinter.grn.data.ShipmentLine
 import com.lazymohan.zebraprinter.grn.ui.ReadFieldInline
 
 /* ---- local helper: stable id for lines ---- */
 private fun stableLineId(headerId: Long?, line: TransferOrderLine): Long {
+    val doc = line.documentLineId
+    if (doc != null && doc != 0L) return (headerId ?: 0L shl 32) + doc
     val raw = line.transferOrderLineId
     if (raw != 0L) return raw
     val hid = headerId ?: 0L
@@ -89,10 +93,7 @@ fun ToAndReceiveCard(
                     Spacer(Modifier.height(8.dp))
                     if (header == null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
                             Text("Loading TO…", color = Color.Gray)
                         }
@@ -102,7 +103,6 @@ fun ToAndReceiveCard(
                         ReadFieldInline("Status", header.status ?: "-")
                         ReadFieldInline("Interface Status", header.interfaceStatus ?: "-")
                     }
-
                 }
             }
 
@@ -114,10 +114,7 @@ fun ToAndReceiveCard(
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Text(
                             "Lines",
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -149,14 +146,14 @@ fun ToAndReceiveCard(
                             }
                         }
                         allLines.isEmpty() -> {
-                            Text("No TO lines found.", color = Color(0xFF64748B))
+                            Text("No eligible expected shipment lines found for this TO.", color = Color(0xFF64748B))
                         }
                         else -> {
                             Column {
                                 inputs.forEach { li ->
                                     val base = allLines.firstOrNull { l ->
-                                        l.transferOrderLineId == li.lineId ||
-                                                stableLineId(headerId, l) == li.lineId
+                                        l.documentLineId?.let { (headerId ?: 0L shl 32) + it } == li.lineId ||
+                                                l.transferOrderLineId == li.lineId
                                     } ?: return@forEach
                                     key(li.lineId) {
                                         ToLineCard(
@@ -176,21 +173,15 @@ fun ToAndReceiveCard(
                     }
 
                     Spacer(Modifier.height(20.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedButton(
-                            onClick = onBack,
-                            modifier = Modifier.weight(1f).height(52.dp)
-                        ) { Text("Back") }
-
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f).height(52.dp)) { Text("Back") }
                         Button(
                             onClick = onReview,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(52.dp)
                                 .alpha(if (allowReview) 1f else 0.35f),
+                            enabled = allowReview,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
                         ) { Text("Review & Submit", color = Color.White) }
                     }
@@ -206,7 +197,7 @@ fun ToAndReceiveCard(
             title = { Text("Select Transfer Order Line") },
             text = {
                 if (candidates.isEmpty()) {
-                    Text("All TO lines are already added.", color = Color(0xFF64748B))
+                    Text("All lines are already added.", color = Color(0xFF64748B))
                 } else {
                     LazyColumn {
                         items(items = candidates) { c ->
@@ -229,6 +220,8 @@ fun ToAndReceiveCard(
                                     if (!c.subinventory.isNullOrBlank()) {
                                         Text("Subinv (Dest): ${c.subinventory}", color = Color(0xFF64748B))
                                     }
+                                    Text("TO Line #: ${c.lineNumber ?: "-"}", color = Color(0xFF475569))
+                                    Text("Shipment Line #: ${c.shipmentLineNumber ?: "-"}", color = Color(0xFF475569))
                                 }
                             }
                         }
@@ -236,9 +229,7 @@ fun ToAndReceiveCard(
                 }
             },
             confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) { Text("Close") }
-            }
+            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("Close") } }
         )
     }
 }
@@ -266,11 +257,7 @@ private fun ToLineCard(
             .clickable { expanded = !expanded }
     ) {
         Column(Modifier.padding(14.dp)) {
-            // Title
-            Row(
-                verticalAlignment = Alignment.Top,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = line.itemDescription ?: line.itemNumber,
@@ -286,17 +273,8 @@ private fun ToLineCard(
                         )
                     }
                 }
-
-                // right-top delete icon
-                IconButton(
-                    onClick = { confirmDelete = true },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Outlined.Delete,
-                        contentDescription = "Delete line",
-                        tint = Color(0xFFB00020)
-                    )
+                IconButton(onClick = { confirmDelete = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Outlined.Delete, contentDescription = "Delete line", tint = Color(0xFFB00020))
                 }
             }
 
@@ -304,11 +282,8 @@ private fun ToLineCard(
                 Spacer(Modifier.height(10.dp))
                 ReadFieldInline("UOM", line.unitOfMeasure ?: "-")
                 ReadFieldInline("Subinventory (Dest)", line.subinventory ?: "-")
-                ReadFieldInline(
-                    "Requested Qty",
-                    (line.quantity ?: 0.0).let { if (it % 1.0 == 0.0) it.toInt().toString() else "%.2f".format(it) }
-                )
-                ReadFieldInline("Unit Price", line.unitPrice?.let { "%,.2f".format(it) } ?: "-")
+                ReadFieldInline("TO Line #", line.lineNumber?.toString() ?: "-")
+                ReadFieldInline("Shipment Line #", line.shipmentLineNumber?.toString() ?: "-")
 
                 Spacer(Modifier.height(12.dp))
                 input.sections.sortedBy { it.section }.forEach { sec ->
@@ -318,7 +293,7 @@ private fun ToLineCard(
                         lot = sec.lot,
                         expiry = sec.expiry,
                         onQtyChange = { onUpdateQty(sec.section, it) },
-                        onLotChange = { onUpdateLot(sec.section, it) },
+                        onLotChange = { lot -> onUpdateLot(sec.section, lot) },
                         onDelete = { onRemoveSection(sec.section) }
                     )
                     Spacer(Modifier.height(8.dp))
@@ -329,9 +304,7 @@ private fun ToLineCard(
                     modifier = Modifier
                         .background(Color(0xFFE8F0FF), RoundedCornerShape(12.dp))
                         .padding(horizontal = 6.dp, vertical = 3.dp)
-                ) {
-                    Text("+ Add Section", color = Color(0xFF1D4ED8), fontWeight = FontWeight.SemiBold)
-                }
+                ) { Text("+ Add Section", color = Color(0xFF1D4ED8), fontWeight = FontWeight.SemiBold) }
 
                 Spacer(Modifier.height(6.dp))
             }
@@ -349,13 +322,12 @@ private fun ToLineCard(
                     Text("Remove", color = Color(0xFFB00020))
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
-            }
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
         )
     }
 }
 
+/* ---------- UI piece for one section ---------- */
 @Composable
 private fun SectionRow(
     title: String,
@@ -367,41 +339,59 @@ private fun SectionRow(
     onDelete: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xFFF8FAFF),
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(title, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
                 Spacer(Modifier.weight(1f))
-                TextButton(
-                    onClick = onDelete,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB00020))
-                ) { Text("Delete") }
+                TextButton(onClick = onDelete) { Text("Remove", color = Color(0xFFB00020)) }
             }
+
             Spacer(Modifier.height(8.dp))
+
+            // Vertical stack for Qty, Lot, Expiry
+            var qtyText by remember(qty) { mutableStateOf(qty.toString()) }
             OutlinedTextField(
-                value = qty.takeIf { it > 0 }?.toString().orEmpty(),
-                onValueChange = { v -> onQtyChange(v.filter { it.isDigit() }.toIntOrNull() ?: 0) },
-                placeholder = { Text("Quantity") },
+                value = qtyText,
+                onValueChange = {
+                    qtyText = it.filter { ch -> ch.isDigit() }.take(6)
+                    onQtyChange(qtyText.toIntOrNull() ?: 0)
+                },
+                label = { Text("Quantity") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+
             Spacer(Modifier.height(8.dp))
+
+            var lotText by remember(lot) { mutableStateOf(lot) }
             OutlinedTextField(
-                value = lot,
-                onValueChange = onLotChange,
-                placeholder = { Text("Lot Number (optional)") },
+                value = lotText,
+                onValueChange = {
+                    lotText = it.trim()
+                    onLotChange(lotText)
+                },
+                label = { Text("Lot Number") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            if (!expiry.isNullOrBlank()) {
-                Spacer(Modifier.height(6.dp))
-                ReadFieldInline("Expiry", expiry)
-            }
+
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = expiry?.take(10) ?: "-",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Expiry Date") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
+

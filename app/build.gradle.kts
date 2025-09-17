@@ -60,7 +60,7 @@ android {
         // === Microsoft Graph (client credentials) ===
         buildConfigField("String", "GRAPH_TENANT_ID", "\"d2624b5b-89fd-468e-b504-6570779aa3b6\"")
         buildConfigField("String", "GRAPH_CLIENT_ID", "\"2aeb3d3f-23dd-4a1b-a65d-98c5e14e7e6e\"")
-        buildConfigField("String", "GRAPH_CLIENT_SECRET", "\"u.R8Q~VRnquVagmRMmG.Ie5ySYddDvpIQQmVEcnC\"")
+        buildConfigField("String", "GRAPH_CLIENT_SECRET", "\"YJW8Q~U6RZKOXKKIxuwb.uH9y9YRNLFQQ3_g5bpP\"")
         buildConfigField("String", "GRAPH_SCOPES", "\"https://graph.microsoft.com/.default\"")
 
         // Target drive & paths

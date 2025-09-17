@@ -23,6 +23,8 @@ import java.time.temporal.ChronoUnit
 
 
 private fun stableLineId(headerId: Long?, line: TransferOrderLine): Long {
+    val doc = line.documentLineId
+    if (doc != null && doc != 0L) return (headerId ?: 0L shl 32) + doc
     val raw = line.transferOrderLineId
     if (raw != 0L) return raw
     val hid = headerId ?: 0L
@@ -45,9 +47,7 @@ fun ReviewCardTO(
     }
 
     Card(
-        modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .offset(y = (-8).dp),
+        modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-8).dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(8.dp)
@@ -72,7 +72,6 @@ fun ReviewCardTO(
             KeyValueRow("Business Unit", header.businessUnitName ?: "-")
 
             Spacer(Modifier.height(10.dp))
-
             Text(
                 "Lines to Receive",
                 style = MaterialTheme.typography.titleMedium.copy(
@@ -96,31 +95,23 @@ fun ReviewCardTO(
                     val amount: Double?
                 )
 
-                val rows = remember(inputs, lineMap) {
-                    inputs.flatMap { li ->
-                        val base = lineMap[li.lineId] ?: return@flatMap emptyList()
-                        li.sections.sortedBy { it.section }.map { s ->
-                            val rate = base.unitPrice
-                            val amount = rate?.let { it * s.qty }
-                            RowData(
-                                label = "Line ${base.lineNumber ?: "-"} • Sec ${s.section}",
-                                item = base.itemNumber,
-                                uom = base.unitOfMeasure ?: "-",
-                                qty = s.qty,
-                                lot = s.lot.ifBlank { "-" },
-                                exp = s.expiry?.take(10) ?: "-",
-                                rate = rate,
-                                amount = amount
-                            )
-                        }
+                val rows = inputs.flatMap { li ->
+                    val base = lineMap[li.lineId] ?: return@flatMap emptyList()
+                    li.sections.sortedBy { it.section }.map { s ->
+                        val rate = base.unitPrice
+                        val amount = rate?.let { it * s.qty }
+                        RowData(
+                            label = "Line ${base.lineNumber ?: "-"} • Sec ${s.section}",
+                            item = base.itemNumber,
+                            uom = base.unitOfMeasure ?: "-",
+                            qty = s.qty,
+                            lot = s.lot.ifBlank { "-" },
+                            exp = s.expiry?.take(10) ?: "-",
+                            rate = rate,
+                            amount = amount
+                        )
                     }
                 }
-
-                val totalLines = rows.size
-                val totalQty = rows.sumOf { it.qty }
-                val totalAmount = rows.sumOf { it.amount ?: 0.0 }
-                val qtyWithPrice = rows.filter { it.rate != null }.sumOf { it.qty.toDouble() }
-                val finalRate = if (qtyWithPrice > 0.0) totalAmount / qtyWithPrice else null
 
                 rows.forEachIndexed { idx, r ->
                     CompactLineRowTO(
@@ -139,35 +130,15 @@ fun ReviewCardTO(
                         Spacer(Modifier.height(8.dp))
                     }
                 }
-
-                Spacer(Modifier.height(8.dp))
-                HorizontalDivider(thickness = 1.dp, color = Color(0xFFE7EAF3))
-                Spacer(Modifier.height(8.dp))
-
-                KeyValueRow("Total Lines", totalLines.toString())
-                KeyValueRow("Total Quantity", totalQty.toString())
-                KeyValueRow("Total Amount", fmtMoney(totalAmount))
-                KeyValueRow("Final Rate", fmtMoney(finalRate))
             }
 
             Spacer(Modifier.height(12.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                ) { Text("Back to Receive") }
-
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f).height(52.dp)) { Text("Back to Receive") }
                 Button(
                     onClick = onSubmit,
                     enabled = !submitting && inputs.any { it.sections.any { s -> s.qty > 0 } },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
+                    modifier = Modifier.weight(1f).height(52.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E6BFF))
                 ) {
                     if (submitting) CircularProgressIndicator(strokeWidth = 2.dp, color = Color.White)

@@ -11,9 +11,7 @@ private const val TAG = "GRN"
 /**
  * Repository for GRN flow (PO + TO).
  */
-class GrnRepository(
-    private val api: FusionApi
-) {
+class GrnRepository(private val api: FusionApi) {
 
     // ====== PO ======
 
@@ -46,11 +44,8 @@ class GrnRepository(
     // --- Create receipt (PO or TO) ---
     suspend fun createReceipt(body: Any): Result<ReceiptResponse> = runCatching {
         val resp = api.createReceipt(body)
-        if (resp.isSuccessful) {
-            resp.body() ?: ReceiptResponse(ReturnStatus = "SUCCESS")
-        } else {
-            throw HttpException(resp)
-        }
+        if (resp.isSuccessful) resp.body() ?: ReceiptResponse(ReturnStatus = "SUCCESS")
+        else throw HttpException(resp)
     }
 
     suspend fun fetchProcessingErrors(
@@ -60,44 +55,61 @@ class GrnRepository(
         api.getProcessingErrors(headerInterfaceId, interfaceTransactionId).items
     }
 
-    suspend fun uploadAttachment(
-        receiptId: String,
-        body: AttachmentRequest
-    ): Result<AttachmentResponse> = runCatching {
-        api.uploadReceiptAttachment(receiptId, body)
-    }
+    suspend fun uploadAttachment(receiptId: String, body: AttachmentRequest): Result<AttachmentResponse> =
+        runCatching { api.uploadReceiptAttachment(receiptId, body) }
 
     // ====== TO ======
 
-    // Step 1
+    // Header details
     suspend fun findToHeaderByNumber(toNumber: String): Result<TransferOrderHeader?> = runCatching {
         val q = "HeaderNumber=\"$toNumber\""
         api.getToHeaders(q = q).items.firstOrNull()
     }
 
-    // Step 2
-    suspend fun getToLines(headerId: Long): Result<List<TransferOrderLine>> = runCatching {
-        api.getToLines(headerId).items
+    /**
+     * STEP 1: Expected shipment lines for this TO (default OrganizationCode=KDH).
+     * We map them into TransferOrderLine used by the UI.
+     */
+    suspend fun fetchExpectedShipmentLines(
+        toNumber: String,
+        orgCode: String = "KDH"
+    ): Result<List<TransferOrderLine>> = runCatching {
+        val q = "OrganizationCode=$orgCode;TransferOrderNumber=$toNumber"
+        api.getExpectedShipmentLines(q = q).items.map { e ->
+            TransferOrderLine(
+                transferOrderLineId = e.transferOrderLineId,
+                transferOrderHeaderId = e.transferOrderHeaderId,
+                itemDescription = e.itemDescription,
+                itemNumber = e.itemNumber,
+                subinventory = e.subinventory,
+                unitOfMeasure = e.unitOfMeasure,
+                lineNumber = e.transferOrderLineNumber?.toIntOrNull(),
+                quantity = e.orderedQuantity,
+                unitPrice = null,
+                destinationOrganizationCode = e.organizationCode,
+                sourceOrganizationCode = e.fromOrganizationCode,
+                intransitShipmentNumber = e.intransitShipmentNumber,
+                shipmentLineNumber = e.shipmentLineNumber,
+                documentLineId = e.documentLineId
+            )
+        }
     }
 
-    // Step 3a – shipment for whole TO
-    suspend fun getShipmentForToNumber(toNumber: String): Result<ShipmentLine?> = runCatching {
-        api.getShipmentLines(q = "Order=$toNumber").firstOrNull()
-    }
-
-    // Step 3b – shipments per item
+    // STEP 2: Shipments per item (for lot, locator, shipped qty)
     suspend fun getShipmentLinesForOrderAndItem(
         toNumber: String,
         item: String
     ): Result<List<ShipmentLine>> = runCatching {
-        api.getShipmentLines(q = "Order=$toNumber;Item=\"$item\"").list()
+        api.getShipmentLines(q = "Order=$toNumber;Item=\"$item\"")
+            .list()
+            .filter { it.shipmentId != null } // only shipments that can be received
     }
 
-    // Step 2.2 – fetch expiry for a lot
-    suspend fun getLotExpiry(lot: String): Result<String?> = runCatching {
-        val q = "LotNumber=\"$lot\""
+    // STEP 3: Lot expiry — include org filter (default KDH)
+    suspend fun getLotExpiry(lot: String, orgCode: String = "KDH"): Result<String?> = runCatching {
+        val q = "LotNumber=\"$lot\";OrganizationCode=$orgCode"
         val item = api.getInventoryItemLots(q = q).items.firstOrNull()
-        item?.lotExpirationDate?.take(10) // YYYY-MM-DD
+        item?.lotExpirationDate?.take(10)
     }
 
     suspend fun getLifecycleReceiptsByPo(poNumber: String): Result<List<PoLifecycleReceipt>> = runCatching {
