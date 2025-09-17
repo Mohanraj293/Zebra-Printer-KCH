@@ -2,7 +2,14 @@
 
 package com.lazymohan.zebraprinter.grn.ui
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.text.Editable
+import android.text.InputType
+import android.text.TextWatcher
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +30,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -79,11 +88,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.firebase.Firebase
-import com.google.firebase.crashlytics.crashlytics
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.lazymohan.zebraprinter.ZPLPrinterActivity
 import com.lazymohan.zebraprinter.grn.data.PoLineItem
 import com.lazymohan.zebraprinter.grn.util.ExtractedItem
@@ -140,6 +147,8 @@ fun PoAndReceiveCard(
     // Verified lines & last scanned GTIN
     var verifiedLines by rememberSaveable { mutableStateOf(setOf<Int>()) }
     var lastScannedGtin by rememberSaveable { mutableStateOf<String?>(null) }
+    var dialogVisible by remember { mutableStateOf(false) }
+    val scannedState = remember { mutableStateOf("") }
 
     val matches by remember(ui.extractedFromScan, ui.allPoLines) {
         derivedStateOf {
@@ -399,40 +408,7 @@ fun PoAndReceiveCard(
         // --- Floating GS1/GTIN QR Scanner Button ---
         FloatingActionButton(
             onClick = {
-                val options = GmsBarcodeScannerOptions.Builder()
-                    .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
-                    .enableAutoZoom()
-                    .build()
-                val scanner = GmsBarcodeScanning.getClient(context, options)
-                scanner.startScan()
-                    .addOnSuccessListener { barcode ->
-                        val raw = barcode.rawValue.orEmpty()
-                        val gt = extractGtinFromRaw(raw)
-                        if (gt == null) {
-                            scope.launch { snackbarHostState.showSnackbar("Couldn't find a valid GTIN in scan.") }
-                            return@addOnSuccessListener
-                        }
-                        val matched = ui.allPoLines
-                            .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
-                            .map { it.LineNumber }
-                            .toSet()
-                        verifiedLines = verifiedLines + matched
-
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                if (matched.isEmpty())
-                                    "GTIN $gt scanned. No PO line GTIN matched."
-                                else
-                                    "GTIN $gt verified for lines: ${
-                                        matched.sorted().joinToString(", ")
-                                    }"
-                            )
-                        }
-                    }
-                    .addOnFailureListener {
-                        Firebase.crashlytics.recordException(it)
-                        scope.launch { snackbarHostState.showSnackbar("Scan error -> ${it.message}") }
-                    }
+                dialogVisible = true
             },
             containerColor = Color(0xFF2E6BFF),
             contentColor = Color.White,
@@ -452,6 +428,36 @@ fun PoAndReceiveCard(
     if (showMatchDialog) {
         MatchBreakdownDialog(matches = matches, onDismiss = { showMatchDialog = false })
     }
+
+    ScanDialogNativeEditText(
+        visible = dialogVisible,
+        onDismiss = { dialogVisible = false },
+        onVerified = { matched ->
+            val raw = scannedState.value
+            val gt = extractGtinFromRaw(raw)
+            if (gt == null) {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Couldn't find a valid GTIN in scan.")
+                }
+                return@ScanDialogNativeEditText
+            }
+            val matched = ui.allPoLines
+                .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
+                .map { it.LineNumber }
+                .toSet()
+
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    if (matched.isEmpty())
+                        "GTIN $gt scanned. No PO line GTIN matched."
+                    else
+                        "GTIN $gt verified for lines: ${
+                            matched.sorted().joinToString(", ")
+                        }"
+                )
+            }
+        }
+    )
 }
 
 /* ===================== Sectioned Line Card ===================== */
@@ -672,7 +678,8 @@ private fun SectionedLineCard(
                                 value = sec.qty.takeIf { it > 0 }?.toString().orEmpty(),
                                 onChange = {
                                     val quantity =
-                                        if (it.all { ch -> ch.isDigit() }) it.toIntOrNull() ?: 0 else 0
+                                        if (it.all { ch -> ch.isDigit() }) it.toIntOrNull()
+                                            ?: 0 else 0
                                     onUpdateSection(
                                         ln.LineNumber,
                                         sec.section,
@@ -1090,4 +1097,89 @@ private fun guessInitialMillis(input: String): Long? {
             .toInstant()
             .toEpochMilli()
     }.getOrNull()
+}
+
+@SuppressLint("ServiceCast")
+@Composable
+fun ScanDialogNativeEditText(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    onVerified: (String) -> Unit
+) {
+    if (!visible) return
+    var scannedState = remember { "" }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(20.dp)
+                .wrapContentWidth()
+                .wrapContentHeight()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("Please scan the Data Matrix to get the value")
+                Spacer(Modifier.height(12.dp))
+
+                AndroidView(
+                    factory = { context ->
+                        val edit = EditText(context).apply {
+                            inputType = InputType.TYPE_CLASS_TEXT
+                            isSingleLine = true
+                            isFocusable = true
+                            isFocusableInTouchMode = true
+                            imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI
+                            setText(scannedState)
+                            setSelection(text.length)
+                            addTextChangedListener(object : TextWatcher {
+                                override fun onTextChanged(
+                                    s: CharSequence?, start: Int, before: Int, count: Int
+                                ) {
+                                    val new = s?.toString() ?: ""
+                                    if (scannedState != new) scannedState = new
+                                }
+
+                                override fun beforeTextChanged(
+                                    s: CharSequence?,
+                                    start: Int,
+                                    count: Int,
+                                    after: Int
+                                ) {
+                                }
+
+                                override fun afterTextChanged(s: Editable?) {}
+                            })
+                            post {
+                                requestFocus()
+                                (context.getSystemService(Context.INPUT_METHOD_SERVICE)
+                                        as? InputMethodManager)
+                                    ?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+                            }
+                        }
+                        edit
+                    },
+                    update = { view ->
+                        if (view.text.toString() != scannedState) {
+                            view.setText(scannedState)
+                            view.setSelection(view.text.length)
+                        }
+                        view.post { view.requestFocus() }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Button(onClick = {
+                    onVerified(scannedState)
+                    onDismiss()
+                }) {
+                    Text("OK")
+                }
+            }
+        }
+    }
 }

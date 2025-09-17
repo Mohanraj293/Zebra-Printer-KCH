@@ -16,11 +16,10 @@ import com.lazymohan.zebraprinter.exception.PrinterLanguageException
 import com.lazymohan.zebraprinter.exception.PrinterUnknownException
 import com.lazymohan.zebraprinter.model.DiscoveredPrinterInfo
 import com.lazymohan.zebraprinter.model.PrintContentModel
-import com.zebra.sdk.comm.BluetoothConnection
+import com.zebra.sdk.btleComm.BluetoothLeConnection
 import com.zebra.sdk.comm.Connection
 import com.zebra.sdk.comm.ConnectionException
 import com.zebra.sdk.printer.PrinterStatus
-import com.zebra.sdk.printer.SGD
 import com.zebra.sdk.printer.ZebraPrinter
 import com.zebra.sdk.printer.ZebraPrinterFactory
 import com.zebra.sdk.printer.ZebraPrinterLanguageUnknownException
@@ -44,22 +43,32 @@ class PrinterImpl(
 
 
     override fun connectAndPrint(macAddress: String, itemData: PrintContentModel, noOfCopies: Int) {
+        var connection: Connection? = null
         try {
-            connection = BluetoothConnection(macAddress).apply { open() }
-            if (connection?.isConnected == true) {
-                zebraPrinter = ZebraPrinterFactory.getInstance(connection)
-                printLabel(itemData = itemData, noOfCopies = noOfCopies)
+            // Open BLE connection
+            connection = BluetoothLeConnection(macAddress, context).apply { open() }
+
+            if (connection.isConnected) {
+                // Build and send label ZPL
+                val zpl = createLabelZPL(itemData, noOfCopies)
+                connection.write(zpl)
+            } else {
+                throw PrinterConnectionException(R.string.select_desired_device)
             }
         } catch (e: Exception) {
             Firebase.crashlytics.recordException(e)
-            val exception = when (e) {
+            throw when (e) {
                 is ConnectionException -> PrinterConnectionException(R.string.select_desired_device)
                 is ZebraPrinterLanguageUnknownException -> PrinterLanguageException()
                 else -> PrinterUnknownException()
             }
-            throw exception
+
         } finally {
-            disconnect()
+            try {
+                connection?.close()
+            } catch (e: Exception) {
+                Firebase.crashlytics.recordException(e)
+            }
         }
     }
 
@@ -119,8 +128,6 @@ class PrinterImpl(
     }
 
     private fun createLabelZPL(contentModel: PrintContentModel, copies: Int): ByteArray {
-        SGD.SET("device.language", "zpl", connection)
-
         // Ensure GTIN is 14 digits
         val gtin14 = contentModel.gtinNum.padStart(14, '0')
 
