@@ -314,16 +314,18 @@ class ToViewModel @Inject constructor(
                 onSuccess = { r ->
                     val isSuccess = r.ReturnStatus.equals("SUCCESS", true)
                     val headerIface = r.HeaderInterfaceId
-                    val ifaceTxn = r.lines?.firstOrNull()?.InterfaceTransactionId
-                    val inlineErrors = mutableListOf<String>()
+                    val firstTxn = r.lines?.firstOrNull()?.InterfaceTransactionId
 
+                    val inlineErrors = mutableListOf<String>()
                     if (!isSuccess) inlineErrors += "ReturnStatus: ${r.ReturnStatus}"
 
-                    if (!headerIface.isNullOrBlank() && !ifaceTxn.isNullOrBlank()) {
-                        repo.fetchProcessingErrors(headerIface, ifaceTxn).onSuccess { fetched ->
-                            inlineErrors += fetched.mapNotNull { it.ErrorMessage?.trim() }.filter { it.isNotBlank() }
+                    if (!headerIface.isNullOrBlank() && !firstTxn.isNullOrBlank()) {
+                        repo.fetchProcessingErrors(headerIface, firstTxn).onSuccess { fetched ->
+                            inlineErrors += fetched.mapIndexedNotNull { idx, e ->
+                                e.ErrorMessage?.takeIf { it.isNotBlank() }?.let { "[ Error ${idx + 1}] $it" }
+                            }
                         }.onFailure { pe ->
-                            inlineErrors += "ProcessingErrors fetch failed: ${pe.message}"
+                            inlineErrors += " ProcessingErrors fetch failed: ${pe.message}"
                         }
                     } else {
                         r.Message?.let { inlineErrors += it }
@@ -344,7 +346,11 @@ class ToViewModel @Inject constructor(
                     )
                 },
                 onFailure = { e ->
-                    val part = ToProgressPart(status = PartStatus.FAILED, message = e.message, exception = e.toString())
+                    val part = ToProgressPart(
+                        status = PartStatus.FAILED,
+                        message = e.message,
+                        exception = e.toString()
+                    )
                     _ui.value.copy(
                         submitting = false,
                         submitError = e.message ?: "Submit failed",
