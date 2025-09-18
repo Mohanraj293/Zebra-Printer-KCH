@@ -433,8 +433,7 @@ fun PoAndReceiveCard(
         visible = dialogVisible,
         onDismiss = { dialogVisible = false },
         onVerified = { matched ->
-            val raw = scannedState.value
-            val gt = extractGtinFromRaw(raw)
+            val gt = extractGtinFromRaw(matched)
             if (gt == null) {
                 scope.launch {
                     snackbarHostState.showSnackbar("Couldn't find a valid GTIN in scan.")
@@ -445,7 +444,7 @@ fun PoAndReceiveCard(
                 .filter { it.GTIN?.replace(Regex("\\s+"), "") == gt }
                 .map { it.LineNumber }
                 .toSet()
-
+            verifiedLines = verifiedLines + matched
             scope.launch {
                 snackbarHostState.showSnackbar(
                     if (matched.isEmpty())

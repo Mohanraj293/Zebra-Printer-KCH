@@ -141,13 +141,13 @@ class PrinterImpl(
         ^XA
         ^CF0,20
         ^PW400
-        ^LL300
-        ^FO20,50^FB350,1,0,L^FDItem Number: ${contentModel.itemNum}^FS
-        ^FO20,75^FB350,1,0,L^FDLot/Batch No:${contentModel.batchNo}^FS
-        ^FO20,100^FB370,1,0,L^FDExpiry Date:${contentModel.labelExpiryDate}^FS
+        ^LL300  
+        ^FO0,50^FB400,1,0,C,0^FDItem Number: ${contentModel.itemNum}^FS
+        ^FO0,75^FB400,1,0,C,0^FDLot/Batch No: ${contentModel.batchNo}^FS
+        ^FO0,100^FB400,1,0,C,0^FDExpiry Date:${contentModel.labelExpiryDate}^FS
         ^FO120,120
         ^BY3,2
-        ^BQN,2,5
+        ^BQN,2,4
         ^FDMA$gs1Data^FS
         ^PQ$copies
         ^XZ
