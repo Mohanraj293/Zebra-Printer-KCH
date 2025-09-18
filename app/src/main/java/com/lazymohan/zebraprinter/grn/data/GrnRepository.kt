@@ -98,9 +98,14 @@ class GrnRepository(private val api: FusionApi) {
     // STEP 2: Shipments per item (for lot, locator, shipped qty)
     suspend fun getShipmentLinesForOrderAndItem(
         toNumber: String,
-        item: String
+        item: String,
+        requestedQuantity: Double?
     ): Result<List<ShipmentLine>> = runCatching {
-        api.getShipmentLines(q = "Order=$toNumber;Item=\"$item\"")
+        val q = buildString {
+            append("Order=$toNumber;Item=\"$item\"")
+            requestedQuantity?.let { append(";RequestedQuantity=$it") }
+        }
+        api.getShipmentLines(q = q)
             .list()
             .filter { it.shipmentId != null } // only shipments that can be received
     }

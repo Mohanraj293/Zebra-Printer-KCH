@@ -79,6 +79,8 @@ class ToViewModel @Inject constructor(
 
     private val _ui = MutableStateFlow(ToUiState())
     val ui: StateFlow<ToUiState> = _ui
+    private val removedLineCache = mutableMapOf<Long, ToLineInput>()
+    private val removedSectionCache = mutableMapOf<Pair<Long, Int>, ToLineSection>()
 
     fun onEnterToNumber(value: String) {
         _ui.value = _ui.value.copy(toNumber = value.trim(), error = null)
@@ -128,15 +130,21 @@ class ToViewModel @Inject constructor(
     ): List<ToLineInput> = coroutineScope {
         lines.map { line ->
             async {
-                val shipments = repo.getShipmentLinesForOrderAndItem(toNumber, line.itemNumber)
+                val shipments = repo
+                    .getShipmentLinesForOrderAndItem(
+                        toNumber = toNumber,
+                        item = line.itemNumber,
+                        requestedQuantity = line.quantity
+                    )
                     .getOrElse { emptyList() }
                     .filter { it.shipmentId != null && !it.lotNumber.isNullOrBlank() }
 
                 val baseSections =
                     if (shipments.isEmpty()) listOf(ToLineSection(1, 0, lot = ""))
-                    else shipments.mapIndexed { idx, s ->
+                    else {
+                        val s = shipments.first()
                         val defQty = (s.shippedQuantity ?: 0.0).toInt()
-                        ToLineSection(section = idx + 1, qty = defQty, lot = s.lotNumber.orEmpty(), expiry = null)
+                        listOf(ToLineSection(section = 1, qty = defQty, lot = s.lotNumber.orEmpty(), expiry = null))
                     }
 
                 val withExpiry = baseSections.map { sec ->
@@ -176,29 +184,45 @@ class ToViewModel @Inject constructor(
     fun addLine(lineId: Long) {
         val inputs = _ui.value.lineInputs
         if (inputs.any { it.lineId == lineId }) return
-        _ui.value = _ui.value.copy(lineInputs = inputs + ToLineInput(lineId))
+
+        val cached = removedLineCache.remove(lineId)
+        _ui.value = _ui.value.copy(lineInputs = inputs + (cached ?: ToLineInput(lineId)))
     }
+
     fun removeLine(lineId: Long) {
+        _ui.value.lineInputs.find { it.lineId == lineId }?.let { li ->
+            removedLineCache[lineId] = li
+            li.sections.forEach { sec -> removedSectionCache[lineId to sec.section] = sec }
+        }
         _ui.value = _ui.value.copy(lineInputs = _ui.value.lineInputs.filterNot { it.lineId == lineId })
     }
+
     fun addSection(lineId: Long) {
         val li = _ui.value.lineInputs.find { it.lineId == lineId } ?: return
         val next = (li.sections.maxOfOrNull { it.section } ?: 0) + 1
-        val upd = li.copy(sections = li.sections + ToLineSection(next, 0, "", null))
+        val restored = removedSectionCache.remove(lineId to next)
+            ?: removedLineCache[lineId]?.sections?.firstOrNull { it.section == next }
+        val upd = li.copy(sections = li.sections + (restored ?: ToLineSection(next, 0, "", null)))
         replaceInput(upd)
     }
+
     fun removeSection(lineId: Long, section: Int) {
         val li = _ui.value.lineInputs.find { it.lineId == lineId } ?: return
+        li.sections.firstOrNull { it.section == section }?.let { removed ->
+            removedSectionCache[lineId to section] = removed
+        }
         val upd = li.copy(
             sections = li.sections.filterNot { it.section == section }.ifEmpty { listOf(ToLineSection(1, 0, "", null)) }
         )
         replaceInput(upd)
     }
+
     fun updateSectionQty(lineId: Long, section: Int, qty: Int) {
         val li = _ui.value.lineInputs.find { it.lineId == lineId } ?: return
         val upd = li.copy(sections = li.sections.map { if (it.section == section) it.copy(qty = qty.coerceAtLeast(0)) else it })
         replaceInput(upd)
     }
+
     fun updateSectionLot(lineId: Long, section: Int, lot: String) {
         val li = _ui.value.lineInputs.find { it.lineId == lineId } ?: return
         replaceInput(li.copy(sections = li.sections.map { if (it.section == section) it.copy(lot = lot, expiry = null) else it }))
@@ -210,8 +234,10 @@ class ToViewModel @Inject constructor(
             }
         }
     }
+
     private fun replaceInput(newLi: ToLineInput) {
         _ui.value = _ui.value.copy(lineInputs = _ui.value.lineInputs.map { if (it.lineId == newLi.lineId) newLi else it })
+        if (removedLineCache.containsKey(newLi.lineId)) removedLineCache[newLi.lineId] = newLi
     }
 
     /* ----- review & submit ----- */
@@ -347,21 +373,26 @@ class ToViewModel @Inject constructor(
         val fromOrg: String = allLines.asSequence().mapNotNull { it.sourceOrganizationCode }.firstOrNull().orEmpty()
         val toOrg: String = allLines.asSequence().mapNotNull { it.destinationOrganizationCode }.firstOrNull().orEmpty()
 
-        val shipmentsByItem: Map<String, List<ShipmentLine>> =
-            selected.map { it.line.itemNumber }.distinct()
-                .associateWith { item ->
-                    repo.getShipmentLinesForOrderAndItem(toNumber, item).getOrElse { emptyList() }
-                }
+        val shipmentsByLineId: Map<Long?, List<ShipmentLine>> = selected
+            .map { it.line }
+            .distinctBy { it.transferOrderLineId }
+            .associate { line ->
+                val list = repo.getShipmentLinesForOrderAndItem(
+                    toNumber = toNumber,
+                    item = line.itemNumber,
+                    requestedQuantity = line.quantity
+                ).getOrElse { emptyList() }
+                line.transferOrderLineId to list
+            }
 
         val receiptLines: List<ReceiptLineTo> = selected.flatMap { sel ->
+            val itemShipments = shipmentsByLineId[sel.line.transferOrderLineId].orEmpty()
             sel.sections.map { sec ->
-                val itemShipments = shipmentsByItem[sel.line.itemNumber].orEmpty()
                 val matchedShipment = itemShipments.firstOrNull { it.lotNumber.equals(sec.lot, ignoreCase = true) }
                     ?: itemShipments.firstOrNull()
-
                 ReceiptLineTo(
-                    documentNumber = sel.line.intransitShipmentNumber,            // STEP-1 IntransitShipmentNumber
-                    documentLineNumber = sel.line.shipmentLineNumber ?: 1,        // STEP-1 ShipmentLineNumber
+                    documentNumber = sel.line.intransitShipmentNumber,            // IntransitShipmentNumber
+                    documentLineNumber = sel.line.shipmentLineNumber ?: 1,        // ShipmentLineNumber
                     itemNumber = sel.line.itemNumber,
                     organizationCode = sel.line.destinationOrganizationCode ?: toOrg,
                     quantity = sec.qty,
