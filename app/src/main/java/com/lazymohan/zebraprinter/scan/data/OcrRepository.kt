@@ -6,7 +6,6 @@ import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
 import com.google.gson.Gson
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.lazymohan.zebraprinter.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -102,37 +101,15 @@ class OcrRepository @Inject constructor(
         context.assets.open(assetName).use { it.readBytes().toString(Charset.defaultCharset()) }
     } catch (_: Exception) { null }
 
-    /**
-     * Robust check that works regardless of model field names or minification:
-     * - Converts the response object to JSON
-     * - Looks for "extractedText" (camelCase) or "extracted_text" (snake_case)
-     * - Returns true only when it's a non-null JSON object and (optionally) non-empty
-     */
-    private fun hasExtractedText(c: OcrContentResponse): Boolean {
+    /** Robust status read via JSON tree so it works regardless of field mapping/minify. */
+    private fun readStatus(obj: OcrContentResponse): String {
         return try {
-            val tree: JsonObject = gson.toJsonTree(c).asJsonObject
-            val ext: JsonElement? = when {
-                tree.has("extractedText") -> tree["extractedText"]
-                tree.has("extracted_text") -> tree["extracted_text"]
-                else -> null
+            val tree: JsonObject = gson.toJsonTree(obj).asJsonObject
+            when {
+                tree.has("status") && !tree["status"].isJsonNull -> tree["status"].asString
+                else -> ""
             }
-            if (ext == null || ext.isJsonNull) {
-                logD("OCR: decision -> extracted_text is null")
-                false
-            } else if (ext.isJsonObject) {
-                val size = ext.asJsonObject.entrySet().size
-                logD("OCR: decision -> extracted_text is OBJECT with $size keys")
-                // treat any object (even empty) as ready; change to (size > 0) if you require keys
-                true
-            } else {
-                // if server ever returns a non-object, still consider present
-                logD("OCR: decision -> extracted_text present (non-object)")
-                true
-            }
-        } catch (t: Throwable) {
-            logD("OCR: decision check failed: ${t.message}")
-            false
-        }
+        } catch (_: Throwable) { "" }
     }
 
     suspend fun uploadAndPoll(
@@ -152,9 +129,8 @@ class OcrRepository @Inject constructor(
             else FAKE_JSON
 
             return@withContext try {
-                val payload = parseFake(json)
                 logD("OCR: FAKE success")
-                OcrResult.Success(payload)
+                OcrResult.Success(parseFake(json))
             } catch (e: Exception) {
                 logD("OCR: FAKE parse error ${e.message}")
                 OcrResult.ExceptionError("Fake JSON parse error: ${e.message}")
@@ -191,33 +167,34 @@ class OcrRepository @Inject constructor(
                 body.checkStatusUrl.startsWith("http") -> body.checkStatusUrl
                 else -> "$base${body.checkStatusUrl}"
             }
+            logD("OCR: checkUrl=$checkUrl")
 
-            // Poll until extracted_text/ extractedText is available (or timeout)
+            // Poll until status == "completed" (or timeout)
             repeat(maxAttempts) { attempt ->
                 delay(intervalMs)
                 val resp = api.getContent(checkUrl, apiKey)
                 if (!resp.isSuccessful) {
-                    logD("OCR: poll #${attempt + 1} HTTP ${resp.code()} (keep waiting)")
+                    logD("OCR: poll #${attempt + 1} HTTP ${resp.code()} (continue)")
                     return@repeat
                 }
 
                 val ok = resp.body()
                 if (ok == null) {
-                    logD("OCR: poll #${attempt + 1} empty body (keep waiting)")
+                    logD("OCR: poll #${attempt + 1} empty body (continue)")
                     return@repeat
                 }
 
-                // Decision log happens inside hasExtractedText()
-                if (hasExtractedText(ok)) {
-                    logD("OCR: extracted text ready -> STOP")
+                val status = readStatus(ok).lowercase()
+                logD("OCR: poll #${attempt + 1} status=$status")
+
+                if (status == "completed") {
+                    logD("OCR: completed -> STOP")
                     return@withContext OcrResult.Success(ok)
-                } else {
-                    logD("OCR: poll #${attempt + 1} no extracted_text yet (continue)")
                 }
             }
 
-            logD("OCR: timeout waiting for extracted text")
-            OcrResult.ExceptionError("Timed out waiting for extracted text")
+            logD("OCR: timeout waiting for status=completed")
+            OcrResult.ExceptionError("Timed out waiting for status=completed")
         } catch (e: Exception) {
             logD("OCR: exception ${e.message}")
             Firebase.crashlytics.recordException(e)
