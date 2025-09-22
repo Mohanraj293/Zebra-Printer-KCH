@@ -407,7 +407,7 @@ class ToViewModel @Inject constructor(
                     transferOrderHeaderId = sel.line.transferOrderHeaderId,
                     transferOrderLineId = sel.line.transferOrderLineId,
 //                    Prod env locator is not required
-//                    locator = "0.0.0",
+                    locator = "0.0.0",
                     lotItemLots = sec.lot.ifBlank { null }?.let { lot ->
                         listOf(
                             LotEntryTo(

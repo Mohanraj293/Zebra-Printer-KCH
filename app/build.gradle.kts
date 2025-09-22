@@ -22,7 +22,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // === BuildConfig constants used by Fusion client / GRN flow ===
-        buildConfigField("String", "FUSION_BASE_URL", "\"https://effb-test.fa.em3.oraclecloud.com/\"")
+        buildConfigField("String", "FUSION_BASE_URL", "\"https://effb.fa.em3.oraclecloud.com/\"")
 
         buildConfigField("String", "EMPLOYEE_ID", "\"300000195955986\"")
         buildConfigField("String", "ORGANIZATION_CODE", "\"KDH\"")
@@ -31,12 +31,14 @@ android {
 
         buildConfigField("boolean", "OCR_FAKE", "false")
         buildConfigField("String", "OCR_FAKE_ASSET", "\"\"")
+        buildConfigField("String", "OCR_BASE_URL", "\"https://kch-ocr.kch.ae\"")
+        buildConfigField("String", "OCR_API_KEY",  "\"j9kMOoU9oXRNot6lC8VocBFRmSVuK8sp\"")
 
         // === OAuth / IDCS config ===
         buildConfigField(
             "String",
             "IDCS_BASE_URL",
-            "\"https://idcs-7925a9f1719b425ca9dfb3c81b384f63.identity.oraclecloud.com\""
+            "\"https://idcs-423ef89ec39e47c0a4c84b625aeb54a3.identity.oraclecloud.com\""
         )
 
         // OAuth endpoints (appended to IDCS_BASE_URL)
@@ -44,12 +46,12 @@ android {
         buildConfigField("String", "TOKEN_ENDPOINT", "\"/oauth2/v1/token\"")
 
         // Client settings
-        buildConfigField("String", "OAUTH_CLIENT_ID", "\"71a511d8fd9c4982836311524928e982\"")
-        buildConfigField("String", "OAUTH_CLIENT_SECRET", "\"idcscs-8ec1b40a-72d2-4b01-a149-0ce75011a8fd\"")
+        buildConfigField("String", "OAUTH_CLIENT_ID", "\"583b5be8ee134fce81622000c8de71ea\"")
+        buildConfigField("String", "OAUTH_CLIENT_SECRET", "\"idcscs-d6fcd985-8cca-4ea8-a41c-c9bb3ac538d5\"")
         buildConfigField(
             "String",
             "OAUTH_SCOPE",
-            "\"urn:opc:resource:fa:instanceid=564123563urn:opc:resource:consumer::all\""
+            "\"urn:opc:resource:fa:instanceid=1456592urn:opc:resource:consumer::all\""
         )
 
         // Redirect configuration — scheme is shared with Manifest placeholder
